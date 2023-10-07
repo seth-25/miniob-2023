@@ -29,7 +29,6 @@ public:
 
   RC create(const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta);
   RC open(const char *file_name, const IndexMeta &index_meta, const FieldMeta &field_meta);
-  RC delete_file() override;
   RC close();
 
   RC insert_entry(const char *record, const RID *rid) override;
@@ -46,7 +45,6 @@ public:
 private:
   bool inited_ = false;
   BplusTreeHandler index_handler_;
-  std::string index_path_;
 };
 
 /**

@@ -129,16 +129,19 @@ RC Table::create(int32_t table_id,
 RC Table::drop(const char *meta_path,
                const char *name)
 {
-  LOG_INFO("Begin to create table %s:%s", base_dir_.c_str(), name);
+  LOG_INFO("Begin to drop table %s:%s", base_dir_.c_str(), name);
 
   RC rc = RC::SUCCESS;
   // 删除索引
   for (Index* index: indexes_) {
-    rc = index->delete_file(); // 删除索引文件
-    if (rc != RC::SUCCESS) {
+    string index_path = table_index_file(base_dir_.c_str(), name, index->index_meta().name());
+    delete index;
+    int remove_ret = remove(index_path.c_str());
+    if (remove_ret != 0) {
+      rc = RC::IOERR_DELETE;
+      LOG_ERROR("Failed to delete table index file. file name=%s", index_path.c_str());
       return rc;
     }
-    delete index;
   }
   indexes_.clear();
 
