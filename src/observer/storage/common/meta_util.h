@@ -20,6 +20,14 @@ static constexpr const char *TABLE_META_FILE_PATTERN = ".*\\.table$";
 static constexpr const char *TABLE_DATA_SUFFIX = ".data";
 static constexpr const char *TABLE_INDEX_SUFFIX = ".index";
 
+/**
+ * @details 生成表元数据文件路径：miniob/db/sys/表名.table
+ * @param base_dir 当前数据库放在哪个目录下，默认miniob/db/sys/
+ * @param table_name 表名
+ */
 std::string table_meta_file(const char *base_dir, const char *table_name);
+/**
+ * @details 生成表record数据文件路径：miniob/db/sys/表名.data
+ */
 std::string table_data_file(const char *base_dir, const char *table_name);
 std::string table_index_file(const char *base_dir, const char *table_name, const char *index_name);

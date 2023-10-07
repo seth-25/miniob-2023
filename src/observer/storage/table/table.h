@@ -41,18 +41,25 @@ public:
 
   /**
    * 创建一个表
-   * @param path 元数据保存的文件(完整路径)
+   * @param meta_path 元数据保存的文件(完整路径)
    * @param name 表名
    * @param base_dir 表数据存放的路径
    * @param attribute_count 字段个数
    * @param attributes 字段
    */
   RC create(int32_t table_id, 
-            const char *path, 
+            const char *meta_path,
             const char *name, 
             const char *base_dir, 
             int attribute_count, 
             const AttrInfoSqlNode attributes[]);
+  /**
+   * 删除一个表
+   * @param meta_path 元数据保存的文件(完整路径)
+   * @param name 表名
+   */
+  RC drop(const char *meta_path,
+          const char *name);
 
   /**
    * 打开一个表

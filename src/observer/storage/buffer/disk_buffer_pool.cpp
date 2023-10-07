@@ -678,6 +678,17 @@ RC BufferPoolManager::create_file(const char *file_name)
   return RC::SUCCESS;
 }
 
+RC BufferPoolManager::delete_file(const char *file_name) {
+  RC rc = close_file(file_name);
+  int remove_ret = remove(file_name);
+  if (remove_ret != 0) {
+    rc = RC::IOERR_DELETE;
+    LOG_ERROR("Failed to delete table data file. file name=%s", file_name);
+    return rc;
+  }
+  return rc;
+}
+
 RC BufferPoolManager::open_file(const char *_file_name, DiskBufferPool *&_bp)
 {
   std::string file_name(_file_name);

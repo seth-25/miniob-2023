@@ -43,6 +43,7 @@ RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, co
   }
 
   inited_ = true;
+  index_path_ = file_name;
   LOG_INFO(
       "Successfully create index, file_name:%s, index:%s, field:%s", file_name, index_meta.name(), index_meta.field());
   return RC::SUCCESS;
@@ -74,6 +75,20 @@ RC BplusTreeIndex::open(const char *file_name, const IndexMeta &index_meta, cons
   LOG_INFO(
       "Successfully open index, file_name:%s, index:%s, field:%s", file_name, index_meta.name(), index_meta.field());
   return RC::SUCCESS;
+}
+
+RC BplusTreeIndex::delete_file()
+{
+  close();
+  BufferPoolManager &bpm = BufferPoolManager::instance();
+  RC rc = bpm.delete_file(index_path_.c_str());
+  if (rc == RC::SUCCESS) {
+    LOG_INFO("Successfully drop index.");
+  }
+  else {
+    LOG_ERROR("Failed to drop index.");
+  }
+  return rc;
 }
 
 RC BplusTreeIndex::close()

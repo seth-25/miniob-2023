@@ -31,12 +31,12 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 {
   RC rc = RC::SUCCESS;
   
-  SqlResult *sql_result = sql_event->session_event()->sql_result();
+  SqlResult *sql_result = sql_event->session_event()->sql_result(); // 客户端请求
   const std::string &sql = sql_event->sql();
 
   ParsedSqlResult parsed_sql_result;
 
-  parse(sql.c_str(), &parsed_sql_result);
+  parse(sql.c_str(), &parsed_sql_result); // 解析sql，得到解析后的结果parsed_sql_result
   if (parsed_sql_result.sql_nodes().empty()) {
     sql_result->set_return_code(RC::SUCCESS);
     sql_result->set_state_string("");

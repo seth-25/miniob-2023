@@ -39,6 +39,7 @@ RC ExecuteStage::handle_request(SQLStageEvent *sql_event)
     return handle_request_with_physical_operator(sql_event);
   }
 
+  // 不会生成执行计划的语句，直接执行（如DDL）
   SessionEvent *session_event = sql_event->session_event();
 
   Stmt *stmt = sql_event->stmt();

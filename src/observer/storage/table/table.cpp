@@ -51,7 +51,7 @@ Table::~Table()
 }
 
 RC Table::create(int32_t table_id, 
-                 const char *path, 
+                 const char *meta_path,
                  const char *name, 
                  const char *base_dir, 
                  int attribute_count, 
@@ -77,13 +77,13 @@ RC Table::create(int32_t table_id,
 
   // 使用 table_name.table记录一个表的元数据
   // 判断表文件是否已经存在
-  int fd = ::open(path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+  int fd = ::open(meta_path, O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
   if (fd < 0) {
     if (EEXIST == errno) {
-      LOG_ERROR("Failed to create table file, it has been created. %s, EEXIST, %s", path, strerror(errno));
+      LOG_ERROR("Failed to create table file, it has been created. %s, EEXIST, %s", meta_path, strerror(errno));
       return RC::SCHEMA_TABLE_EXIST;
     }
-    LOG_ERROR("Create table file failed. filename=%s, errmsg=%d:%s", path, errno, strerror(errno));
+    LOG_ERROR("Create table file failed. filename=%s, errmsg=%d:%s", meta_path, errno, strerror(errno));
     return RC::IOERR_OPEN;
   }
 
@@ -96,9 +96,9 @@ RC Table::create(int32_t table_id,
   }
 
   std::fstream fs;
-  fs.open(path, std::ios_base::out | std::ios_base::binary);
+  fs.open(meta_path, std::ios_base::out | std::ios_base::binary);  // 元数据文件
   if (!fs.is_open()) {
-    LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", path, strerror(errno));
+    LOG_ERROR("Failed to open file for write. file name=%s, errmsg=%s", meta_path, strerror(errno));
     return RC::IOERR_OPEN;
   }
 
@@ -108,7 +108,7 @@ RC Table::create(int32_t table_id,
 
   std::string data_file = table_data_file(base_dir, name);
   BufferPoolManager &bpm = BufferPoolManager::instance();
-  rc = bpm.create_file(data_file.c_str());
+  rc = bpm.create_file(data_file.c_str());  // 创建数据文件，存放行数据
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to create disk buffer pool of data file. file name=%s", data_file.c_str());
     return rc;
@@ -123,6 +123,51 @@ RC Table::create(int32_t table_id,
 
   base_dir_ = base_dir;
   LOG_INFO("Successfully create table %s:%s", base_dir, name);
+  return rc;
+}
+
+RC Table::drop(const char *meta_path,
+               const char *name)
+{
+  LOG_INFO("Begin to create table %s:%s", base_dir_.c_str(), name);
+
+  RC rc = RC::SUCCESS;
+  // 删除索引
+  for (Index* index: indexes_) {
+    rc = index->delete_file(); // 删除索引文件
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+    delete index;
+  }
+  indexes_.clear();
+
+  // 删除record_handler(record manager)
+  assert(nullptr != record_handler_);
+  record_handler_->close();
+  delete record_handler_;
+  record_handler_ = nullptr;
+
+  // 删除buffer pool，和record文件
+  assert(nullptr != data_buffer_pool_);
+  std::string data_file = table_data_file(base_dir_.c_str(), name);
+  BufferPoolManager &bpm = BufferPoolManager::instance();
+  rc = bpm.delete_file(data_file.c_str());
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to delete disk buffer pool of data file. file name=%s", data_file.c_str());
+    return rc;
+  }
+  data_buffer_pool_ = nullptr;
+
+  // 删除table meta file
+  int remove_ret = remove(meta_path);
+  if (remove_ret != 0) {
+    rc = RC::IOERR_DELETE;
+    LOG_ERROR("Failed to delete table meta file. file name=%s", data_file.c_str());
+    return rc;
+  }
+
+  LOG_INFO("Successfully drop table %s:%s", base_dir_.c_str(), name);
   return rc;
 }
 

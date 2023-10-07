@@ -40,12 +40,14 @@ public:
    * @brief 初始化一个数据库实例
    * @details 从指定的目录下加载指定名称的数据库。这里就会加载dbpath目录下的数据。
    * @param name   数据库名称
-   * @param dbpath 当前数据库放在哪个目录下
+   * @param dbpath 当前数据库放在哪个目录下，默认miniob/db/sys/
    * @note 数据库不是放在dbpath/name下，是直接使用dbpath目录
    */
   RC init(const char *name, const char *dbpath);
 
   RC create_table(const char *table_name, int attribute_count, const AttrInfoSqlNode *attributes);
+
+  RC drop_table(const char *table_name);
 
   Table *find_table(const char *table_name) const;
   Table *find_table(int32_t table_id) const;
@@ -61,10 +63,12 @@ public:
   CLogManager *clog_manager();
 
 private:
+  /// miniob启动时会打开所有的table，放在opened_tables_里
   RC open_all_tables();
 
 private:
   std::string name_;
+  /// path默认miniob/db/sys/
   std::string path_;
   std::unordered_map<std::string, Table *> opened_tables_;
   std::unique_ptr<CLogManager> clog_manager_;

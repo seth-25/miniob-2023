@@ -53,6 +53,7 @@ See the Mulan PSL v2 for more details. */
   DEFINE_RC(IOERR_ACCESS)                   \
   DEFINE_RC(IOERR_OPEN)                     \
   DEFINE_RC(IOERR_CLOSE)                    \
+  DEFINE_RC(IOERR_DELETE)                   \
   DEFINE_RC(IOERR_SEEK)                     \
   DEFINE_RC(IOERR_TOO_LONG)                 \
   DEFINE_RC(IOERR_SYNC)                     \

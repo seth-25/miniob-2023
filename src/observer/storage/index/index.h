@@ -45,6 +45,7 @@ public:
     return index_meta_;
   }
 
+  virtual RC delete_file() = 0;
   /**
    * @brief 插入一条数据
    * 
