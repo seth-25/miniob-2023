@@ -123,6 +123,9 @@ void SessionStage::handle_request(StageEvent *event)
  * select、delete等DML语句，会产生一些执行计划，如果感觉繁琐，可以跳过optimize直接看
  * execute_stage中的执行，通过explain语句看需要哪些operator，然后找对应的operator来
  * 调试或者看代码执行过程即可。
+ *
+ * 注意handle_sql的返回值没有用上，这意味着各阶段的handle_request返回值是无效的！！！
+ * 需要手动设置session_event->sql_result()->set_return_code
  */
 RC SessionStage::handle_sql(SQLStageEvent *sql_event)
 {

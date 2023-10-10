@@ -21,6 +21,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table_meta.h"
 #include "common/log/log.h"
 #include "common/lang/string.h"
+#include "common/lang/typecast.h"
 #include "storage/buffer/disk_buffer_pool.h"
 #include "storage/record/record_manager.h"
 #include "storage/common/condition_filter.h"
@@ -316,6 +317,27 @@ const TableMeta &Table::table_meta() const
   return table_meta_;
 }
 
+RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *record_data)
+{
+
+  if (field->type() != value.attr_type()) {
+    void *cast_data = common::type_cast_to[field->type()][value.attr_type()](value.data());
+    // todo
+  }
+
+  size_t copy_len = field->len();
+  if (field->type() == CHARS) {
+    const size_t data_len = value.length();
+    if (copy_len > data_len) {
+      copy_len = data_len + 1;
+    }
+  }
+  memcpy(record_data + field->offset(), value.data(), copy_len);
+
+
+  return RC::SUCCESS;
+}
+
 RC Table::make_record(int value_num, const Value *values, Record &record)
 {
   // 检查字段类型是否一致
@@ -339,22 +361,60 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   int record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
 
+  RC rc = RC::SUCCESS;
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
-    size_t copy_len = field->len();
-    if (field->type() == CHARS) {
-      const size_t data_len = value.length();
-      if (copy_len > data_len) {
-        copy_len = data_len + 1;
-      }
+    rc = value_cast_record(value, field, record_data);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Value cast record error.");
+      return rc;
     }
-    memcpy(record_data + field->offset(), value.data(), copy_len);
   }
 
   record.set_data_owner(record_data, record_size);
   return RC::SUCCESS;
 }
+
+//RC Table::make_record(int value_num, const Value *values, Record &record)
+//{
+//  // 检查字段类型是否一致
+//  if (value_num + table_meta_.sys_field_num() != table_meta_.field_num()) {
+//    LOG_WARN("Input values don't match the table's schema, table name:%s", table_meta_.name());
+//    return RC::SCHEMA_FIELD_MISSING;
+//  }
+//
+//  const int normal_field_start_index = table_meta_.sys_field_num();
+//  for (int i = 0; i < value_num; i++) {
+//    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+//    const Value &value = values[i];
+//    if (field->type() != value.attr_type()) {
+//      LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
+//                table_meta_.name(), field->name(), field->type(), value.attr_type());
+//      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+//    }
+//  }
+//
+//  // 复制所有字段的值
+//  int record_size = table_meta_.record_size();
+//  char *record_data = (char *)malloc(record_size);
+//
+//  for (int i = 0; i < value_num; i++) {
+//    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+//    const Value &value = values[i];
+//    size_t copy_len = field->len();
+//    if (field->type() == CHARS) {
+//      const size_t data_len = value.length();
+//      if (copy_len > data_len) {
+//        copy_len = data_len + 1;
+//      }
+//    }
+//    memcpy(record_data + field->offset(), value.data(), copy_len);
+//  }
+//
+//  record.set_data_owner(record_data, record_size);
+//  return RC::SUCCESS;
+//}
 
 RC Table::init_record_handler(const char *base_dir)
 {

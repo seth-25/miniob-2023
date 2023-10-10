@@ -114,6 +114,12 @@ private:
 private:
   RC init_record_handler(const char *base_dir);
 
+private:
+  /**
+   * @brief 将Value通过类型转换，转成记录内容，由make_record调用
+   */
+  RC value_cast_record(const Value& value, const FieldMeta *field, char *record_data);
+
 public:
   Index *find_index(const char *index_name) const;
   Index *find_index_by_field(const char *field_name) const;

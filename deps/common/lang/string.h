@@ -132,6 +132,12 @@ bool is_blank(const char *s);
 char *substr(const char *s, int n1, int n2);
 
 /**
+ * 查询字符在字符串下标n1开始的位置
+ * @return
+ */
+int find_ch(const char *s, int n1, char ch);
+
+    /**
  * get type's name
  */
 template <class T>

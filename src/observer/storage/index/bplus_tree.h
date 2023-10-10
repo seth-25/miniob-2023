@@ -66,6 +66,7 @@ public:
   int operator()(const char *v1, const char *v2) const
   {
     switch (attr_type_) {
+      case DATES: // DATES 复用int的比较
       case INTS: {
         return common::compare_int((void *)v1, (void *)v2);
       } break;
@@ -142,6 +143,7 @@ public:
   std::string operator()(const char *v) const
   {
     switch (attr_type_) {
+      case DATES:
       case INTS: {
         return std::to_string(*(int *)v);
       } break;

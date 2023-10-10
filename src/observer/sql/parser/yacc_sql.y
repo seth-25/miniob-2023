@@ -77,6 +77,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         INT_T
         STRING_T
         FLOAT_T
+        DATE_T
         HELP
         EXIT
         DOT //QUOTE
@@ -122,6 +123,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %token <floats> FLOAT
 %token <string> ID
 %token <string> SSS
+%token <string> DATE_STR
 //非终结符
 
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
@@ -340,6 +342,7 @@ type:
     INT_T      { $$=INTS; }
     | STRING_T { $$=CHARS; }
     | FLOAT_T  { $$=FLOATS; }
+    | DATE_T   { $$=DATES; }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
     INSERT INTO ID VALUES LBRACE value value_list RBRACE 
@@ -379,6 +382,19 @@ value:
     |FLOAT {
       $$ = new Value((float)$1);
       @$ = @1;
+    }
+    |DATE_STR {
+        int p1 = common::find_ch((yyvsp[0].string),1,'-');
+        int p2 = common::find_ch((yyvsp[0].string),p1+1,'-');
+        char *y = common::substr((yyvsp[0].string),1,p1-1);            // year
+        char *m = common::substr((yyvsp[0].string),p1+1,p2-1);         // month
+        char *d = common::substr((yyvsp[0].string),p2+1,strlen((yyvsp[0].string))-2); // day
+        $$ = new Value(y,m,d);
+        if ($$->attr_type() == 0) return -1; // date is illegal
+        std::cout << "attr type " << $$->attr_type() << std::endl;
+        free(y);
+        free(m);
+        free(d);
     }
     |SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);

@@ -19,7 +19,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/string.h"
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "dates", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
@@ -58,12 +58,18 @@ Value::Value(const char *s, int len /*= 0*/)
   set_string(s, len);
 }
 
+Value::Value(const char *y, const char *m, const char *d)
+{
+  set_date(y, m, d);
+}
+
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
     case CHARS: {
       set_string(data, length);
     } break;
+    case DATES:
     case INTS: {
       num_value_.int_value_ = *(int *)data;
       length_ = length;
@@ -112,9 +118,29 @@ void Value::set_string(const char *s, int len /*= 0*/)
   length_ = str_value_.length();
 }
 
+void Value::set_date(const char *year, const char *month, const char *day)
+{
+  attr_type_ = DATES;
+  int y, m, d;
+  y = atoi(year);
+  m = atoi(month);
+  d = atoi(day);
+  static int mon_days[] = {0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+  bool leap = (y%400==0 || (y%100 && y%4==0));
+  if( y > 0
+         && (m > 0)&&(m <= 12)
+         && (d > 0)&&(d <= ((m==2 && leap)?1:0) + mon_days[m]) ) {
+    num_value_.int_value_ = 10000 * y + m * 100 + d;  // 转化后的值存在int_value
+  }
+  else {
+    attr_type_ = UNDEFINED;
+  }
+}
+
 void Value::set_value(const Value &value)
 {
   switch (value.attr_type_) {
+    case DATES:
     case INTS: {
       set_int(value.get_int());
     } break;
@@ -149,6 +175,12 @@ std::string Value::to_string() const
 {
   std::stringstream os;
   switch (attr_type_) {
+    case DATES: {
+      int y = num_value_.int_value_ / 10000;
+      int m = (num_value_.int_value_ - y * 10000) / 100;
+      int d = num_value_.int_value_ - y * 10000 - m * 100;
+      os << y << "-" << (m < 10 ? "0" : "") << m << "-" << (d < 10 ? "0" : "") << d;
+    } break;
     case INTS: {
       os << num_value_.int_value_;
     } break;
@@ -172,6 +204,7 @@ int Value::compare(const Value &other) const
 {
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
+      case DATES:  // date的值转化后存在int里，比较直接复用int的比较
       case INTS: {
         return common::compare_int((void *)&this->num_value_.int_value_, (void *)&other.num_value_.int_value_);
       } break;
@@ -202,7 +235,7 @@ int Value::compare(const Value &other) const
   return -1;  // TODO return rc?
 }
 
-int Value::get_int() const
+int Value::get_int() const  // TODO 考虑DATES
 {
   switch (attr_type_) {
     case CHARS: {
@@ -230,7 +263,7 @@ int Value::get_int() const
   return 0;
 }
 
-float Value::get_float() const
+float Value::get_float() const  // TODO 考虑DATES
 {
   switch (attr_type_) {
     case CHARS: {
@@ -263,7 +296,7 @@ std::string Value::get_string() const
   return this->to_string();
 }
 
-bool Value::get_boolean() const
+bool Value::get_boolean() const  // TODO 考虑DATES
 {
   switch (attr_type_) {
     case CHARS: {
