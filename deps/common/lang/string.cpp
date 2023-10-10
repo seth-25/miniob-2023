@@ -284,4 +284,13 @@ std::string double_to_str(double v)
 
   return std::string(buf, len);
 }
+
+int find_ch(const char *s, int n1, char ch)
+{
+  int i;
+  for (i = n1; i < strlen(s); i++) {
+    if (s[i] == ch)	return i;
+  }
+  return -1;
+}
 }  // namespace common

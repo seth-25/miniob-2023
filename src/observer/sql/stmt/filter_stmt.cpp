@@ -34,7 +34,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   stmt = nullptr;
 
   FilterStmt *tmp_stmt = new FilterStmt();
-  for (int i = 0; i < condition_num; i++) {
+  for (int i = 0; i < condition_num; i++) { // and隔开的每个条件
     FilterUnit *filter_unit = nullptr;
     rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
@@ -49,11 +49,12 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   return rc;
 }
 
+// 获取对应的表和字段
 RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
 {
   if (common::is_blank(attr.relation_name.c_str())) {
-    table = default_table;
+    table = default_table;  // select * from t where id=1，未指定id的表名，设定id为t表
   } else if (nullptr != tables) {
     auto iter = tables->find(attr.relation_name);
     if (iter != tables->end()) {
@@ -82,7 +83,7 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 {
   RC rc = RC::SUCCESS;
 
-  CompOp comp = condition.comp;
+  CompOp comp = condition.comp; // 比较条件，如>, <=
   if (comp < EQUAL_TO || comp >= NO_OP) {
     LOG_WARN("invalid compare operator : %d", comp);
     return RC::INVALID_ARGUMENT;
@@ -126,6 +127,6 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit->set_comp(comp);
 
-  // 检查两个类型是否能够比较
+  // todo检查两个类型是否能够比较
   return rc;
 }

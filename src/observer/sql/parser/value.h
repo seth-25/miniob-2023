@@ -18,13 +18,14 @@ See the Mulan PSL v2 for more details. */
 
 /**
  * @brief 属性的类型
- * 
+ * 注意不少地方的范围判断依赖BOOLEANS、FLOATS等
  */
 enum AttrType
 {
   UNDEFINED,
   CHARS,          ///< 字符串类型
   INTS,           ///< 整数类型(4字节)
+  DATES,          ///< 日期类型
   FLOATS,         ///< 浮点数类型(4字节)
   BOOLEANS,       ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
@@ -50,6 +51,7 @@ public:
   explicit Value(float val);
   explicit Value(bool val);
   explicit Value(const char *s, int len = 0);
+  explicit Value(const char *y, const char *m, const char *d);
 
   Value(const Value &other) = default;
   Value &operator=(const Value &other) = default;
@@ -68,6 +70,7 @@ public:
   void set_boolean(bool val);
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
+  void set_date(const char *y, const char *m, const char *d);
 
   std::string to_string() const;
 

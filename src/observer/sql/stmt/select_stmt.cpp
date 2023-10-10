@@ -68,13 +68,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
     const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
 
-    if (common::is_blank(relation_attr.relation_name.c_str()) &&
+    if (common::is_blank(relation_attr.relation_name.c_str()) &&    // select * from t;
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
       for (Table *table : tables) {
         wildcard_fields(table, query_fields);
       }
 
     } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
+      // select t.* from t;
+      // select t.id from t;
       const char *table_name = relation_attr.relation_name.c_str();
       const char *field_name = relation_attr.attribute_name.c_str();
 
@@ -107,6 +109,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         }
       }
     } else {
+      // select t from xxx  没有表名
       if (tables.size() != 1) {
         LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name.c_str());
         return RC::SCHEMA_FIELD_MISSING;

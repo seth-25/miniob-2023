@@ -57,7 +57,7 @@ public:
   }
 
 private:
-  RC var_value_to_boolean(const Value &var_value, bool &bool_value) const
+  RC var_value_to_boolean(const Value &var_value, bool &bool_value) const // todo 考虑DATES
   {
     RC rc = RC::SUCCESS;
 
