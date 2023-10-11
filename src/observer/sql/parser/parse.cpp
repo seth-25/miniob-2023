@@ -45,7 +45,6 @@ int sql_parse(const char *st, ParsedSqlResult *sql_result);
 RC parse(const char *st, ParsedSqlResult *sql_result)
 {
   int result = sql_parse(st, sql_result);
-  std::cout << " result " << result << std::endl;
   if (result == -1) {  // date解析错误
     return RC::SQL_SYNTAX;
   }

@@ -391,7 +391,6 @@ value:
         char *d = common::substr((yyvsp[0].string),p2+1,strlen((yyvsp[0].string))-2); // day
         $$ = new Value(y,m,d);
         if ($$->attr_type() == 0) return -1; // date is illegal
-        std::cout << "attr type " << $$->attr_type() << std::endl;
         free(y);
         free(m);
         free(d);
