@@ -319,21 +319,23 @@ const TableMeta &Table::table_meta() const
 
 RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *record_data)
 {
-
-  if (field->type() != value.attr_type()) {
-    void *cast_data = common::type_cast_to[field->type()][value.attr_type()](value.data());
-    // todo
+  const char *cast_data = value.data();
+  if (field->type() != value.attr_type()) { // 进行type cast
+    cast_data = common::type_cast_to[value.attr_type()][field->type()](value.data());
+    if (cast_data == nullptr) {
+      LOG_ERROR("Typecast error. ", field->type(), value.attr_type());
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    }
   }
 
   size_t copy_len = field->len();
-  if (field->type() == CHARS) {
+  if (field->type() == CHARS) { // 字符串的len会小于field->len()
     const size_t data_len = value.length();
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
   }
-  memcpy(record_data + field->offset(), value.data(), copy_len);
-
+  memcpy(record_data + field->offset(), cast_data, copy_len);
 
   return RC::SUCCESS;
 }
@@ -350,7 +352,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
-    if (field->type() != value.attr_type()) {
+    if (field->type() != value.attr_type() && !common::type_cast_check(value.attr_type(), field->type())) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
                 table_meta_.name(), field->name(), field->type(), value.attr_type());
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
