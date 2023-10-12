@@ -45,7 +45,9 @@ int sql_parse(const char *st, ParsedSqlResult *sql_result);
 RC parse(const char *st, ParsedSqlResult *sql_result)
 {
   int result = sql_parse(st, sql_result);
-  if (result == -1) {  // date解析错误
+  if (result == 1) {  // YYABORT, date解析错误
+//    std::unique_ptr<ParsedSqlNode> error_sql_node = std::make_unique<ParsedSqlNode>(SCF_ERROR);
+//    sql_result->add_sql_node(std::move(error_sql_node));
     return RC::SQL_SYNTAX;
   }
   return RC::SUCCESS;
