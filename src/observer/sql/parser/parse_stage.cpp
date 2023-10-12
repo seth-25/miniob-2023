@@ -36,11 +36,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
 
   ParsedSqlResult parsed_sql_result;
 
-  rc = parse(sql.c_str(), &parsed_sql_result); // 解析sql，得到解析后的结果parsed_sql_result
-  if (rc == RC::SQL_SYNTAX) {  // YYABORT，date解析错误，直接返回FAILURE
-    sql_result->set_return_code(rc);  // 只set_return_code，不set_state_string，plain_communicator的write_state将会输出FAILURE
-    return RC::SQL_SYNTAX;
-  }
+  parse(sql.c_str(), &parsed_sql_result); // 解析sql，得到解析后的结果parsed_sql_result
 
   if (parsed_sql_result.sql_nodes().empty()) {
     sql_result->set_return_code(RC::SUCCESS);
@@ -57,7 +53,7 @@ RC ParseStage::handle_request(SQLStageEvent *sql_event)
     // set error information to event
     rc = RC::SQL_SYNTAX;
     sql_result->set_return_code(rc);
-    sql_result->set_state_string("Failed to parse sql");
+//    sql_result->set_state_string("Failed to parse sql");
     return rc;
   }
 

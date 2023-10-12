@@ -390,7 +390,9 @@ value:
         char *m = common::substr((yyvsp[0].string),p1+1,p2-1);         // month
         char *d = common::substr((yyvsp[0].string),p2+1,strlen((yyvsp[0].string))-2); // day
         $$ = new Value(y,m,d);
-        if ($$->attr_type() == 0) YYABORT; // date is illegal
+        if ($$->attr_type() == 0) { // date is illegal
+            yyerror (&yylloc, sql_string, sql_result, scanner, YY_("date is illegal"));
+        }
         free(y);
         free(m);
         free(d);
