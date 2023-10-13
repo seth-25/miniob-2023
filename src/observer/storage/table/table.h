@@ -55,11 +55,8 @@ public:
             const AttrInfoSqlNode attributes[]);
   /**
    * 删除一个表
-   * @param meta_path 元数据保存的文件(完整路径)
-   * @param name 表名
    */
-  RC drop(const char *meta_path,
-          const char *name);
+  RC destroy();
 
   /**
    * 打开一个表

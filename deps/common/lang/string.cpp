@@ -288,7 +288,7 @@ std::string double_to_str(double v)
 int find_ch(const char *s, int n1, char ch)
 {
   int i;
-  for (i = n1; i < strlen(s); i++) {
+  for (i = n1; i < (int)strlen(s); i++) {
     if (s[i] == ch)	return i;
   }
   return -1;

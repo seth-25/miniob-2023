@@ -113,13 +113,15 @@ RC Db::drop_table(const char *table_name)
   }
 
   std::string table_file_path = table_meta_file(path_.c_str(), table_name);
-  rc = table->drop(table_file_path.c_str(), table_name);
+  rc = table->destroy();
+
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to drop table %s.", table_name);
     return rc;
   }
 
   opened_tables_.erase(table_name);
+  delete table;
   LOG_INFO("Drop table success. table name=%s", table_name);
   return RC::SUCCESS;
 }
