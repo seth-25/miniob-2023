@@ -271,6 +271,7 @@ enum SqlCommandFlag
   SCF_DROP_INDEX,
   SCF_SYNC,
   SCF_SHOW_TABLES,
+  SCF_SHOW_INDEX,
   SCF_DESC_TABLE,
   SCF_BEGIN,        ///< 事务开始语句，可以在这里扩展只读事务
   SCF_COMMIT,

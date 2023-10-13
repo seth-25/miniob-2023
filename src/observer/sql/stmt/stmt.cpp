@@ -69,6 +69,10 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return ShowTablesStmt::create(db, stmt);
     }
 
+    case SCF_SHOW_INDEX: {
+      return ShowTablesStmt::create(db, stmt);
+    }
+
     case SCF_BEGIN: {
       return TrxBeginStmt::create(stmt);
     }
