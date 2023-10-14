@@ -29,14 +29,17 @@ class Db;
 class ShowIndexStmt : public Stmt
 {
 public:
-  ShowIndexStmt() = default;
+  ShowIndexStmt(const std::string &table_name)
+        : table_name_(table_name)
+  {}
   virtual ~ShowIndexStmt() = default;
 
   StmtType type() const override { return StmtType::SHOW_INDEX; }
 
-  static RC create(Db *db, Stmt *&stmt)
-  {
-    stmt = new ShowTablesStmt();
-    return RC::SUCCESS;
-  }
+  const std::string &table_name() const { return table_name_; }
+
+  static RC create(Db *db, const ShowIndexSqlNode &show_index, Stmt *&stmt);
+
+private:
+  std::string table_name_;
 };
