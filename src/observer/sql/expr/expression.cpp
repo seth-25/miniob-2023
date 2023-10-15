@@ -14,7 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
-
+#include <regex>
 using namespace std;
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
@@ -85,12 +85,34 @@ ComparisonExpr::ComparisonExpr(CompOp comp, unique_ptr<Expression> left, unique_
 
 ComparisonExpr::~ComparisonExpr()
 {}
-
+static void replace_all(std::string &str, const std::string &from, const std::string &to)
+{
+  if (from.empty()) {
+    return;
+  }
+  size_t pos = 0;
+  while (std::string::npos != (pos = str.find(from, pos))) {
+    str.replace(pos, from.length(), to);
+    pos += to.length();  // in case 'to' contains 'from'
+  }
+}
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC rc = RC::SUCCESS;
-  int cmp_result = left.compare(right);
   result = false;
+  if (LIKE_OP == comp_ || NOT_LIKE_OP == comp_) {
+    assert(CHARS == left.attr_type() && CHARS == right.attr_type());
+    std::string raw_reg((const char *)right.get_string().c_str());
+    replace_all(raw_reg, "_", "[^']");
+    replace_all(raw_reg, "%", "[^']*");
+    std::regex reg(raw_reg.c_str(), std::regex_constants::ECMAScript | std::regex_constants::icase);
+    bool res = std::regex_match((const char *)left.get_string().c_str(), reg);
+    if ((LIKE_OP == comp_ && res ) || (NOT_LIKE_OP == comp_ && !res) ) {
+      result = true;
+    }
+    return rc;
+  }
+  int cmp_result = left.compare(right);
   switch (comp_) {
     case EQUAL_TO: {
       result = (0 == cmp_result);
