@@ -250,7 +250,7 @@ int Value::compare(const Value &other) const
       p_right = (void *)other.data();
     }
     if (p_left == nullptr || p_right == nullptr) {
-      LOG_WARN("not supported compare", this->attr_type_, other.attr_type_);
+      LOG_WARN("not supported compare type");
       return -1;  // TODO return rc?
     }
     return common::compare_float(p_left, p_right);
@@ -260,7 +260,7 @@ int Value::compare(const Value &other) const
     return common::compare_float((void *)this->data(), p_float);
   }
 
-  LOG_WARN("not supported compare", this->attr_type_, other.attr_type_);
+  LOG_WARN("not supported compare type");
   return -1;  // TODO return rc?
 }
 

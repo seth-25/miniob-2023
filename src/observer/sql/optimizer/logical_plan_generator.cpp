@@ -32,6 +32,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/insert_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
+#include "sql/stmt/update_stmt.h"
+#include "sql/operator/update_logical_operator.h"
 
 using namespace std;
 
@@ -52,6 +54,11 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
     case StmtType::INSERT: {
       InsertStmt *insert_stmt = static_cast<InsertStmt *>(stmt);
       rc = create_plan(insert_stmt, logical_operator);
+    } break;
+
+    case StmtType::UPDATE: {
+      UpdateStmt *update_stmt = static_cast<UpdateStmt *>(stmt);
+      rc = create_plan(update_stmt, logical_operator);
     } break;
 
     case StmtType::DELETE: {
@@ -196,6 +203,36 @@ RC LogicalPlanGenerator::create_plan(
 
   logical_operator = std::move(delete_oper);
   return rc;
+}
+
+RC LogicalPlanGenerator::create_plan(
+    UpdateStmt *update_stmt, unique_ptr<LogicalOperator> &logical_operator)
+{
+  Table *table = update_stmt->table();
+//  vector<Value> values(insert_stmt->values(), insert_stmt->values() + insert_stmt->value_amount());
+
+
+  FilterStmt *filter_stmt = update_stmt->filter_stmt();
+  std::vector<Field> fields;
+  for (int i = table->table_meta().sys_field_num(); i < table->table_meta().field_num(); i++) {
+    const FieldMeta *field_meta = table->table_meta().field(i);
+    fields.push_back(Field(table, field_meta));
+  }
+  unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, false/*readonly*/));
+
+  unique_ptr<LogicalOperator> predicate_oper;
+  create_plan(filter_stmt, predicate_oper);
+
+  UpdateLogicalOperator *update_operator = new UpdateLogicalOperator(update_stmt->table(), *update_stmt->value(), update_stmt->fields());
+  if (predicate_oper) {
+    predicate_oper->add_child(std::move(table_get_oper));
+    update_operator->add_child(std::move(predicate_oper));
+  } else {
+    update_operator->add_child(std::move(table_get_oper));
+  }
+
+  logical_operator.reset(update_operator);
+  return RC::SUCCESS;
 }
 
 RC LogicalPlanGenerator::create_plan(

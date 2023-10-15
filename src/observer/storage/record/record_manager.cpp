@@ -257,6 +257,46 @@ RC RecordPageHandler::delete_record(const RID *rid)
   }
 }
 
+RC RecordPageHandler::update_record(const Record *record)
+{
+  ASSERT(readonly_ == false, "cannot update record from page while the page is readonly");
+
+  if (record->rid().slot_num >= page_header_->record_capacity) {
+    LOG_ERROR(
+        "Invalid slot_num %d, exceed page's record capacity, page_num %d.", record->rid().slot_num, frame_->page_num());
+    return RC::INVALID_ARGUMENT;
+  }
+
+  Bitmap bitmap(bitmap_, page_header_->record_capacity);
+  if (bitmap.get_bit(record->rid().slot_num)) {
+    char *record_data = get_record_data(record->rid().slot_num);
+    memcpy(record_data, record->data(), page_header_->record_real_size);
+    bitmap.set_bit(record->rid().slot_num);
+    frame_->mark_dirty();
+    return RC::SUCCESS;
+  }
+  else {
+    LOG_DEBUG("Invalid slot_num %d, slot is empty, page_num %d.", record->rid().slot_num, frame_->page_num());
+    return RC::RECORD_NOT_EXIST;
+  }
+}
+
+RC RecordPageHandler::recover_update_record(const char *data, const RID &rid)
+{
+  if (rid.slot_num >= page_header_->record_capacity) {
+    LOG_ERROR("Invalid slot_num %d, exceed page's record capacity, page_num %d.", rid.slot_num, frame_->page_num());
+    return RC::INVALID_ARGUMENT;
+  }
+
+  // 恢复数据
+  char *record_data = get_record_data(rid.slot_num);
+  memcpy(record_data, data, page_header_->record_real_size);
+
+  frame_->mark_dirty();
+
+  return RC::SUCCESS;
+}
+
 RC RecordPageHandler::get_record(const RID *rid, Record *rec)
 {
   if (rid->slot_num >= page_header_->record_capacity) {
@@ -428,6 +468,7 @@ RC RecordFileHandler::delete_record(const RID *rid)
   RC rc = RC::SUCCESS;
 
   RecordPageHandler page_handler;
+  // page_handler.init内有buffer_pool.get_this_page，get_this_page包含一个页面锁
   if ((rc = page_handler.init(*disk_buffer_pool_, rid->page_num, false /*readonly*/)) != RC::SUCCESS) {
     LOG_ERROR("Failed to init record page handler.page number=%d. rc=%s", rid->page_num, strrc(rc));
     return rc;
@@ -447,6 +488,48 @@ RC RecordFileHandler::delete_record(const RID *rid)
     lock_.unlock();
   }
   return rc;
+}
+
+RC RecordFileHandler::update_record(const Record *record)
+{
+  RC rc = RC::SUCCESS;
+
+  RecordPageHandler page_handler;
+  if ((rc = page_handler.init(*disk_buffer_pool_, record->rid().page_num, false /*readonly*/)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to init record page handler.page number=%d. rc=%s", record->rid().page_num, strrc(rc));
+    return rc;
+  }
+
+  rc = page_handler.update_record(record);
+  // todo 考虑加锁
+  // 📢 这里注意要清理掉资源，否则会与insert_record中的加锁顺序冲突而可能出现死锁
+  // delete record的加锁逻辑是拿到页面锁，删除指定记录，然后加上和释放record manager锁
+  // insert record是加上 record manager锁，然后拿到指定页面锁再释放record manager锁
+  page_handler.cleanup();
+  if (OB_SUCC(rc)) {
+    // 因为这里已经释放了页面锁，并发时，其它线程可能又把该页面填满了，那就不应该再放入 free_pages_
+    // 中。但是这里可以不关心，因为在查找空闲页面时，会自动过滤掉已经满的页面
+    lock_.lock();
+    free_pages_.insert(record->rid().page_num);
+    LOG_TRACE("add free page %d to free page list", record->rid().page_num);
+    lock_.unlock();
+  }
+  return rc;
+}
+
+RC RecordFileHandler::recover_update_record(const char *data, int record_size, const RID &rid)
+{
+  RC ret = RC::SUCCESS;
+
+  RecordPageHandler record_page_handler;
+
+  ret = record_page_handler.recover_init(*disk_buffer_pool_, rid.page_num);
+  if (ret != RC::SUCCESS) {
+    LOG_WARN("failed to init record page handler. page num=%d, rc=%s", rid.page_num, strrc(ret));
+    return ret;
+  }
+
+  return record_page_handler.recover_update_record(data, rid);
 }
 
 RC RecordFileHandler::get_record(RecordPageHandler &page_handler, const RID *rid, bool readonly, Record *rec)

@@ -313,7 +313,7 @@ RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *re
   if (field->type() != value.attr_type()) { // 进行type cast
     cast_data = common::type_cast_to[value.attr_type()][field->type()](value.data());
     if (cast_data == nullptr) {
-      LOG_ERROR("Typecast error. ", field->type(), value.attr_type());
+      LOG_ERROR("Typecast error.");
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     }
   }
@@ -368,45 +368,6 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   return RC::SUCCESS;
 }
 
-//RC Table::make_record(int value_num, const Value *values, Record &record)
-//{
-//  // 检查字段类型是否一致
-//  if (value_num + table_meta_.sys_field_num() != table_meta_.field_num()) {
-//    LOG_WARN("Input values don't match the table's schema, table name:%s", table_meta_.name());
-//    return RC::SCHEMA_FIELD_MISSING;
-//  }
-//
-//  const int normal_field_start_index = table_meta_.sys_field_num();
-//  for (int i = 0; i < value_num; i++) {
-//    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-//    const Value &value = values[i];
-//    if (field->type() != value.attr_type()) {
-//      LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
-//                table_meta_.name(), field->name(), field->type(), value.attr_type());
-//      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-//    }
-//  }
-//
-//  // 复制所有字段的值
-//  int record_size = table_meta_.record_size();
-//  char *record_data = (char *)malloc(record_size);
-//
-//  for (int i = 0; i < value_num; i++) {
-//    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-//    const Value &value = values[i];
-//    size_t copy_len = field->len();
-//    if (field->type() == CHARS) {
-//      const size_t data_len = value.length();
-//      if (copy_len > data_len) {
-//        copy_len = data_len + 1;
-//      }
-//    }
-//    memcpy(record_data + field->offset(), value.data(), copy_len);
-//  }
-//
-//  record.set_data_owner(record_data, record_size);
-//  return RC::SUCCESS;
-//}
 
 RC Table::init_record_handler(const char *base_dir)
 {
@@ -545,6 +506,72 @@ RC Table::delete_record(const Record &record)
            name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
   }
   rc = record_handler_->delete_record(&record.rid());
+  return rc;
+}
+
+RC Table::make_record_from_old_record(
+    vector<const FieldMeta *> &fields, vector<const Value *> &values, Record &old_record, Record &new_record)
+{
+  RC rc = RC::SUCCESS;
+
+
+  int record_size = table_meta_.record_size();
+
+  char *new_data = new char[record_size];
+  memcpy(new_data, old_record.data(), record_size);
+
+  for (int i = 0; i < fields.size(); i ++ ) {
+    const FieldMeta *field = fields[i];
+    const Value *value = values[i];
+    rc = value_cast_record(*value, field, new_data);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("Value cast record error.");
+      return rc;
+    }
+  }
+
+  new_record.set_rid(old_record.rid());
+  new_record.set_data_owner(new_data, record_size);
+  return RC::SUCCESS;
+}
+
+RC Table::update_record(const Record &old_record, Record &new_record)
+{
+
+  RC rc = RC::SUCCESS;
+  rc = delete_entry_of_indexes(old_record.data(), old_record.rid(), false);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Failed to delete index data when update index. table name=%s, rc=%d:%s",
+                name(), rc, strrc(rc));
+  }
+  rc = record_handler_->update_record(&new_record);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Update record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
+    return rc;
+  }
+
+  rc = insert_entry_of_indexes(new_record.data(), new_record.rid());
+  if (rc != RC::SUCCESS) { // 可能出现了键值重复
+    // 索引中删除新的record
+    RC rc2 = delete_entry_of_indexes(new_record.data(), new_record.rid(), false/*error_on_not_exists*/);
+    if (rc2 != RC::SUCCESS) {
+      LOG_ERROR("Failed to rollback index data when update index entries failed. table name=%s, rc=%d:%s",
+                name(), rc2, strrc(rc2));
+    }
+    // 索引中插入旧的record
+    rc2 = insert_entry_of_indexes(old_record.data(), old_record.rid());
+    if (rc2 != RC::SUCCESS) {
+      LOG_ERROR("Failed to rollback index data when update index entries failed. table name=%s, rc=%d:%s",
+                name(), rc2, strrc(rc2));
+    }
+    // 还原成旧的record
+    rc2 = record_handler_->update_record(&old_record);
+    if (rc2 != RC::SUCCESS) {
+      LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
+                name(), rc2, strrc(rc2));
+    }
+  }
+
   return rc;
 }
 

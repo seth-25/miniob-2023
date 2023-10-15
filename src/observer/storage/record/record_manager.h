@@ -174,12 +174,21 @@ public:
    */
   RC recover_insert_record(const char *data, const RID &rid);
 
+  RC recover_update_record(const char *data, const RID &rid);
+
   /**
    * @brief 删除指定的记录
    *
    * @param rid 要删除的记录标识
    */
   RC delete_record(const RID *rid);
+
+  /**
+   * @brief 更新指定的记录
+   *
+   * @param record 要更新的记录
+   */
+  RC update_record(const Record *record);
 
   /**
    * @brief 获取指定位置的记录数据
@@ -275,6 +284,8 @@ public:
    */
   RC insert_record(const char *data, int record_size, RID *rid);
 
+  RC update_record(const Record *record);
+
    /**
    * @brief 数据库恢复时，在指定文件指定位置插入数据
    * 
@@ -283,6 +294,7 @@ public:
    * @param rid         要插入记录的指定标识符
    */
   RC recover_insert_record(const char *data, int record_size, const RID &rid);
+  RC recover_update_record(const char *data, int record_size, const RID &rid);
 
   /**
    * @brief 获取指定文件中标识符为rid的记录内容到rec指向的记录结构中

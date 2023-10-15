@@ -68,7 +68,6 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
     assert(nullptr != value_data);
     char *res = static_cast<char *>(malloc(sizeof(int)));
     int num = atoi(value_data);
-    printf("char to int %d\n", num);
     memcpy(res, &num, sizeof(int));
     return res;
   }
@@ -78,7 +77,6 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
     assert(nullptr != value_data);
     char *res = static_cast<char *>(malloc(sizeof(float)));
     float num = atof(value_data);
-    printf("char to float %f\n", num);
     memcpy(res, &num, sizeof(float));
     return res;
   }

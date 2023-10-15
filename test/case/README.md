@@ -15,3 +15,6 @@ python3 miniob_test.py --test-cases=basic
 
 更多运行方法和参数可以参考 miniob_test.py
 
+```bash
+python3 miniob_test.py --test-cases=primary-update
+```
