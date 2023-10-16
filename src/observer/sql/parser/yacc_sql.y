@@ -92,6 +92,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         DATA
         INFILE
         EXPLAIN
+        NOT
+        LIKE
         EQ
         LT
         GT
@@ -151,6 +153,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <sql_node>            create_table_stmt
 %type <sql_node>            drop_table_stmt
 %type <sql_node>            show_tables_stmt
+%type <sql_node>            show_index_stmt
 %type <sql_node>            desc_table_stmt
 %type <sql_node>            create_index_stmt
 %type <sql_node>            drop_index_stmt
@@ -188,6 +191,7 @@ command_wrapper:
   | create_table_stmt
   | drop_table_stmt
   | show_tables_stmt
+  | show_index_stmt
   | desc_table_stmt
   | create_index_stmt
   | drop_index_stmt
@@ -249,7 +253,13 @@ show_tables_stmt:
       $$ = new ParsedSqlNode(SCF_SHOW_TABLES);
     }
     ;
-
+show_index_stmt:
+    SHOW INDEX FROM ID  {
+      $$ = new ParsedSqlNode(SCF_SHOW_INDEX);
+      $$->show_index.relation_name = $4;
+      free($4);
+    }
+    ;
 desc_table_stmt:
     DESC ID  {
       $$ = new ParsedSqlNode(SCF_DESC_TABLE);
@@ -656,6 +666,8 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
+    | LIKE { $$ = LIKE_OP; }
+    | NOT LIKE { $$ = NOT_LIKE_OP; }
     ;
 
 load_data_stmt:

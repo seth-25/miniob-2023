@@ -1,9 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.5.1.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
-   Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +29,6 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
-
-/* Undocumented macros, especially those whose name start with YY_,
-   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_YACC_SQL_HPP_INCLUDED
 # define YY_YY_YACC_SQL_HPP_INCLUDED
@@ -87,26 +83,29 @@ extern int yydebug;
     DATA = 293,
     INFILE = 294,
     EXPLAIN = 295,
-    EQ = 296,
-    LT = 297,
-    GT = 298,
-    LE = 299,
-    GE = 300,
-    NE = 301,
-    NUMBER = 302,
-    FLOAT = 303,
-    ID = 304,
-    SSS = 305,
-    DATE_STR = 306,
-    UMINUS = 307
+    NOT = 296,
+    LIKE = 297,
+    EQ = 298,
+    LT = 299,
+    GT = 300,
+    LE = 301,
+    GE = 302,
+    NE = 303,
+    NUMBER = 304,
+    FLOAT = 305,
+    ID = 306,
+    SSS = 307,
+    DATE_STR = 308,
+    UMINUS = 309
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+
 union YYSTYPE
 {
-#line 103 "yacc_sql.y"
+#line 105 "yacc_sql.y" /* yacc.c:1909  */
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -125,9 +124,9 @@ union YYSTYPE
   int                               number;
   float                             floats;
 
-#line 129 "yacc_sql.hpp"
-
+#line 128 "yacc_sql.hpp" /* yacc.c:1909  */
 };
+
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
