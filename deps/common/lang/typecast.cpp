@@ -5,6 +5,7 @@
 #include "typecast.h"
 #include <cassert>
 #include <cstring>
+#include "common/lang/string.h"
 
 namespace common {
 
@@ -100,7 +101,7 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
   char *float_to_char(const char *value_data)
   {
     assert(nullptr != value_data);
-    std::string res = std::to_string(*(float *) value_data);
+    std::string res = double_to_str(*(float *) value_data);
     return strdup(res.c_str());
   }
 
