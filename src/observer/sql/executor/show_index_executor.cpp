@@ -59,7 +59,7 @@ RC ShowIndexExecutor::execute(SQLStageEvent *sql_event)
     for (int i = 0; i < index_num; i ++ )
     {
       const IndexMeta *index_meta = table_meta.index(i);
-      oper->append({table_meta.name(), index_meta->name(), index_meta->field()});
+      oper->append({table_meta.name(), index_meta->name(), "test"});
     }
     sql_result->set_operator(unique_ptr<PhysicalOperator>(oper));
   } else {

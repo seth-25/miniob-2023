@@ -120,11 +120,12 @@ union YYSTYPE
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::string> *        relation_list;
+  std::vector<std::string> *        rel_index_attr_list;
   char *                            string;
   int                               number;
   float                             floats;
 
-#line 128 "yacc_sql.hpp" /* yacc.c:1909  */
+#line 129 "yacc_sql.hpp" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;
