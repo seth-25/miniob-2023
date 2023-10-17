@@ -13,7 +13,8 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "sql/optimizer/comparison_simplification_rule.h"
-#include "sql/expr/expression.h"
+#include "sql/expr/comparison_expression.h"
+#include "sql/expr/value_expression.h"
 #include "common/log/log.h"
 
 RC ComparisonSimplificationRule::rewrite(std::unique_ptr<Expression> &expr, bool &change_made)

@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/optimizer/predicate_rewrite.h"
 #include "sql/operator/logical_operator.h"
+#include "sql/expr/value_expression.h"
 
 RC PredicateRewriteRule::rewrite(std::unique_ptr<LogicalOperator> &oper, bool &change_made)
 {

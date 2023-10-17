@@ -27,6 +27,11 @@ class Expression;
  * @defgroup SQLParser SQL Parser 
  */
 
+struct ExprSqlNode
+{
+  Expression *expression;
+};
+
 /**
  * @brief 描述一个属性
  * @ingroup SQLParser

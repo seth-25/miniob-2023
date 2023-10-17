@@ -36,7 +36,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/update_physical_operator.h"
 #include "sql/expr/expression.h"
 #include "common/log/log.h"
-
+#include "sql/expr/value_expression.h"
+#include "sql/expr/comparison_expression.h"
 
 using namespace std;
 

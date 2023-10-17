@@ -14,7 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "common/log/log.h"
 #include "sql/optimizer/conjunction_simplification_rule.h"
-#include "sql/expr/expression.h"
+#include "sql/expr/value_expression.h"
+#include "sql/expr/conjunction_expression.h"
 
 RC try_to_get_bool_constant(std::unique_ptr<Expression> &expr, bool &constant_value)
 {

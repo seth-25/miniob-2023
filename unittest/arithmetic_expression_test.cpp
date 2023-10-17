@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "gtest/gtest.h"
+#include "sql/expr/value_expression.h"
+#include "sql/expr/arithmetic_expression.h"
 
 using namespace std;
 using namespace common;
