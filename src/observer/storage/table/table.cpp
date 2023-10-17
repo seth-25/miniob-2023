@@ -531,7 +531,7 @@ RC Table::make_record_from_old_record(
   char *new_data = new char[record_size];
   memcpy(new_data, old_record.data(), record_size);
 
-  for (int i = 0; i < fields.size(); i ++ ) {
+  for (size_t i = 0; i < fields.size(); i ++ ) {
     const FieldMeta *field = fields[i];
     const Value *value = values[i];
     rc = value_cast_record(*value, field, new_data);

@@ -747,8 +747,8 @@ RC BplusTreeHandler::sync()
   return disk_buffer_pool_->flush_all_pages();
 }
 
-RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType>& attr_type, std::vector<int> &attr_length,
-    std::vector<int> &attr_offset, int internal_max_size /* = -1*/, int leaf_max_size /* = -1 */)
+RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType> attr_type, std::vector<int> attr_length,
+    std::vector<int> attr_offset, int internal_max_size /* = -1*/, int leaf_max_size /* = -1 */)
 {
   BufferPoolManager &bpm = BufferPoolManager::instance();
   RC rc = bpm.create_file(file_name);
@@ -773,7 +773,6 @@ RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType>& attr_t
     bpm.close_file(file_name);
     return rc;
   }
-  cout << "test" << endl;
   if (header_frame->page_num() != FIRST_INDEX_PAGE) {
     LOG_WARN("header page num should be %d but got %d. is it a new file : %s",
              FIRST_INDEX_PAGE, header_frame->page_num(), file_name);
@@ -791,18 +790,19 @@ RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType>& attr_t
   if (leaf_max_size < 0) {
     leaf_max_size = calc_leaf_page_capacity(length_sum);
   }
-  cout << "test2" << endl;
+
   char *pdata = header_frame->data();
   IndexFileHeader *file_header = (IndexFileHeader *)pdata;
-  file_header->attr_length = attr_length;  //
-  file_header->attr_offset = std::move(attr_offset);
-  file_header->attr_type = attr_type;
+  for (size_t i = 0; i < attr_length.size(); i++) {
+    file_header->attr_length[i] = attr_length[i];
+    file_header->attr_offset[i] = attr_offset[i];
+    file_header->attr_type[i] = attr_type[i];
+  }
   file_header->attr_num = attr_length.size();
   file_header->key_length = length_sum + sizeof(RID);
   file_header->internal_max_size = internal_max_size;
   file_header->leaf_max_size = leaf_max_size;
   file_header->root_page = BP_INVALID_PAGE_NUM;
-  cout << "testw" << endl;
   header_frame->mark_dirty();
 
   disk_buffer_pool_ = bp;
@@ -810,7 +810,6 @@ RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType>& attr_t
   memcpy(&file_header_, pdata, sizeof(file_header_));
   header_dirty_ = false;
   bp->unpin_page(header_frame);
-  cout << "test3" << endl;
   mem_pool_item_ = make_unique<common::MemPoolItem>(file_name);
   if (mem_pool_item_->init(file_header->key_length) < 0) {
     LOG_WARN("Failed to init memory pool for index %s", file_name);
@@ -822,7 +821,6 @@ RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType>& attr_t
   key_printer_.init(attr_type, attr_length);
 
   this->sync();
-  cout << "test4" << endl;
   LOG_INFO("Successfully create index %s", file_name);
   return RC::SUCCESS;
 }
@@ -1371,7 +1369,7 @@ MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const R
     return nullptr;
   }
   int pos = 0;
-  for (size_t i = 0; i < file_header_.attr_num; i++) {
+  for (int i = 0; i < file_header_.attr_num; i++) {
     memcpy(static_cast<char *>(key.get()) + pos, user_key + pos, file_header_.attr_length[i]);
     pos += file_header_.attr_length[i];
   }
@@ -1649,7 +1647,7 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
   char *key = static_cast<char *>(pkey.get());
 
   int pos = 0;
-  for (size_t i = 0; i < file_header_.attr_num; i++) {
+  for (int i = 0; i < file_header_.attr_num; i++) {
     memcpy(key + pos, user_key + file_header_.attr_offset[i], file_header_.attr_length[i]);
     pos += file_header_.attr_length[i];
   }

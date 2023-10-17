@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 
 #include "sql/parser/value.h"
-
+#define MAX_NUM 20
 class Expression;
 
 /**

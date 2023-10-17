@@ -172,11 +172,11 @@ public:
         }
         case CHARS: {
           std::string str;
-          for (int i = 0; i < attr_length_[i]; i++) {
-            if (v[i + pos] == 0) {
+          for (int j = 0; j < attr_length_[i]; j++) {
+            if (v[j + pos] == 0) {
               break;
             }
-            str.push_back(v[i + pos]);
+            str.push_back(v[j + pos]);
           }
           return str;
         }
@@ -243,22 +243,22 @@ struct IndexFileHeader
   int32_t leaf_max_size;      ///< 叶子节点最大的键值对数
   int32_t key_length;         ///< attr length + sizeof(RID)
   int32_t attr_num;
-  std::vector<int32_t> attr_length;
-  std::vector<int32_t> attr_offset;
-  std::vector<AttrType> attr_type;
+  int32_t attr_length[MAX_NUM];
+  int32_t attr_offset[MAX_NUM];
+  AttrType attr_type[MAX_NUM];
 
   const std::string to_string()
   {
     std::stringstream ss;
 
     ss << "attr_length:" << attr_length[0];
-    for (size_t i = 1; i < attr_length.size(); i++) {
+    for (size_t i = 1; i < attr_num; i++) {
       ss << "|" << attr_length[i];
     }
     ss << ","
        << "key_length:" << key_length << ","
        << "attr_type:" << attr_type[0];
-    for (size_t i = 1; i < attr_type.size(); i++) {
+    for (size_t i = 1; i < attr_num; i++) {
       ss << "|" << attr_type[i];
     }
     ss << "root_page:" << root_page << ","
@@ -495,8 +495,8 @@ public:
    * 此函数创建一个名为fileName的索引。
    * attrType描述被索引属性的类型，attrLength描述被索引属性的长度
    */
-  RC create(const char *file_name, std::vector<AttrType>& attr_type, std::vector<int> &attr_length,
-      std::vector<int> &attr_offset, int internal_max_size = -1, int leaf_max_size = -1);
+  RC create(const char *file_name, std::vector<AttrType> attr_type, std::vector<int> attr_length,
+      std::vector<int> attr_offset, int internal_max_size = -1, int leaf_max_size = -1);
 
   /**
    * 打开名为fileName的索引文件。
