@@ -132,6 +132,7 @@ Expression *create_aggr_func(AggrFuncExpr::Type type,
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::string> *        relation_list;
+  std::vector<std::string> *        rel_index_attr_list;
   char *                            string;
   int                               number;
   float                             floats;
@@ -168,6 +169,7 @@ Expression *create_aggr_func(AggrFuncExpr::Type type,
 %type <rel_attr_list>       select_attr
 %type <relation_list>       rel_list
 %type <rel_attr_list>       attr_list
+%type <rel_index_attr_list> index_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <sql_node>            calc_stmt
@@ -303,13 +305,20 @@ desc_table_stmt:
     ;
 
 create_index_stmt:    /*create index 语句的语法解析树*/
-    CREATE INDEX ID ON ID LBRACE ID RBRACE
+    CREATE INDEX ID ON ID LBRACE ID index_attr_list RBRACE
     {
       $$ = new ParsedSqlNode(SCF_CREATE_INDEX);
       CreateIndexSqlNode &create_index = $$->create_index;
+
       create_index.index_name = $3;
       create_index.relation_name = $5;
-      create_index.attribute_name = $7;
+      if ($8 != nullptr) {
+         create_index.attribute_names.swap(*$8);
+         delete $8;
+      }
+      create_index.attribute_names.push_back($7);
+      std::reverse(create_index.attribute_names.begin(), create_index.attribute_names.end());
+
       free($3);
       free($5);
       free($7);
@@ -610,7 +619,22 @@ expr_list:
     }
     ;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+index_attr_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA ID index_attr_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<string>;
+      }
 
+      $$->emplace_back($2);
+      free($2);
+    }
+    ;
 select_attr:
     '*' {
       $$ = new std::vector<RelAttrSqlNode>;
@@ -660,7 +684,6 @@ attr_list:
     {
       $$ = nullptr;
     }
-
     | COMMA rel_attr attr_list {
       if ($3 != nullptr) {
         $$ = $3;
@@ -695,7 +718,7 @@ where:
       $$ = nullptr;
     }
     | WHERE condition_list {
-      $$ = $2;
+      $$ = $2;  
     }
     ;
 condition_list:
@@ -727,7 +750,7 @@ condition:
       delete $1;
       delete $3;
     }
-    | value comp_op value
+    | value comp_op value 
     {
       $$ = new ConditionSqlNode;
       $$->left_is_attr = 0;

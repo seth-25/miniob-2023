@@ -49,19 +49,23 @@ RC ShowIndexExecutor::execute(SQLStageEvent *sql_event)
     TupleSchema tuple_schema;
     tuple_schema.append_cell(TupleCellSpec("", "Table", "Table"));
     tuple_schema.append_cell(TupleCellSpec("", "Key_name", "Key_name"));
+    tuple_schema.append_cell(TupleCellSpec("", "Seq_in_fields", "Seq_in_fields"));
     tuple_schema.append_cell(TupleCellSpec("", "Column_name", "Column_name"));
 
     sql_result->set_tuple_schema(tuple_schema);
 
-    auto oper = new StringListPhysicalOperator;
+    auto show_index_opera = new StringListPhysicalOperator;
     const TableMeta &table_meta = table->table_meta();
     const int index_num = table_meta.index_num();
     for (int i = 0; i < index_num; i ++ )
     {
       const IndexMeta *index_meta = table_meta.index(i);
-      oper->append({table_meta.name(), index_meta->name(), index_meta->field()});
+      std::vector<std::string> fields = *index_meta->field();
+      for (size_t j = 0; j < fields.size(); j ++ ) {
+        show_index_opera->append({table_meta.name(), index_meta->name(), to_string(j + 1), fields[j]});
+      }
     }
-    sql_result->set_operator(unique_ptr<PhysicalOperator>(oper));
+    sql_result->set_operator(unique_ptr<PhysicalOperator>(show_index_opera));
   } else {
 
     sql_result->set_return_code(RC::SCHEMA_TABLE_NOT_EXIST);

@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 
 #include "sql/parser/value.h"
-
+#define MAX_NUM 20
 class Expression;
 class AggrFuncExpr;
 
@@ -200,7 +200,7 @@ struct CreateIndexSqlNode
 {
   std::string index_name;      ///< Index name
   std::string relation_name;   ///< Relation name
-  std::string attribute_name;  ///< Attribute name
+  std::vector<std::string> attribute_names;  ///< Attribute name
 };
 
 /**
