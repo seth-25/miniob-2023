@@ -22,15 +22,12 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 
 class Expression;
+class AggrFuncExpr;
 
 /**
  * @defgroup SQLParser SQL Parser 
  */
 
-struct ExprSqlNode
-{
-  Expression *expression;
-};
 
 /**
  * @brief 描述一个属性
@@ -44,6 +41,18 @@ struct RelAttrSqlNode
   std::string relation_name;   ///< relation name (may be NULL) 表名
   std::string attribute_name;  ///< attribute name              属性名
 };
+
+
+/**
+ * 投影列
+ * 有对应属性(可能为空)
+ * 有表达式
+ */
+struct ProjectCol {
+  RelAttrSqlNode attr_sql_node;
+  std::vector<Expression* > expressions;
+};
+
 
 /**
  * @brief 描述比较运算符

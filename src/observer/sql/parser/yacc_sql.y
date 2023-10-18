@@ -14,8 +14,7 @@
 #include "sql/expr/expression.h"
 #include "sql/expr/arithmetic_expression.h"
 #include "sql/expr/value_expression.h"
-#include "sql/expr/conjunction_expression.h"
-#include "sql/expr/comparison_expression.h"
+#include "sql/expr/aggregation_expression.h"
 
 using namespace std;
 
@@ -41,8 +40,16 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
                                              YYLTYPE *llocp)
 {
   ArithmeticExpr *expr = new ArithmeticExpr(type, left, right);
-  expr->set_name(token_name(sql_string, llocp));
+  // expr->set_name(token_name(sql_string, llocp));
   return expr;
+}
+
+Expression *create_aggr_func(AggrFuncExpr::Type type,
+                             Expression *expr,
+                             const char *sql_string)
+{
+  AggrFuncExpr *aggr_expr = new AggrFuncExpr(type, expr);
+  return aggr_expr;
 }
 
 %}
@@ -98,6 +105,11 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         EXPLAIN
         NOT
         LIKE
+        AGGR_MAX
+        AGGR_MIN
+        AGGR_COUNT
+        AGGR_AVG
+        AGGR_SUM
         EQ
         LT
         GT
@@ -123,6 +135,15 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   char *                            string;
   int                               number;
   float                             floats;
+
+  // 新加的表达式
+  Expression *                      unary_expr;
+  Expression *                      add_expr;
+  Expression *                      mul_expr;
+  std::vector<Expression *> *       expr_list;
+  char *                            aggr_func_type;
+  Expression *                      aggr_func;
+
 }
 
 %token <number> NUMBER
@@ -171,6 +192,15 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
+
+// 新加的表达式
+%type <unary_expr>          unary_expr
+%type <add_expr>            add_expr
+%type <mul_expr>            mul_expr
+%type <expr_list>           expr_list
+%type <aggr_func_type>      aggr_func_type
+%type <aggr_func>           aggr_func
+
 // commands should be a list but I use a single command instead
 %type <sql_node>            commands
 
@@ -493,7 +523,7 @@ expression_list:
       $$->emplace_back($1);
     }
     ;
-expression:
+expression: // 普通的算术表达式
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
     }
@@ -508,17 +538,78 @@ expression:
     }
     | LBRACE expression RBRACE {
       $$ = $2;
-      $$->set_name(token_name(sql_string, &@$));
+      // $$->set_name(token_name(sql_string, &@$));
     }
     | '-' expression %prec UMINUS {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::NEGATIVE, $2, nullptr, sql_string, &@$);
     }
     | value {
       $$ = new ValueExpr(*$1);
-      $$->set_name(token_name(sql_string, &@$));
+      // $$->set_name(token_name(sql_string, &@$));
       delete $1;
     }
     ;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//表达式
+
+unary_expr:
+    value {
+      $$ = new ValueExpr(*$1);
+      delete $1;
+    }
+    | rel_attr {
+        // todo
+    }
+    | aggr_func {
+      $$ = $1;
+    }
+    // todo func: length, round, date_format
+    | LBRACE add_expr RBRACE {
+        // todo
+    }
+    ;
+
+add_expr: // 所有种类的值表达式，外层是加减，内层是乘除
+    mul_expr { $$ = $1; }
+    | add_expr '+' mul_expr {
+        // todo
+    }
+    | add_expr '-' mul_expr {
+        // todo
+    }
+    ;
+
+mul_expr:
+    unary_expr { $$ = $1; }
+    | '-' unary_expr {  // 负号
+        // todo
+    }
+    | mul_expr '*' unary_expr {
+        // todo
+    }
+    | mul_expr '/' unary_expr {
+        // todo
+    }
+    ;
+
+expr_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA add_expr expr_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<Expression *>;
+      }
+
+      $$->emplace_back(*$2);
+      delete $2;
+    }
+    ;
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 select_attr:
     '*' {
@@ -528,6 +619,7 @@ select_attr:
       attr.attribute_name = "*";
       $$->emplace_back(attr);
     }
+    // todo ID DOT '*' attr_list {}
     | rel_attr attr_list {
       if ($2 != nullptr) {
         $$ = $2;
@@ -536,7 +628,16 @@ select_attr:
       }
       $$->emplace_back(*$1);
       delete $1;
-    }
+    }/*
+    | add_expr expr_list {
+      if ($2 != nullptr) {
+        $$ = $2;
+      } else {
+        $$ = new std::vector<ProjectCol>;
+      }
+      $$->emplace_back(*$1);
+      delete $1;
+    }*/
     ;
 
 rel_attr:
@@ -559,6 +660,7 @@ attr_list:
     {
       $$ = nullptr;
     }
+
     | COMMA rel_attr attr_list {
       if ($3 != nullptr) {
         $$ = $3;
@@ -660,6 +762,37 @@ condition:
 
       delete $1;
       delete $3;
+    }
+    ;
+
+aggr_func:
+    aggr_func_type LBRACE '*' RBRACE {
+        if ($1 != 'count') {    // 只有count(*)是合法的
+            yyerror (&yylloc, sql_string, sql_result, scanner, YY_("max(*) min(*) avg(*) is illegal"));
+        }
+        // $$ = create_aggr_func($1, nullptr);
+    }
+    /*
+    | aggr_func_type LBRACE rel_attr RBRACE {   // todo rel_attr换成rel_expr
+
+    }*/
+    ;
+
+aggr_func_type:
+    AGGR_MAX {
+      $$ = 'max';
+    }
+    | AGGR_MIN {
+      $$ = 'min';
+    }
+    | AGGR_SUM {
+      $$ = 'sum';
+    }
+    | AGGR_AVG {
+      $$ = 'avg';
+    }
+    | AGGR_COUNT {
+      $$ = 'count';
     }
     ;
 

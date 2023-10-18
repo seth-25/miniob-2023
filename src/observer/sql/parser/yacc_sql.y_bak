@@ -12,7 +12,6 @@
 #include "sql/parser/yacc_sql.hpp"
 #include "sql/parser/lex_sql.h"
 #include "sql/expr/expression.h"
-#include "sql/expr/arithmetic_expression.h"
 
 using namespace std;
 
@@ -95,11 +94,6 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         EXPLAIN
         NOT
         LIKE
-        MAX
-        MIN
-        COUNT
-        AVG
-        SUM
         EQ
         LT
         GT
@@ -212,7 +206,7 @@ command_wrapper:
   | exit_stmt
     ;
 
-exit_stmt:      
+exit_stmt:
     EXIT {
       (void)yynerrs;  // 这么写为了消除yynerrs未使用的告警。如果你有更好的方法欢迎提PR
       $$ = new ParsedSqlNode(SCF_EXIT);
@@ -332,9 +326,9 @@ attr_def_list:
       delete $2;
     }
     ;
-    
+
 attr_def:
-    ID type LBRACE number RBRACE 
+    ID type LBRACE number RBRACE
     {
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)$2;
@@ -361,7 +355,7 @@ type:
     | DATE_T   { $$=DATES; }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE 
+    INSERT INTO ID VALUES LBRACE value value_list RBRACE
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
@@ -380,7 +374,7 @@ value_list:
     {
       $$ = nullptr;
     }
-    | COMMA value value_list  { 
+    | COMMA value value_list  {
       if ($3 != nullptr) {
         $$ = $3;
       } else {
@@ -419,9 +413,9 @@ value:
       free(tmp);
     }
     ;
-    
+
 delete_stmt:    /*  delete 语句的语法解析树*/
-    DELETE FROM ID where 
+    DELETE FROM ID where
     {
       $$ = new ParsedSqlNode(SCF_DELETE);
       $$->deletion.relation_name = $3;
@@ -433,7 +427,7 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where 
+    UPDATE ID SET ID EQ value where
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
@@ -495,8 +489,7 @@ expression_list:
       $$->emplace_back($1);
     }
     ;
-
-expression: // todo 改成复杂表达式，并替换掉select的属性列表、where条件、insert的values。分成两种value_expr和rel_expr，两者不能通过逗号放在一起
+expression:
     expression '+' expression {
       $$ = create_arithmetic_expression(ArithmeticExpr::Type::ADD, $1, $3, sql_string, &@$);
     }
@@ -523,31 +516,6 @@ expression: // todo 改成复杂表达式，并替换掉select的属性列表、
     }
     ;
 
-value_expr:     // todo 值表达式
-    aggr_func_expr {
-        $$ = $1;
-    }
-    // todo func_expression 函数表达式 length()、round()、date_format()等
-    ;
-
-value_expr_list:     // todo 值表达式list
-    /* empty */
-    {
-      $$ = nullptr;
-    }
-    | COMMA value_expr value_expr_list {    // todo 替换成表达式 attr_list{}
-      if ($3 != nullptr) {
-        $$ = $3;
-      } else {
-        $$ = new std::vector<RelAttrSqlNode>;
-      }
-
-      $$->emplace_back(*$2);
-      delete $2;
-    }
-    ;
-
-
 select_attr:
     '*' {
       $$ = new std::vector<RelAttrSqlNode>;
@@ -556,8 +524,7 @@ select_attr:
       attr.attribute_name = "*";
       $$->emplace_back(attr);
     }
-    // todo ID DOT '*' attr_list {}
-    | rel_attr attr_list {    // todo 替换成rel_expr attr_list{}
+    | rel_attr attr_list {
       if ($2 != nullptr) {
         $$ = $2;
       } else {
@@ -565,9 +532,6 @@ select_attr:
       }
       $$->emplace_back(*$1);
       delete $1;
-    }
-    | value_expr value_expr_list {
-        $$ = $1;
     }
     ;
 
@@ -591,7 +555,7 @@ attr_list:
     {
       $$ = nullptr;
     }
-    | COMMA rel_attr attr_list {    // todo 替换成rel_expr attr_list{}
+    | COMMA rel_attr attr_list {
       if ($3 != nullptr) {
         $$ = $3;
       } else {
@@ -625,7 +589,7 @@ where:
       $$ = nullptr;
     }
     | WHERE condition_list {
-      $$ = $2;  
+      $$ = $2;
     }
     ;
 condition_list:
@@ -657,7 +621,7 @@ condition:
       delete $1;
       delete $3;
     }
-    | value comp_op value 
+    | value comp_op value
     {
       $$ = new ConditionSqlNode;
       $$->left_is_attr = 0;
@@ -694,16 +658,6 @@ condition:
       delete $3;
     }
     ;
-
-aggr_func:
-    aggr_func_type LBRACE '*' RBRACE {
-
-    }
-    | aggr_func_type LBRACE rel_attr RBRACE {  // todo rel_attr换成rel_expr
-
-    }
-    ;
-
 
 comp_op:
       EQ { $$ = EQUAL_TO; }

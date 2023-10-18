@@ -104,7 +104,6 @@ private:
  * @brief 字段表达式
  * @ingroup Expression
  */
-class FieldExpr;
 class FieldExpr : public Expression
 {
 public:

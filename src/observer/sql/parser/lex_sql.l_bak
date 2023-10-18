@@ -117,14 +117,10 @@ INFILE                                  RETURN_TOKEN(INFILE);
 EXPLAIN                                 RETURN_TOKEN(EXPLAIN);
 NOT                                     RETURN_TOKEN(NOT);
 LIKE                                    RETURN_TOKEN(LIKE);
-MAX                                     RETURN_TOKEN(AGGR_MAX);
-MIN                                     RETURN_TOKEN(AGGR_MIN);
-COUNT                                   RETURN_TOKEN(AGGR_COUNT);
-AVG                                     RETURN_TOKEN(AGGR_AVG);
-SUM                                     RETURN_TOKEN(AGGR_SUM);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);
+
 ","                                     RETURN_TOKEN(COMMA);
 "="                                     RETURN_TOKEN(EQ);
 "<="                                    RETURN_TOKEN(LE);

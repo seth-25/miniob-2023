@@ -89,18 +89,23 @@ extern int yydebug;
     EXPLAIN = 295,
     NOT = 296,
     LIKE = 297,
-    EQ = 298,
-    LT = 299,
-    GT = 300,
-    LE = 301,
-    GE = 302,
-    NE = 303,
-    NUMBER = 304,
-    FLOAT = 305,
-    ID = 306,
-    SSS = 307,
-    DATE_STR = 308,
-    UMINUS = 309
+    AGGR_MAX = 298,
+    AGGR_MIN = 299,
+    AGGR_COUNT = 300,
+    AGGR_AVG = 301,
+    AGGR_SUM = 302,
+    EQ = 303,
+    LT = 304,
+    GT = 305,
+    LE = 306,
+    GE = 307,
+    NE = 308,
+    NUMBER = 309,
+    FLOAT = 310,
+    ID = 311,
+    SSS = 312,
+    DATE_STR = 313,
+    UMINUS = 314
   };
 #endif
 
@@ -108,7 +113,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 109 "yacc_sql.y"
+#line 121 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -127,7 +132,16 @@ union YYSTYPE
   int                               number;
   float                             floats;
 
-#line 131 "yacc_sql.hpp"
+  // 新加的表达式
+  Expression *                      unary_expr;
+  Expression *                      add_expr;
+  Expression *                      mul_expr;
+  std::vector<Expression *> *       expr_list;
+  char *                            aggr_func_type;
+  Expression *                      aggr_func;
+
+
+#line 145 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
