@@ -84,8 +84,8 @@ public:
           rc = common::compare_string((void *)(v1 + pos), attr_length_[i], (void *)(v2 + pos), attr_length_[i]);
         } break;
         default: {
-          LOG_ERROR("unknown attr type. %d", attr_type_[i]);
-          abort();
+          ASSERT(false, "unknown attr type. %d", attr_type_[i]);
+          return 0;
         }
       }
 
@@ -161,14 +161,15 @@ public:
   std::string operator()(const char *v) const
   {
     int pos = 0;
+    std::string str_all = std::string();
     for (size_t i = 0; i < attr_type_.size(); i++) {
       switch (attr_type_[i]) {
         case DATES:
         case INTS: {
-          return std::to_string(*(int *)(v + pos));
+          str_all += std::to_string(*(int *)(v + pos));
         } break;
         case FLOATS: {
-          return std::to_string(*(float *)(v + pos));
+          str_all += std::to_string(*(float *)(v + pos));
         }
         case CHARS: {
           std::string str;
@@ -178,7 +179,7 @@ public:
             }
             str.push_back(v[j + pos]);
           }
-          return str;
+          str_all += str;
         }
         default: {
           ASSERT(false, "unknown attr type");
@@ -186,7 +187,7 @@ public:
       }
       pos += attr_length_[i];
     }
-    return nullptr;
+    return str_all;
   }
 
 private:

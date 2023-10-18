@@ -20,7 +20,7 @@ BplusTreeIndex::~BplusTreeIndex() noexcept
   close();
 }
 
-RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, std::vector<FieldMeta> field_meta)
+RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, std::vector<FieldMeta> &field_meta)
 {
   if (inited_) {
     LOG_WARN("Failed to create index due to the index has been created before. file_name:%s, index:%s",
@@ -111,7 +111,18 @@ RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
 
 RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
 {
-  return index_handler_.delete_entry(record, rid);
+  int len_sum = 0;
+  for (size_t i = 0; i < field_meta_.size(); i++) {
+    len_sum += field_meta_[i].len();
+  }
+
+  int pos = 0;
+  char user_key[len_sum];
+  for (size_t i = 0; i < field_meta_.size(); i++) {
+    memcpy(user_key + pos, record + field_meta_[i].offset(), field_meta_[i].len());
+    pos += field_meta_[i].len();
+  }
+  return index_handler_.delete_entry(user_key, rid);
 }
 
 IndexScanner *BplusTreeIndex::create_scanner(

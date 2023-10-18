@@ -424,9 +424,9 @@ RC Table::create_index(Trx *trx,std::vector<const FieldMeta *> &field_metas, con
   }
 
   std::vector<FieldMeta> field_metas_real;
-  for (auto & field_meta : field_metas) {
-    FieldMeta tmp_field_meat = *field_meta;
-    field_metas_real.push_back(tmp_field_meat);
+  field_metas_real.reserve(field_metas.size());
+for (auto & field_meta : field_metas) {
+    field_metas_real.push_back(*field_meta);
   }
   // 创建索引相关数据
   BplusTreeIndex *index = new BplusTreeIndex();
