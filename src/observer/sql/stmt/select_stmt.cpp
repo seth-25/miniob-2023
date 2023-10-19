@@ -133,13 +133,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
-  // create filter statement in `where` statement
+  // create filter statement in `where` statemen
+  std::vector<ConditionSqlNode> sum_conditions = select_sql.inner_join_conditions;
+  sum_conditions.insert(sum_conditions.end(), select_sql.conditions.begin(), select_sql.conditions.end());
   FilterStmt *filter_stmt = nullptr;
   RC rc = FilterStmt::create(db,
       default_table,
       &table_map,
-      select_sql.conditions.data(),
-      static_cast<int>(select_sql.conditions.size()),
+      sum_conditions.data(),
+      static_cast<int>(select_sql.conditions.size() + select_sql.inner_join_conditions.size()),
       filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");

@@ -51,52 +51,54 @@ extern int yydebug;
     TABLE = 261,
     TABLES = 262,
     INDEX = 263,
-    CALC = 264,
-    SELECT = 265,
-    DESC = 266,
-    SHOW = 267,
-    SYNC = 268,
-    INSERT = 269,
-    DELETE = 270,
-    UPDATE = 271,
-    LBRACE = 272,
-    RBRACE = 273,
-    COMMA = 274,
-    TRX_BEGIN = 275,
-    TRX_COMMIT = 276,
-    TRX_ROLLBACK = 277,
-    INT_T = 278,
-    STRING_T = 279,
-    FLOAT_T = 280,
-    DATE_T = 281,
-    HELP = 282,
-    EXIT = 283,
-    DOT = 284,
-    INTO = 285,
-    VALUES = 286,
-    FROM = 287,
-    WHERE = 288,
-    AND = 289,
-    SET = 290,
-    ON = 291,
-    LOAD = 292,
-    DATA = 293,
-    INFILE = 294,
-    EXPLAIN = 295,
-    NOT = 296,
-    LIKE = 297,
-    EQ = 298,
-    LT = 299,
-    GT = 300,
-    LE = 301,
-    GE = 302,
-    NE = 303,
-    NUMBER = 304,
-    FLOAT = 305,
-    ID = 306,
-    SSS = 307,
-    DATE_STR = 308,
-    UMINUS = 309
+    INNER = 264,
+    JOIN = 265,
+    CALC = 266,
+    SELECT = 267,
+    DESC = 268,
+    SHOW = 269,
+    SYNC = 270,
+    INSERT = 271,
+    DELETE = 272,
+    UPDATE = 273,
+    LBRACE = 274,
+    RBRACE = 275,
+    COMMA = 276,
+    TRX_BEGIN = 277,
+    TRX_COMMIT = 278,
+    TRX_ROLLBACK = 279,
+    INT_T = 280,
+    STRING_T = 281,
+    FLOAT_T = 282,
+    DATE_T = 283,
+    HELP = 284,
+    EXIT = 285,
+    DOT = 286,
+    INTO = 287,
+    VALUES = 288,
+    FROM = 289,
+    WHERE = 290,
+    AND = 291,
+    SET = 292,
+    ON = 293,
+    LOAD = 294,
+    DATA = 295,
+    INFILE = 296,
+    EXPLAIN = 297,
+    NOT = 298,
+    LIKE = 299,
+    EQ = 300,
+    LT = 301,
+    GT = 302,
+    LE = 303,
+    GE = 304,
+    NE = 305,
+    NUMBER = 306,
+    FLOAT = 307,
+    ID = 308,
+    SSS = 309,
+    DATE_STR = 310,
+    UMINUS = 311
   };
 #endif
 
@@ -105,7 +107,7 @@ extern int yydebug;
 
 union YYSTYPE
 {
-#line 105 "yacc_sql.y" /* yacc.c:1909  */
+#line 107 "yacc_sql.y" /* yacc.c:1909  */
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -119,13 +121,13 @@ union YYSTYPE
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
-  std::vector<std::string> *        relation_list;
+  RelationSqlNode *                 relation_list;
   std::vector<std::string> *        rel_index_attr_list;
   char *                            string;
   int                               number;
   float                             floats;
 
-#line 129 "yacc_sql.hpp" /* yacc.c:1909  */
+#line 131 "yacc_sql.hpp" /* yacc.c:1909  */
 };
 
 typedef union YYSTYPE YYSTYPE;

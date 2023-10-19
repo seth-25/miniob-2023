@@ -60,6 +60,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         TABLE
         TABLES
         INDEX
+        INNER
+        JOIN
         CALC
         SELECT
         DESC
@@ -115,7 +117,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
-  std::vector<std::string> *        relation_list;
+  RelationSqlNode *                 relation_list;
   std::vector<std::string> *        rel_index_attr_list;
   char *                            string;
   int                               number;
@@ -141,6 +143,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value_list>          value_list
 %type <condition_list>      where
 %type <condition_list>      condition_list
+%type <condition_list>      inner_condition_list
 %type <rel_attr_list>       select_attr
 %type <relation_list>       rel_list
 %type <rel_attr_list>       attr_list
@@ -459,7 +462,8 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
       if ($5 != nullptr) {
-        $$->selection.relations.swap(*$5);
+        $$->selection.relations.swap($5->relation_names);
+        $$->selection.inner_join_conditions.swap($5->conditions); 
         delete $5;
       }
       $$->selection.relations.push_back($4);
@@ -600,13 +604,36 @@ rel_list:
       if ($3 != nullptr) {
         $$ = $3;
       } else {
-        $$ = new std::vector<std::string>;
+        $$ = new RelationSqlNode;
       }
 
-      $$->push_back($2);
+      $$->relation_names.push_back($2);
       free($2);
     }
+    | INNER JOIN ID inner_condition_list rel_list{
+      if ($5 != nullptr) {
+         $$ = $5;
+      } else {
+         $$ = new RelationSqlNode;
+      }
+      std::vector<ConditionSqlNode> &conditions = $$->conditions;
+      if ($4 != nullptr)
+      {
+         conditions.insert(conditions.end(), $4->begin(), $4->end());
+         delete $4;
+      }
+      $$->relation_names.push_back($3);
+      free($3);
+    }
     ;
+inner_condition_list:
+	/* empty */ {
+       $$ = nullptr;
+    }
+	| ON condition_list {
+       $$ = $2;
+	}
+	;
 where:
     /* empty */
     {
