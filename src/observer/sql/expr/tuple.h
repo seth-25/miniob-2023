@@ -108,6 +108,16 @@ public:
    */
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const = 0;
 
+  virtual void get_record(CompoundRecord &record) const = 0;
+
+  // this func will set all records
+  // invoke this func will erase begin arg:record
+  virtual void set_record(CompoundRecord &record) = 0;
+
+  // this will not set all records
+  // invoke this func will erase end arg:record
+  virtual void set_right_record(CompoundRecord &record) = 0;
+
   virtual std::string to_string() const
   {
     std::string str;
@@ -218,6 +228,23 @@ public:
     return *record_;
   }
 
+  void set_record(CompoundRecord &record) override
+  {
+    assert(record.size() >= 1);
+    set_record(record.front());
+    record.erase(record.begin());
+  }
+
+  void set_right_record(CompoundRecord &record) override
+  {
+    assert(!record.empty());
+    set_record(record);
+  }
+  void get_record(CompoundRecord &record) const override
+  {
+    record.emplace_back(record_);
+  }
+
 private:
   Record *record_ = nullptr;
   const Table *table_ = nullptr;
@@ -275,6 +302,21 @@ public:
     return tuple_->find_cell(spec, cell);
   }
 
+  void get_record(CompoundRecord &record) const override
+  {
+    tuple_->get_record(record);
+  }
+
+  void set_record(CompoundRecord &record) override
+  {
+    tuple_->set_record(record);
+  }
+
+  void set_right_record(CompoundRecord &record) override
+  {
+    tuple_->set_right_record(record);
+  }
+
 #if 0
   RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
   {
@@ -326,6 +368,16 @@ public:
     }
     return RC::NOTFOUND;
   }
+  void set_record(CompoundRecord &record) override
+  {
+  }
+
+  void set_right_record(CompoundRecord &record) override
+  {
+  }
+  void get_record(CompoundRecord &record) const override
+  {
+  }
 
 
 private:
@@ -365,6 +417,17 @@ public:
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
     return RC::INTERNAL;
+  }
+
+  void set_record(CompoundRecord &record) override
+  {
+  }
+
+  void set_right_record(CompoundRecord &record) override
+  {
+  }
+  void get_record(CompoundRecord &record) const override
+  {
   }
 
 private:
@@ -419,7 +482,22 @@ public:
 
     return right_->find_cell(spec, value);
   }
+  void set_right_record(CompoundRecord &record) override
+  {
+    right_->set_right_record(record);
+    assert(record.empty());
+  }
 
+  void set_record(CompoundRecord &record) override
+  {
+    left_->set_record(record);
+    right_->set_record(record);
+  }
+  void get_record(CompoundRecord &record) const override
+  {
+    left_->get_record(record);
+    right_->get_record(record);
+  }
 private:
   Tuple *left_ = nullptr;
   Tuple *right_ = nullptr;

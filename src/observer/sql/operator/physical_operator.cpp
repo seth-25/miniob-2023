@@ -19,6 +19,8 @@ std::string physical_operator_type_name(PhysicalOperatorType type)
   switch (type) {
     case PhysicalOperatorType::TABLE_SCAN:
       return "TABLE_SCAN";
+    case PhysicalOperatorType::ORDER_BY:
+      return "ORDER_BY";
     case PhysicalOperatorType::INDEX_SCAN:
       return "INDEX_SCAN";
     case PhysicalOperatorType::NESTED_LOOP_JOIN:

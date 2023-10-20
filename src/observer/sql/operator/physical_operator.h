@@ -38,6 +38,7 @@ class Trx;
 enum class PhysicalOperatorType
 {
   TABLE_SCAN,
+  ORDER_BY,
   INDEX_SCAN,
   NESTED_LOOP_JOIN,
   CACHE_NESTED_LOOP_JOIN,

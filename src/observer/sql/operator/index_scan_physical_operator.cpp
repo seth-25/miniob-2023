@@ -109,7 +109,7 @@ RC IndexScanPhysicalOperator::close()
 
 Tuple *IndexScanPhysicalOperator::current_tuple()
 {
-  tuple_.set_record(&current_record_);
+//  tuple_.set_record(&current_record_);
   return &tuple_;
 }
 

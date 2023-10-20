@@ -22,13 +22,14 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/insert_logical_operator.h"
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/join_logical_operator.h"
-#include "sql/operator/project_logical_operator.h"
+#include "sql/operator/orderby_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 
 #include "sql/stmt/stmt.h"
 #include "sql/stmt/calc_stmt.h"
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/order_by_stmt.h"
 #include "sql/stmt/insert_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
@@ -88,8 +89,8 @@ RC LogicalPlanGenerator::create_plan(
 {
   unique_ptr<LogicalOperator> table_oper(nullptr);
 
-  const std::vector<Table *> &tables = select_stmt->tables();
-  const std::vector<Field> &all_fields = select_stmt->query_fields();
+  const std::vector<Table *> &tables     = select_stmt->tables();
+  const std::vector<Field>   &all_fields = select_stmt->query_fields();
   for (Table *table : tables) {
     std::vector<Field> fields;
     for (const Field &field : all_fields) {
@@ -98,7 +99,7 @@ RC LogicalPlanGenerator::create_plan(
       }
     }
 
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, true/*readonly*/));
+    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, true /*readonly*/));
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
     } else {
@@ -110,21 +111,39 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   unique_ptr<LogicalOperator> predicate_oper;
-  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
+  RC  rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
     return rc;
   }
-
+  unique_ptr<LogicalOperator> orderby_oper(nullptr);
+  if (select_stmt->orderby_stmt() != nullptr){
+    unique_ptr<LogicalOperator> temp_orderby_oper(new OrderByLogicalOperator(select_stmt->orderby_stmt()));
+    orderby_oper = std::move(temp_orderby_oper);
+  }
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(all_fields));
-  if (predicate_oper) {
-    if (table_oper) {
-      predicate_oper->add_child(std::move(table_oper));
+  if (orderby_oper) {
+    if (predicate_oper) {
+      if (table_oper) {
+        predicate_oper->add_child(std::move(table_oper));
+      }
+        orderby_oper->add_child(std::move(predicate_oper));
+      } else {
+      if (table_oper) {
+        orderby_oper->add_child(std::move(table_oper));
+      }
     }
-    project_oper->add_child(std::move(predicate_oper));
+    project_oper->add_child(std::move(orderby_oper));
   } else {
-    if (table_oper) {
-      project_oper->add_child(std::move(table_oper));
+      if (predicate_oper) {
+        if (table_oper) {
+          predicate_oper->add_child(std::move(table_oper));
+        }
+      project_oper->add_child(std::move(predicate_oper));
+      } else {
+        if (table_oper) {
+          project_oper->add_child(std::move(table_oper));
+        }
     }
   }
 

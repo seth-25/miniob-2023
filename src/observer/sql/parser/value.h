@@ -96,6 +96,35 @@ public:
   float get_float() const;
   std::string get_string() const;
   bool get_boolean() const;
+  bool operator==(const Value &other) const
+  {
+    return 0 == compare(other);
+  }
+
+  bool operator!=(const Value &other) const
+  {
+    return 0 != compare(other);
+  }
+
+  bool operator<(const Value &other) const
+  {
+    return 0 > compare(other);
+  }
+
+  bool operator<=(const Value &other) const
+  {
+    return 0 >= compare(other);
+  }
+
+  bool operator>(const Value &other) const
+  {
+    return 0 < compare(other);
+  }
+
+  bool operator>=(const Value &other) const
+  {
+    return 0 <= compare(other);
+  }
 
 private:
   AttrType attr_type_ = UNDEFINED;
