@@ -43,6 +43,7 @@ enum class ExprType
   COMPARISON,   ///< 需要做比较的表达式
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
+  BINARY,       ///< 二元运算表达式
 
   AGGRFUNC,     ///< 聚合表达式
 };
@@ -96,8 +97,25 @@ public:
   virtual std::string name() const { return name_; }
   virtual void set_name(std::string name) { name_ = name; }
 
+  /**
+   * 解析select投影和filter条件的复杂表达式
+   * @return res_expr
+   */
+  static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+      const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
+
+  /**
+   * 解析select投影表达式，设置列名
+   * @return res_expr
+   */
+  static void gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name);
+
+  void set_with_brace() { with_brace_ = true; }
+  bool with_brace() const { return with_brace_; }
+
 private:
   std::string  name_;
+  bool with_brace_ = false;
 };
 
 /**
@@ -108,8 +126,12 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field)
-  {}
+  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
+  FieldExpr(const Table *table, const FieldMeta *field, bool with_brace) : field_(table, field) {
+    if (with_brace) {
+      set_with_brace();
+    }
+  }
   FieldExpr(const Field &field) : field_(field)
   {}
 
@@ -128,9 +150,20 @@ public:
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
+  std::string to_string(bool with_table_name) const;
+
+
+  /**
+   * 从表达式中获取对应的字段
+   * @return res_expr
+   */
+  static RC get_field_from_exprs(const Expression* expr, std::vector<Field> &fields);
+
 private:
   Field field_;
 };
+
+
 
 /**
  * @brief 常量值表达式

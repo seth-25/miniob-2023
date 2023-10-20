@@ -46,11 +46,15 @@ RC ShowIndexExecutor::execute(SQLStageEvent *sql_event)
   Table *table = db->find_table(table_name);
   if (table != nullptr) {
 
-    TupleSchema tuple_schema;
-    tuple_schema.append_cell(TupleCellSpec("", "Table", "Table"));
-    tuple_schema.append_cell(TupleCellSpec("", "Key_name", "Key_name"));
-    tuple_schema.append_cell(TupleCellSpec("", "Seq_in_fields", "Seq_in_fields"));
-    tuple_schema.append_cell(TupleCellSpec("", "Column_name", "Column_name"));
+    TupleSchema* tuple_schema = new TupleSchema;
+//    tuple_schema.append_cell(new TupleCellSpec("", "Table", "Table"));
+//    tuple_schema.append_cell(new TupleCellSpec("", "Key_name", "Key_name"));
+//    tuple_schema.append_cell(new TupleCellSpec("", "Seq_in_fields", "Seq_in_fields"));
+//    tuple_schema.append_cell(new TupleCellSpec("", "Column_name", "Column_name"));
+    tuple_schema->append_cell(new TupleCellSpec("Table"));
+    tuple_schema->append_cell(new TupleCellSpec("Key_name"));
+    tuple_schema->append_cell(new TupleCellSpec("Seq_in_fields"));
+    tuple_schema->append_cell(new TupleCellSpec("Column_name"));
 
     sql_result->set_tuple_schema(tuple_schema);
 

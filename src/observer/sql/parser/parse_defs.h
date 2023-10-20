@@ -22,7 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #define MAX_NUM 20
 class Expression;
-class AggrFuncExpr;
+class AggrFuncExpression;
 
 /**
  * @defgroup SQLParser SQL Parser 
@@ -42,15 +42,62 @@ struct RelAttrSqlNode
   std::string attribute_name;  ///< attribute name              属性名
 };
 
+enum class ExprOp
+{
+  ADD_OP,
+  SUB_OP,
+  MUL_OP,
+  DIV_OP,
+  NEGATIVE_OP,
+};
+
+enum class ExprSqlNodeType
+{
+  UNDEFINED,
+  UNARY,
+  BINARY,
+  AGGR,
+  FUNC,
+};
+
+struct UnaryExprSqlNode;
+struct BinaryExprSqlNode;
+struct AggrExprSqlNode;
+struct FuncExprSqlNode;
 
 /**
- * 投影列
- * 有对应属性(可能为空)
- * 有表达式
+ * 各种类型的表达式
  */
-struct ProjectCol {
-  RelAttrSqlNode attr_sql_node;
-  std::vector<Expression* > expressions;
+struct ExprSqlNode
+{
+  ExprSqlNodeType    type = ExprSqlNodeType::UNDEFINED;
+  bool               with_brace = false;  // 打印用
+  UnaryExprSqlNode  *unary_expr = nullptr;
+  BinaryExprSqlNode *binary_expr = nullptr;
+  AggrExprSqlNode   *aggrExprSqlNode = nullptr;
+  FuncExprSqlNode   *funcExprSqlNode = nullptr;
+};
+
+/**
+ * 一元表达式
+ * 可能是属性，也可能是值
+ */
+struct UnaryExprSqlNode
+{
+  bool is_attr;
+  RelAttrSqlNode attr;
+  Value value;
+};
+
+/**
+ * 二元表达式
+ */
+struct BinaryExprSqlNode
+{
+  ExprOp op;
+  bool is_minus = false;  // 打印用
+  ExprSqlNode *left;
+  ExprSqlNode *right;
 };
 
 
@@ -79,17 +126,27 @@ enum CompOp
  * 左边和右边理论上都可以是任意的数据，比如是字段（属性，列），也可以是数值常量。
  * 这个结构中记录的仅仅支持字段和值。
  */
+//struct ConditionSqlNode
+//{
+//  int             left_is_attr;    ///< TRUE if left-hand side is an attribute
+//                                   ///< 1时，操作符左边是属性名，0时，是属性值
+//  Value           left_value;      ///< left-hand side value if left_is_attr = FALSE
+//  RelAttrSqlNode  left_attr;       ///< left-hand side attribute
+//  CompOp          comp;            ///< comparison operator
+//  int             right_is_attr;   ///< TRUE if right-hand side is an attribute
+//                                   ///< 1时，操作符右边是属性名，0时，是属性值
+//  RelAttrSqlNode  right_attr;      ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
+//  Value           right_value;     ///< right-hand side value if right_is_attr = FALSE
+//};
+
+/**
+ * 支持表达式的条件比较
+ */
 struct ConditionSqlNode
 {
-  int             left_is_attr;    ///< TRUE if left-hand side is an attribute
-                                   ///< 1时，操作符左边是属性名，0时，是属性值
-  Value           left_value;      ///< left-hand side value if left_is_attr = FALSE
-  RelAttrSqlNode  left_attr;       ///< left-hand side attribute
   CompOp          comp;            ///< comparison operator
-  int             right_is_attr;   ///< TRUE if right-hand side is an attribute
-                                   ///< 1时，操作符右边是属性名，0时，是属性值
-  RelAttrSqlNode  right_attr;      ///< right-hand side attribute if right_is_attr = TRUE 右边的属性
-  Value           right_value;     ///< right-hand side value if right_is_attr = FALSE
+  ExprSqlNode*    left;
+  ExprSqlNode*    right;
 };
 
 /**
@@ -103,12 +160,21 @@ struct ConditionSqlNode
  * 甚至可以包含复杂的表达式。
  */
 
+//struct SelectSqlNode
+//{
+//  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
+//  std::vector<std::string>        relations;     ///< 查询的表
+//  std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+//};
+
 struct SelectSqlNode
 {
-  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
+//  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
+  std::vector<ExprSqlNode *>      project_exprs; ///< 投影的表达式
   std::vector<std::string>        relations;     ///< 查询的表
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
 };
+
 
 /**
  * @brief 算术表达式计算的语法树

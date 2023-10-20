@@ -187,7 +187,7 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
   const int cell_num = schema.cell_num();
 
   for (int i = 0; i < cell_num; i++) {
-    const TupleCellSpec &spec = schema.cell_at(i);
+    const TupleCellSpec &spec = *schema.cell_at(i);
     const char *alias = spec.alias();
     if (nullptr != alias || alias[0] != 0) {
       if (0 != i) {

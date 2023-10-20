@@ -49,9 +49,13 @@ public:
   {
     return tables_;
   }
-  const std::vector<Field> &query_fields() const
+  std::vector<std::unique_ptr<Expression>> &project_expres()
   {
-    return query_fields_;
+    return project_exprs_;
+  }
+  std::vector<std::string> &project_name()
+  {
+    return project_name_;
   }
   FilterStmt *filter_stmt() const
   {
@@ -59,7 +63,8 @@ public:
   }
 
 private:
-  std::vector<Field> query_fields_;
+  std::vector<std::unique_ptr<Expression>> project_exprs_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
+  std::vector<std::string> project_name_; // 投影表达式的名字
 };

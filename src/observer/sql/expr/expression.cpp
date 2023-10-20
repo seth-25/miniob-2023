@@ -14,14 +14,254 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
+#include "common/lang/string.h"
+#include "value_expression.h"
+#include "binary_expression.h"
 #include <regex>
 using namespace std;
 
-RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
+
+RC Expression::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr)
 {
-  return tuple.find_cell(TupleCellSpec(table_name(), field_name()), value);
+  bool with_brace = expr->with_brace;
+  if (expr->type == ExprSqlNodeType::UNARY) {
+    UnaryExprSqlNode *unary_expr = expr->unary_expr;
+    if (unary_expr->is_attr) {
+      const char *table_name = unary_expr->attr.relation_name.c_str();
+      const char *field_name = unary_expr->attr.attribute_name.c_str();
+      if (common::is_blank(table_name)) {
+        if (tables.size() != 1) { // select id from t  id没有对应表名
+          LOG_WARN("invalid. I do not know the attr's table. attr=%s", field_name);
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+        Table *table = tables[0];
+        const FieldMeta *field_meta = table->table_meta().field(field_name);
+        if (nullptr == field_meta) {
+          LOG_WARN("no such field. field=%s.%s", table->name(), field_name);
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+        std::unique_ptr<FieldExpr> tmp(new FieldExpr(table, field_meta, with_brace));
+        res_expr = std::move(tmp);
+//        res_expr = std::make_unique<FieldExpr>(table, field_meta, with_brace);
+        return RC::SUCCESS;
+      } else {  // select t.id from t
+        auto iter = table_map.find(table_name);
+        if (iter == table_map.end()) {
+          LOG_WARN("no such table in from list: %s", table_name);
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+
+        Table *table = iter->second;
+        const FieldMeta *field_meta = table->table_meta().field(field_name);
+        if (nullptr == field_meta) {  // 不支持select t.* from t;
+          LOG_WARN("no such field. field=%s.%s", table->name(), field_name);
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+        std::unique_ptr<FieldExpr> tmp(new FieldExpr(table, field_meta, with_brace));
+        res_expr = std::move(tmp);
+//        res_expr = std::make_unique<FieldExpr>(table, field_meta, with_brace);
+        return RC::SUCCESS;
+      }
+    } else {
+      std::unique_ptr<ValueExpr> tmp(new ValueExpr(unary_expr->value, with_brace));
+      res_expr = std::move(tmp);
+//      res_expr = std::make_unique<ValueExpr>(unary_expr->value, with_brace);
+      return RC::SUCCESS;
+    }
+  } else if (expr->type == ExprSqlNodeType::BINARY) {
+    std::unique_ptr<Expression> left_expr;
+    std::unique_ptr<Expression> right_expr;
+    RC rc = create_expression(expr->binary_expr->left, table_map, tables, left_expr);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+    rc = create_expression(expr->binary_expr->right, table_map, tables, right_expr);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+    std::unique_ptr<BinaryExpression> tmp(new BinaryExpression(
+        expr->binary_expr->op, std::move(left_expr), std::move(right_expr), with_brace, expr->binary_expr->is_minus));
+    res_expr = std::move(tmp);
+//    res_expr = std::make_unique<BinaryExpression>(expr->binary_expr->op, std::move(left_expr), std::move(right_expr), with_brace, expr->binary_expr->is_minus);
+    return RC::SUCCESS;
+  }
+//  else if (expr->type == FUNC) {
+//    Expression *param_expr1;
+//    Expression *param_expr2;
+//    switch (expr->fexp->type) {
+//      case FUNC_LENGTH: {
+//        RC rc = create_expression(expr->fexp->params[0], table_map, tables, param_expr1);
+//        if (rc != RC::SUCCESS) {
+//          return rc;
+//        }
+//        // res_expr = new FuncExpression(expr->fexp->type, expr->fexp->param_size, param_expr1, param_expr2,
+//        // with_brace);
+//        break;
+//      }
+//      case FUNC_ROUND: {
+//        RC rc = create_expression(expr->fexp->params[0], table_map, tables, param_expr1);
+//        if (rc != RC::SUCCESS) {
+//          return rc;
+//        }
+//        if (expr->fexp->param_size == 2) {
+//          rc = create_expression(expr->fexp->params[1], table_map, tables, param_expr2);
+//          if (rc != RC::SUCCESS) {
+//            return rc;
+//          }
+//        }
+//        // res_expr = new FuncExpression(expr->fexp->type, expr->fexp->param_size, param_expr1, param_expr2,
+//        // with_brace);
+//        break;
+//      }
+//      case FUNC_DATE_FORMAT: {
+//        RC rc = create_expression(expr->fexp->params[0], table_map, tables, param_expr1);
+//        if (rc != RC::SUCCESS) {
+//          return rc;
+//        }
+//        rc = create_expression(expr->fexp->params[1], table_map, tables, param_expr2);
+//        if (rc != RC::SUCCESS) {
+//          return rc;
+//        }
+//        // res_expr = new FuncExpression(expr->fexp->type, expr->fexp->param_size, param_expr1, param_expr2,
+//        // with_brace);
+//        break;
+//      }
+//      default:
+//        break;
+//    }
+//  }
+//  else if (AGGRFUNC == expr->type) {
+//    // TODO(wbj)
+//    if (UNARY == expr->afexp->param->type && 0 == expr->afexp->param->uexp->is_attr) {
+//      // count(*) count(1) count(Value)
+//      assert(AggrFuncType::COUNT == expr->afexp->type);
+//      // substitue * or 1 with some field
+//      Expression *tmp_value_exp = nullptr;
+//      RC rc = create_expression(expr->afexp->param, table_map, tables, tmp_value_exp);
+//      if (rc != RC::SUCCESS) {
+//        return rc;
+//      }
+//      assert(ExprType::VALUE == tmp_value_exp->type());
+//      auto aggr_func_expr = new AggrFuncExpression(
+//          AggrFuncType::COUNT, new FieldExpr(tables[0], tables[0]->table_meta().field(1)), with_brace);
+//      aggr_func_expr->set_param_value((ValueExpr *)tmp_value_exp);
+//      res_expr = aggr_func_expr;
+//      return RC::SUCCESS;
+//    }
+//    Expression *param = nullptr;
+//    RC rc = create_expression(expr->afexp->param, table_map, tables, param);
+//    if (rc != RC::SUCCESS) {
+//      return rc;
+//    }
+//    assert(nullptr != param && ExprType::FIELD == param->type());
+//    res_expr = new AggrFuncExpression(expr->afexp->type, (FieldExpr *)param, with_brace);
+//    return RC::SUCCESS;
+//  }
+  return RC::SUCCESS;
 }
 
+
+void Expression::gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name)
+{
+  if (expr->with_brace()) {
+    result_name += '(';
+  }
+  switch (expr->type()) {
+    case ExprType::FIELD: {
+      FieldExpr *field_expr = (FieldExpr *)expr;
+      result_name += field_expr->to_string(with_table_name);
+      break;
+    }
+    case ExprType::VALUE: {
+      ValueExpr *value_expr = (ValueExpr *)expr;
+      result_name += value_expr->to_string();
+      break;
+    }
+    case ExprType::BINARY: {
+      BinaryExpression *binary_expr = (BinaryExpression *)expr;
+      if (binary_expr->is_minus()) {
+        result_name += '-';
+      } else {
+        gen_project_name(binary_expr->left().get(), with_table_name, result_name);
+        result_name += binary_expr->get_op_char();
+      }
+      gen_project_name(binary_expr->right().get(), with_table_name, result_name);
+      break;
+    }
+      //    case ExprType::AGGRFUNCTION: {
+      //      AggrFuncExpression *afexpr = (AggrFuncExpression *)expr;
+      //      result_name += afexpr->get_func_name();
+      //      result_name += '(';
+      //      if (afexpr->is_param_value()) {
+      //        gen_project_name(afexpr->get_param_value(), with_table_name, result_name);
+      //
+      //      } else {
+      //        const Field &field = afexpr->field();
+      //        if (!with_table_name) {
+      //          result_name += std::string(field.table_name()) + '.' + std::string(field.field_name());
+      //        } else {
+      //          result_name += std::string(field.field_name());
+      //        }
+      //      }
+      //      result_name += ')';
+      //      break;
+      //    }
+    default:
+      break;
+  }
+  if (expr->with_brace()) {
+    result_name += ')';
+  }
+}
+
+/////////////////////////////////////////////////////////////////////////////////
+
+RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
+{
+  unique_ptr<FieldExpr> field_expr_copy = make_unique<FieldExpr>(field_);
+  return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value);
+}
+
+
+RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &fields)
+{
+  switch (expr->type()) {
+    case ExprType::FIELD: {
+      const FieldExpr* field_expr = (const FieldExpr *)(expr);
+      const Field &field = field_expr->field();
+      fields.emplace_back(field);
+      break;
+    }
+    case ExprType::AGGRFUNC: {
+//       const AggrFuncExpression *aggrfunc_expr = (const AggrFuncExpression *)expr;
+//       get_field_from_exprs(aggrfunc_expr->field_expr, fields);
+      break;
+    }
+    case ExprType::BINARY: {
+      BinaryExpression* binary_expr = (BinaryExpression*) expr;
+      get_field_from_exprs(binary_expr->left().get(), fields);
+      get_field_from_exprs(binary_expr->right().get(), fields);
+      break;
+    }
+    default:
+      break;
+  }
+  return RC::SUCCESS;
+}
+
+std::string FieldExpr::to_string(bool with_table_name) const
+{
+  std::string str;
+  const Field &field = field_;
+  if (with_table_name) {
+    str += std::string(field.table_name()) + '.' + std::string(field.field_name());
+  } else {
+    str += std::string(field.field_name());
+  }
+  return str;
+}
+/////////////////////////////////////////////////////////////////////////////////
 //RC ValueExpr::get_value(const Tuple &tuple, Value &value) const
 //{
 //  value = value_;

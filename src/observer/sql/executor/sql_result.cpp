@@ -21,7 +21,7 @@ See the Mulan PSL v2 for more details. */
 SqlResult::SqlResult(Session *session) : session_(session)
 {}
 
-void SqlResult::set_tuple_schema(const TupleSchema &schema)
+void SqlResult::set_tuple_schema(TupleSchema* schema)
 {
   tuple_schema_ = schema;
 }

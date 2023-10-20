@@ -4,7 +4,7 @@
 */
 #include "sql/expr/expression.h"
 
-class AggrFuncExpr : public Expression
+class AggrFuncExpression : public Expression
 {
 public:
  enum class Type {
@@ -16,8 +16,8 @@ public:
  };
 
 public:
-  AggrFuncExpr(Type type, Expression *expr);
- virtual ~AggrFuncExpr() = default;
+  AggrFuncExpression(Type type, Expression *expr);
+ virtual ~AggrFuncExpression() = default;
 
  ExprType type() const override { return ExprType::AGGRFUNC; }
 

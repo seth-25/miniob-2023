@@ -43,8 +43,9 @@ public:
     std::vector<std::string> all_tables;
     db->all_tables(all_tables);
 
-    TupleSchema tuple_schema;
-    tuple_schema.append_cell(TupleCellSpec("", "Tables_in_SYS", "Tables_in_SYS"));
+    TupleSchema* tuple_schema = new TupleSchema;
+//    tuple_schema.append_cell(new TupleCellSpec("", "Tables_in_SYS", "Tables_in_SYS"));
+    tuple_schema->append_cell(new TupleCellSpec("Tables_in_SYS"));
     sql_result->set_tuple_schema(tuple_schema);
 
     auto oper = new StringListPhysicalOperator;

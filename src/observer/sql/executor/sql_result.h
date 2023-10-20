@@ -34,9 +34,13 @@ class SqlResult
 public:
   SqlResult(Session *session);
   ~SqlResult()
-  {}
+  {
+    if (tuple_schema_ != nullptr) {
+      delete tuple_schema_;
+    }
+  }
 
-  void set_tuple_schema(const TupleSchema &schema);
+  void set_tuple_schema(TupleSchema *schema);
   void set_return_code(RC rc)
   {
     return_code_ = rc;
@@ -54,7 +58,7 @@ public:
   }
   const TupleSchema &tuple_schema() const
   {
-    return tuple_schema_;
+    return *tuple_schema_;
   }
   RC return_code() const
   {
@@ -72,7 +76,7 @@ public:
 private:
   Session *session_ = nullptr; ///< 当前所属会话
   std::unique_ptr<PhysicalOperator> operator_;  ///< 执行计划
-  TupleSchema tuple_schema_;   ///< 返回的表头信息。可能有也可能没有
+  TupleSchema* tuple_schema_ = nullptr;   ///< 返回的表头信息。可能有也可能没有
   RC return_code_ = RC::SUCCESS;
   std::string state_string_;
 };

@@ -51,8 +51,8 @@ public:
 
     SqlResult *sql_result = sql_event->session_event()->sql_result();
 
-    TupleSchema schema;
-    schema.append_cell("Commands");
+    TupleSchema* schema = new TupleSchema;;
+    schema->append_cell("Commands");
 
     sql_result->set_tuple_schema(schema);
     sql_result->set_operator(std::unique_ptr<PhysicalOperator>(oper));

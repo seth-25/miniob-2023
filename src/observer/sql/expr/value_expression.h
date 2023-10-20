@@ -8,8 +8,12 @@ class ValueExpr : public Expression
 {
 public:
  ValueExpr() = default;
- explicit ValueExpr(const Value &value) : value_(value)
- {}
+ explicit ValueExpr(const Value &value) : value_(value) {}
+ explicit ValueExpr(const Value &value, bool with_brace) : value_(value) {
+   if (with_brace) {
+     set_with_brace();
+   }
+ }
 
  virtual ~ValueExpr() = default;
 
@@ -23,6 +27,8 @@ public:
  void get_value(Value &value) const { value = value_; }
 
  const Value &get_value() const { return value_; }
+
+ std::string to_string() const;
 
 private:
  Value value_;

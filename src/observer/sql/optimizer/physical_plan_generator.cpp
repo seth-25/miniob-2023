@@ -197,11 +197,9 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
   }
 
   ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
-  const vector<Field> &project_fields = project_oper.fields();
-  for (const Field &field : project_fields) {
-    project_operator->add_projection(field.table(), field.meta());
+  for (std::unique_ptr<Expression> &expr: project_oper.project_expres()) {
+    project_operator->add_projection(expr);
   }
-
   if (child_phy_oper) {
     project_operator->add_child(std::move(child_phy_oper));
   }
@@ -262,13 +260,6 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
     }
   }
 
-
-//  ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
-//  const vector<Field> &project_fields = project_oper.fields();
-//  for (const Field &field : project_fields) {
-//    project_operator->add_projection(field.table(), field.meta());
-//  }
-//
   std::vector<const FieldMeta *> &fields = update_oper.fields();
   oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(), update_oper.value(), std::move(fields)));
 

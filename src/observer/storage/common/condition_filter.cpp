@@ -59,12 +59,17 @@ RC DefaultConditionFilter::init(const ConDesc &left, const ConDesc &right, AttrT
 
 RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
 {
+  // todo 性能不够时优化
+  return RC::UNIMPLENMENT;
+
+  /*
   const TableMeta &table_meta = table.table_meta();
   ConDesc left;
   ConDesc right;
 
   AttrType type_left = UNDEFINED;
   AttrType type_right = UNDEFINED;
+
 
   if (1 == condition.left_is_attr) {
     left.is_attr = true;
@@ -117,6 +122,7 @@ RC DefaultConditionFilter::init(Table &table, const ConditionSqlNode &condition)
   }
 
   return init(left, right, type_left, condition.comp);
+   */
 }
 
 bool DefaultConditionFilter::filter(const Record &rec) const

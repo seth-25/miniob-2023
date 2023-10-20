@@ -25,14 +25,25 @@ SelectStmt::~SelectStmt()
     delete filter_stmt_;
     filter_stmt_ = nullptr;
   }
+  project_exprs_.clear();
 }
 
-static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
+//static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
+//{
+//  const TableMeta &table_meta = table->table_meta();
+//  const int field_num = table_meta.field_num();
+//  for (int i = table_meta.sys_field_num(); i < field_num; i++) {
+//    field_metas.push_back(Field(table, table_meta.field(i)));
+//  }
+//}
+
+
+static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression>> &project_exprs)
 {
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num();
   for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-    field_metas.push_back(Field(table, table_meta.field(i)));
+    project_exprs.emplace_back(new FieldExpr(table, table_meta.field(i)));
   }
 }
 
@@ -64,69 +75,86 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   // collect query fields in `select` statement
-  std::vector<Field> query_fields;
-  for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
-    const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
+  std::vector<std::unique_ptr<Expression>> project_expres;
+  for (int i = static_cast<int>(select_sql.project_exprs.size()) - 1; i >= 0; i--) {
+    const ExprSqlNode* expr = select_sql.project_exprs[i];
+    if (expr->type == ExprSqlNodeType::UNDEFINED) {
+      LOG_ERROR("表达式转化错误！！！");
+      return RC::SQL_SYNTAX;
+    }
 
-    if (common::is_blank(relation_attr.relation_name.c_str()) &&    // select * from t;
-        0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
-      for (Table *table : tables) {
-        wildcard_fields(table, query_fields);
-      }
+    if (expr->type == ExprSqlNodeType::UNARY && expr->unary_expr->is_attr) {  // 表达式是一元表达式，且是属性，执行原本的代码
+      const RelAttrSqlNode &relation_attr = expr->unary_expr->attr; // 属性，relation_name.attribute_name
 
-    } else if (!common::is_blank(relation_attr.relation_name.c_str())) {
-      // select t.* from t;
-      // select t.id from t;
-      const char *table_name = relation_attr.relation_name.c_str();
-      const char *field_name = relation_attr.attribute_name.c_str();
-
-      if (0 == strcmp(table_name, "*")) {
-        if (0 != strcmp(field_name, "*")) {
-          LOG_WARN("invalid field name while table is *. attr=%s", field_name);
-          return RC::SCHEMA_FIELD_MISSING;
-        }
+      if (common::is_blank(relation_attr.relation_name.c_str()) &&    // select * from t;
+          0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
         for (Table *table : tables) {
-          wildcard_fields(table, query_fields);
-        }
-      } else {
-        auto iter = table_map.find(table_name);
-        if (iter == table_map.end()) {
-          LOG_WARN("no such table in from list: %s", table_name);
-          return RC::SCHEMA_FIELD_MISSING;
+          wildcard_fields(table, project_expres);
         }
 
-        Table *table = iter->second;
-        if (0 == strcmp(field_name, "*")) {
-          wildcard_fields(table, query_fields);
+      } else if (!common::is_blank(relation_attr.relation_name.c_str())) {  // select t.* from t; 或者 select t.id from t;
+        const char *table_name = relation_attr.relation_name.c_str();
+        const char *field_name = relation_attr.attribute_name.c_str();
+        if (0 == strcmp(table_name, "*")) { // select *.attr from t;
+          if (0 != strcmp(field_name, "*")) {
+            LOG_WARN("invalid field name while table is *. attr=%s", field_name);
+            return RC::SCHEMA_FIELD_MISSING;
+          }
+          for (Table *table : tables) {
+            wildcard_fields(table, project_expres);
+          }
         } else {
-          const FieldMeta *field_meta = table->table_meta().field(field_name);
-          if (nullptr == field_meta) {
-            LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
+          auto iter = table_map.find(table_name);
+          if (iter == table_map.end()) {
+            LOG_WARN("no such table in from list: %s", table_name);
             return RC::SCHEMA_FIELD_MISSING;
           }
 
-          query_fields.push_back(Field(table, field_meta));
+          Table *table = iter->second;
+          if (0 == strcmp(field_name, "*")) {       // select t.* from t;转化
+            wildcard_fields(table, project_expres);
+          } else {                                  // select t.id from t;
+            const FieldMeta *field_meta = table->table_meta().field(field_name);
+            if (nullptr == field_meta) {
+              LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
+              return RC::SCHEMA_FIELD_MISSING;
+            }
+
+            project_expres.emplace_back(new FieldExpr(table, field_meta));
+          }
         }
-      }
-    } else {
-      // select t from xxx  没有表名
-      if (tables.size() != 1) {
-        LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name.c_str());
-        return RC::SCHEMA_FIELD_MISSING;
-      }
+      } else {  // select id from t  id没有对应表名
+        if (tables.size() != 1) {
+          LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name.c_str());
+          return RC::SCHEMA_FIELD_MISSING;
+        }
 
-      Table *table = tables[0];
-      const FieldMeta *field_meta = table->table_meta().field(relation_attr.attribute_name.c_str());
-      if (nullptr == field_meta) {
-        LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), relation_attr.attribute_name.c_str());
-        return RC::SCHEMA_FIELD_MISSING;
-      }
+        Table *table = tables[0];
+        const FieldMeta *field_meta = table->table_meta().field(relation_attr.attribute_name.c_str());
+        if (nullptr == field_meta) {
+          LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), relation_attr.attribute_name.c_str());
+          return RC::SCHEMA_FIELD_MISSING;
+        }
 
-      query_fields.push_back(Field(table, field_meta));
+        project_expres.emplace_back(new FieldExpr(table, field_meta));
+      }
+    }
+    else {  // select 复杂表达式 from t;
+      std::unique_ptr<Expression> project_expr;
+      RC rc = Expression::create_expression(expr, table_map, tables, project_expr);
+      if (rc != RC::SUCCESS) {
+        return rc;
+      }
+      assert(project_expr != nullptr);
+      project_expres.emplace_back(std::move(project_expr));
     }
   }
 
-  LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), query_fields.size());
+  for (auto& node: select_sql.project_exprs) {
+    delete node;
+  }
+
+  LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), project_expres.size());
 
   Table *default_table = nullptr;
   if (tables.size() == 1) {
@@ -148,10 +176,18 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
-  // TODO add expression copy
   select_stmt->tables_.swap(tables);
-  select_stmt->query_fields_.swap(query_fields);
+  select_stmt->project_exprs_ = std::move(project_expres);
   select_stmt->filter_stmt_ = filter_stmt;
+
+  bool with_table_name = select_stmt->tables_.size() > 1;
+  for (auto &expression: select_stmt->project_expres()) {
+    std::string expr_str;
+    Expression::gen_project_name(expression.get(), with_table_name, expr_str);
+    select_stmt->project_name_.emplace_back(expr_str);
+  }
+
   stmt = select_stmt;
+
   return RC::SUCCESS;
 }

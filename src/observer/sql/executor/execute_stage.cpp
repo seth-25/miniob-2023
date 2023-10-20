@@ -27,6 +27,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/default/default_handler.h"
 #include "sql/executor/command_executor.h"
 #include "sql/operator/calc_physical_operator.h"
+#include "sql/operator/project_physical_operator.h"
 
 using namespace std;
 using namespace common;
@@ -64,30 +65,31 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
   ASSERT(physical_operator != nullptr, "physical operator should not be null");
 
   // TODO 这里也可以优化一下，是否可以让physical operator自己设置tuple schema
-  TupleSchema schema;
+  TupleSchema* schema = new TupleSchema;
   switch (stmt->type()) {
     case StmtType::SELECT: {
       SelectStmt *select_stmt = static_cast<SelectStmt *>(stmt);
-      bool with_table_name = select_stmt->tables().size() > 1;
-
-      for (const Field &field : select_stmt->query_fields()) {
-        if (with_table_name) {
-          schema.append_cell(field.table_name(), field.field_name());
-        } else {
-          schema.append_cell(field.field_name());
-        }
+      for (auto& expr_str: select_stmt->project_name()) {
+        schema->append_cell(new TupleCellSpec(expr_str.c_str()));
       }
+//      for (const Field &field : select_stmt->query_fields()) {
+//        if (with_table_name) {
+//          schema.append_cell(field.table_name(), field.field_name());
+//        } else {
+//          schema.append_cell(field.field_name());
+//        }
+//      }
     } break;
 
     case StmtType::CALC: {
       CalcPhysicalOperator *calc_operator = static_cast<CalcPhysicalOperator *>(physical_operator.get());
       for (const unique_ptr<Expression> & expr : calc_operator->expressions()) {
-        schema.append_cell(expr->name().c_str());
+        schema->append_cell(expr->name().c_str());
       }
     } break;
 
     case StmtType::EXPLAIN: {
-      schema.append_cell("Query Plan");
+      schema->append_cell("Query Plan");
     } break;
     default: {
       // 只有select返回结果

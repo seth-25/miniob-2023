@@ -128,20 +128,17 @@ union YYSTYPE
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::string> *        relation_list;
+  std::vector<std::string> *        rel_index_attr_list;
   char *                            string;
   int                               number;
   float                             floats;
 
   // 新加的表达式
-  Expression *                      unary_expr;
-  Expression *                      add_expr;
-  Expression *                      mul_expr;
-  std::vector<Expression *> *       expr_list;
-  char *                            aggr_func_type;
-  Expression *                      aggr_func;
+  ExprSqlNode *                     expr;
+  std::vector<ExprSqlNode *> *      expr_list;
 
 
-#line 145 "yacc_sql.hpp"
+#line 142 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

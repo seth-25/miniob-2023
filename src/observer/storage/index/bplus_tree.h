@@ -253,13 +253,13 @@ struct IndexFileHeader
     std::stringstream ss;
 
     ss << "attr_length:" << attr_length[0];
-    for (size_t i = 1; i < attr_num; i++) {
+    for (int32_t i = 1; i < attr_num; i++) {
       ss << "|" << attr_length[i];
     }
     ss << ","
        << "key_length:" << key_length << ","
        << "attr_type:" << attr_type[0];
-    for (size_t i = 1; i < attr_num; i++) {
+    for (int32_t i = 1; i < attr_num; i++) {
       ss << "|" << attr_type[i];
     }
     ss << "root_page:" << root_page << ","

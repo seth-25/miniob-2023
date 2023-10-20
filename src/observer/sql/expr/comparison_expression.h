@@ -24,6 +24,7 @@ public:
  /**
   * 尝试在没有tuple的情况下获取当前表达式的值
   * 在优化的时候，可能会使用到
+  * left和right都是值的话，提前算出来
   */
  RC try_get_value(Value &value) const override;
 

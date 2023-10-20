@@ -24,24 +24,24 @@ class Db;
 class Table;
 class FieldMeta;
 
-struct FilterObj 
-{
-  bool is_attr;
-  Field field;
-  Value value;
-
-  void init_attr(const Field &field)
-  {
-    is_attr = true;
-    this->field = field;
-  }
-
-  void init_value(const Value &value)
-  {
-    is_attr = false;
-    this->value = value;
-  }
-};
+//struct FilterObj
+//{
+//  bool is_attr;
+//  Field field;
+//  Value value;
+//
+//  void init_attr(const Field &field_)
+//  {
+//    is_attr = true;
+//    this->field = field_;
+//  }
+//
+//  void init_value(const Value &value_)
+//  {
+//    is_attr = false;
+//    this->value = value_;
+//  }
+//};
 
 class FilterUnit 
 {
@@ -50,38 +50,32 @@ public:
   ~FilterUnit()
   {}
 
-  void set_comp(CompOp comp)
-  {
+  void set_comp(CompOp comp) {
     comp_ = comp;
   }
 
-  CompOp comp() const
-  {
+  CompOp comp() const {
     return comp_;
   }
 
-  void set_left(const FilterObj &obj)
-  {
-    left_ = obj;
+  void set_left(std::unique_ptr<Expression>& expr) {
+    left_ = std::move(expr);
   }
-  void set_right(const FilterObj &obj)
-  {
-    right_ = obj;
+  void set_right(std::unique_ptr<Expression>& expr) {
+    right_ = std::move(expr);
   }
 
-  const FilterObj &left() const
-  {
+  std::unique_ptr<Expression>& left() {
     return left_;
   }
-  const FilterObj &right() const
-  {
+  std::unique_ptr<Expression>& right() {
     return right_;
   }
 
 private:
   CompOp comp_ = NO_OP;
-  FilterObj left_;
-  FilterObj right_;
+  std::unique_ptr<Expression>  left_;
+  std::unique_ptr<Expression>  right_;
 };
 
 /**

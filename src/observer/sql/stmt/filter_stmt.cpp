@@ -91,42 +91,66 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
 
   filter_unit = new FilterUnit;
 
-  if (condition.left_is_attr) {
-    Table *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_left(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.left_value);
-    filter_unit->set_left(filter_obj);
+  std::unique_ptr<Expression> left;
+  std::unique_ptr<Expression> right;
+  rc = Expression::create_expression(condition.left, *tables, std::vector<Table *>{default_table}, left);
+  // rc = create_expression(db, default_table, tables, condition.left, left);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("filter unit create left expression failed");
+    return rc;
+  }
+  rc = Expression::create_expression(condition.right, *tables, std::vector<Table *>{default_table}, right);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("filter unit create right expression failed");
+    return rc;
   }
 
-  if (condition.right_is_attr) {
-    Table *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
-    if (rc != RC::SUCCESS) {
-      LOG_WARN("cannot find attr");
-      return rc;
-    }
-    FilterObj filter_obj;
-    filter_obj.init_attr(Field(table, field));
-    filter_unit->set_right(filter_obj);
-  } else {
-    FilterObj filter_obj;
-    filter_obj.init_value(condition.right_value);
-    filter_unit->set_right(filter_obj);
-  }
+  delete condition.left;
+  delete condition.right;
 
+  filter_unit = new FilterUnit;
   filter_unit->set_comp(comp);
+  filter_unit->set_left(left);
+  filter_unit->set_right(right);
 
-  // todo检查两个类型是否能够比较
+  // 检查两个类型是否能够比较
+  return rc;
+
+//  if (condition.left_is_attr) {
+//    Table *table = nullptr;
+//    const FieldMeta *field = nullptr;
+//    rc = get_table_and_field(db, default_table, tables, condition.left_attr, table, field);
+//    if (rc != RC::SUCCESS) {
+//      LOG_WARN("cannot find attr");
+//      return rc;
+//    }
+//    FilterObj filter_obj;
+//    filter_obj.init_attr(Field(table, field));
+//    filter_unit->set_left(filter_obj);
+//  } else {
+//    FilterObj filter_obj;
+//    filter_obj.init_value(condition.left_value);
+//    filter_unit->set_left(filter_obj);
+//  }
+//
+//  if (condition.right_is_attr) {
+//    Table *table = nullptr;
+//    const FieldMeta *field = nullptr;
+//    rc = get_table_and_field(db, default_table, tables, condition.right_attr, table, field);
+//    if (rc != RC::SUCCESS) {
+//      LOG_WARN("cannot find attr");
+//      return rc;
+//    }
+//    FilterObj filter_obj;
+//    filter_obj.init_attr(Field(table, field));
+//    filter_unit->set_right(filter_obj);
+//  } else {
+//    FilterObj filter_obj;
+//    filter_obj.init_value(condition.right_value);
+//    filter_unit->set_right(filter_obj);
+//  }
+//  filter_unit->set_comp(comp);
+//
+//  // todo检查两个类型是否能够比较
   return rc;
 }

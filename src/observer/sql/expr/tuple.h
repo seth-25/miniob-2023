@@ -51,29 +51,31 @@ class Table;
 class TupleSchema 
 {
 public:
-  void append_cell(const TupleCellSpec &cell)
-  {
-    cells_.push_back(cell);
+  virtual ~TupleSchema() {
+    for (auto cell: cells_) {
+      delete cell;
+    }
+    cells_.clear();
   }
-  void append_cell(const char *table, const char *field)
+  void append_cell(TupleCellSpec *cell)
   {
-    append_cell(TupleCellSpec(table, field));
+    cells_.emplace_back(cell);
   }
   void append_cell(const char *alias)
   {
-    append_cell(TupleCellSpec(alias));
+    append_cell(new TupleCellSpec(alias));
   }
   int cell_num() const
   {
     return static_cast<int>(cells_.size());
   }
-  const TupleCellSpec &cell_at(int i) const
+  const TupleCellSpec* cell_at(int i) const
   {
     return cells_[i];
   }
 
 private:
-  std::vector<TupleCellSpec> cells_;
+  std::vector<TupleCellSpec*> cells_;
 };
 
 /**
@@ -102,7 +104,7 @@ public:
 
   /**
    * @brief 根据cell的描述，获取cell的值
-   * 
+   * 目前只支持spec里是fieldExpr
    * @param spec cell的描述
    * @param[out] cell 返回的cell
    */
@@ -130,6 +132,7 @@ public:
 
 /**
  * @brief 一行数据的元组
+ * find_cell和cell_at只支持fieldExpr
  * @ingroup Tuple
  * @details 直接就是获取表中的一条记录
  */
@@ -180,8 +183,13 @@ public:
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
-    const char *table_name = spec.table_name();
-    const char *field_name = spec.field_name();
+//    const char *table_name = spec.table_name();
+//    const char *field_name = spec.field_name();
+    assert(spec.expression()->type() == ExprType::FIELD);
+    FieldExpr *spec_field_expr = (FieldExpr *)spec.expression();
+    const char *table_name = spec_field_expr->table_name();
+    const char *field_name = spec_field_expr->field_name();
+
     if (0 != strcmp(table_name, table_->name())) {
       return RC::NOTFOUND;
     }
@@ -226,6 +234,7 @@ private:
 
 /**
  * @brief 从一行数据中，选择部分字段组成的元组，也就是投影操作
+ *
  * @ingroup Tuple
  * @details 一般在select语句中使用。
  * 投影也可以是很复杂的操作，比如某些字段需要做类型转换、重命名、表达式运算、函数计算等。
@@ -267,8 +276,10 @@ public:
     }
 
     const TupleCellSpec *spec = speces_[index];
-    return tuple_->find_cell(*spec, cell);
+//    return tuple_->find_cell(*spec, cell);
+    return spec->expression()->get_value(*tuple_, cell);
   }
+
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {

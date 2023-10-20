@@ -46,10 +46,13 @@ RC DescTableExecutor::execute(SQLStageEvent *sql_event)
   Table *table = db->find_table(table_name);
   if (table != nullptr) {
 
-    TupleSchema tuple_schema;
-    tuple_schema.append_cell(TupleCellSpec("", "Field", "Field"));
-    tuple_schema.append_cell(TupleCellSpec("", "Type", "Type"));
-    tuple_schema.append_cell(TupleCellSpec("", "Length", "Length"));
+    TupleSchema *tuple_schema = new TupleSchema;
+    //    tuple_schema.append_cell(new TupleCellSpec("", "Field", "Field"));
+//    tuple_schema.append_cell(new TupleCellSpec("", "Type", "Type"));
+//    tuple_schema.append_cell(new TupleCellSpec("", "Length", "Length"));
+    tuple_schema->append_cell(new TupleCellSpec("Field"));
+    tuple_schema->append_cell(new TupleCellSpec("Type"));
+    tuple_schema->append_cell(new TupleCellSpec("Length"));
 
     sql_result->set_tuple_schema(tuple_schema);
 
