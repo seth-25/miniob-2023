@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include "sql/stmt/select_stmt.h"
 #include "sql/stmt/filter_stmt.h"
+#include "sql/stmt/order_by_stmt.h"
 #include "common/log/log.h"
 #include "common/lang/string.h"
 #include "storage/db/db.h"
@@ -24,6 +25,10 @@ SelectStmt::~SelectStmt()
   if (nullptr != filter_stmt_) {
     delete filter_stmt_;
     filter_stmt_ = nullptr;
+  }
+  if (nullptr != orderby_stmt_) {
+    delete orderby_stmt_;
+    orderby_stmt_ = nullptr;
   }
   project_exprs_.clear();
 }
@@ -161,24 +166,40 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
-  // create filter statement in `where` statement
+  // create filter statement in `where` statemen
+  std::vector<ConditionSqlNode> sum_conditions = select_sql.inner_join_conditions;
+  sum_conditions.insert(sum_conditions.end(), select_sql.conditions.begin(), select_sql.conditions.end());
   FilterStmt *filter_stmt = nullptr;
   RC rc = FilterStmt::create(db,
       default_table,
       &table_map,
-      select_sql.conditions.data(),
-      static_cast<int>(select_sql.conditions.size()),
+      sum_conditions.data(),
+      static_cast<int>(select_sql.conditions.size() + select_sql.inner_join_conditions.size()),
       filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct filter stmt");
     return rc;
   }
-
-  // everything alright
+  OrderByStmt *orderby_stmt = nullptr;
+  if (!select_sql.order_by_cols.empty())
+  {
+    rc = OrderByStmt::create(db,
+        default_table,
+        &table_map,
+        select_sql.order_by_cols.data(),
+        static_cast<int>(select_sql.order_by_cols.size()),
+        orderby_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct order by stmt");
+      return rc;
+    }
+  }
+  // create select stmt
   SelectStmt *select_stmt = new SelectStmt();
   select_stmt->tables_.swap(tables);
   select_stmt->project_exprs_ = std::move(project_expres);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->orderby_stmt_ = orderby_stmt;
 
   bool with_table_name = select_stmt->tables_.size() > 1;
   for (auto &expression: select_stmt->project_expres()) {

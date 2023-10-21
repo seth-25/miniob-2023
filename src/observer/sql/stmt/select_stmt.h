@@ -23,6 +23,7 @@ See the Mulan PSL v2 for more details. */
 
 class FieldMeta;
 class FilterStmt;
+class OrderByStmt;
 class Db;
 class Table;
 
@@ -61,10 +62,15 @@ public:
   {
     return filter_stmt_;
   }
+  OrderByStmt *orderby_stmt() const
+  {
+    return orderby_stmt_;
+  }
 
 private:
   std::vector<std::unique_ptr<Expression>> project_exprs_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
+  OrderByStmt *orderby_stmt_ = nullptr;
   std::vector<std::string> project_name_; // 投影表达式的名字
 };

@@ -44,14 +44,6 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   return expr;
 }
 
-Expression *create_aggr_func(AggrFuncExpression::Type type,
-                             Expression *expr,
-                             const char *sql_string)
-{
-  AggrFuncExpression *aggr_expr = new AggrFuncExpression(type, expr);
-  return aggr_expr;
-}
-
 %}
 
 %define api.pure full
@@ -71,9 +63,12 @@ Expression *create_aggr_func(AggrFuncExpression::Type type,
         TABLE
         TABLES
         INDEX
+        INNER
+        JOIN
         CALC
         SELECT
         DESC
+        ASC
         SHOW
         SYNC
         INSERT
@@ -105,6 +100,8 @@ Expression *create_aggr_func(AggrFuncExpression::Type type,
         EXPLAIN
         NOT
         LIKE
+        ORDER
+        BY
         AGGR_MAX
         AGGR_MIN
         AGGR_COUNT
@@ -124,6 +121,7 @@ Expression *create_aggr_func(AggrFuncExpression::Type type,
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
+  OrderBySqlNode *                  order_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
   Expression *                      expression;
@@ -131,7 +129,8 @@ Expression *create_aggr_func(AggrFuncExpression::Type type,
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
-  std::vector<std::string> *        relation_list;
+  std::vector<OrderBySqlNode> *     order_attr_list;
+  RelationSqlNode *                 relation_list;
   std::vector<std::string> *        rel_index_attr_list;
   char *                            string;
   int                               number;
@@ -157,14 +156,17 @@ Expression *create_aggr_func(AggrFuncExpression::Type type,
 %type <number>              number
 %type <comp>                comp_op
 %type <rel_attr>            rel_attr
+%type <order_attr>          sort_unit
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
 %type <condition_list>      where
 %type <condition_list>      condition_list
-// %type <rel_attr_list>       select_attr
+%type <condition_list>      inner_condition_list
 %type <relation_list>       rel_list
 %type <rel_attr_list>       attr_list
+%type <order_attr_list>     order_by
+%type <order_attr_list>     sort_list
 %type <rel_index_attr_list> index_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
@@ -490,7 +492,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where
+    SELECT select_attr FROM ID rel_list where order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -498,7 +500,8 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
       if ($5 != nullptr) {
-        $$->selection.relations.swap(*$5);
+        $$->selection.relations.swap($5->relation_names);
+        $$->selection.inner_join_conditions.swap($5->conditions);
         delete $5;
       }
       $$->selection.relations.push_back($4);
@@ -507,6 +510,10 @@ select_stmt:        /*  select 语句的语法解析树*/
       if ($6 != nullptr) {
         $$->selection.conditions.swap(*$6);
         delete $6;
+      }
+      if ($7 != nullptr) {
+        $$->selection.order_by_cols.swap(*$7);
+        delete $7;
       }
       free($4);
     }
@@ -874,13 +881,36 @@ rel_list:
       if ($3 != nullptr) {
         $$ = $3;
       } else {
-        $$ = new std::vector<std::string>;
+        $$ = new RelationSqlNode;
       }
 
-      $$->push_back($2);
+      $$->relation_names.push_back($2);
       free($2);
     }
+    | INNER JOIN ID inner_condition_list rel_list{
+      if ($5 != nullptr) {
+         $$ = $5;
+      } else {
+         $$ = new RelationSqlNode;
+      }
+      std::vector<ConditionSqlNode> &conditions = $$->conditions;
+      if ($4 != nullptr)
+      {
+         conditions.insert(conditions.end(), $4->begin(), $4->end());
+         delete $4;
+      }
+      $$->relation_names.push_back($3);
+      free($3);
+    }
     ;
+inner_condition_list:
+	/* empty */ {
+       $$ = nullptr;
+    }
+	| ON condition_list {
+       $$ = $2;
+	}
+	;
 where:
     /* empty */
     {
@@ -890,6 +920,63 @@ where:
       $$ = $2;  
     }
     ;
+sort_unit:
+	rel_attr
+	{
+		$$ = new OrderBySqlNode;
+		$$->attribute = *$1;
+		$$->is_asc = true;
+
+		delete $1;
+	}
+	|
+	rel_attr ASC
+	{
+		$$ = new OrderBySqlNode;
+        $$->attribute = *$1;
+      	$$->is_asc = true;
+
+      	delete $1;
+	}
+	|
+	rel_attr DESC
+	{
+		$$ = new OrderBySqlNode;
+        $$->attribute = *$1;
+      	$$->is_asc = false;
+
+      	delete $1;
+	}
+	;
+sort_list:
+	/* empty */
+	{
+        $$ = nullptr;
+	}
+	| sort_unit
+    {
+        $$ = new std::vector<OrderBySqlNode>;
+        $$->emplace_back(*$1);
+        delete $1;
+    }
+	| sort_unit COMMA sort_list
+	{
+        $$ = $3;
+        $$->emplace_back(*$1);
+        delete $1;
+	}
+	;
+order_by:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | ORDER BY sort_list {
+      $$ = $3;
+      std::reverse($$->begin(), $$->end());
+    }
+    ;
+
 condition_list:
     /* empty */
     {
@@ -964,8 +1051,6 @@ condition:
       delete $3;
     }*/
     ;
-
-
 
 comp_op:
       EQ { $$ = EQUAL_TO; }
