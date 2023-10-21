@@ -99,6 +99,12 @@ public:
       data_ = nullptr;
     }
   }
+  void clear() {
+    if (owner_ && data_ != nullptr) {
+      free(data_);
+      data_ = nullptr;
+    }
+  }
 
   Record(const Record &other)
   {
@@ -122,7 +128,7 @@ public:
     }
 
     this->~Record();
-    new (this) Record(other);
+    new (this) Record(other); // placement new
     return *this;
   }
 
@@ -134,7 +140,7 @@ public:
   void set_data_owner(char *data, int len)
   {
     ASSERT(len != 0, "the len of data should not be 0");
-    this->~Record();
+    this->clear();
 
     this->data_  = data;
     this->len_   = len;

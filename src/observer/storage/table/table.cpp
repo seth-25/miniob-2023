@@ -528,7 +528,6 @@ RC Table::make_record_from_old_record(
 
   int record_size = table_meta_.record_size();
 
-//  char *new_data = new char[record_size];
   char *new_data = static_cast<char *>(malloc(record_size));
   memcpy(new_data, old_record.data(), record_size);
 
@@ -543,8 +542,8 @@ RC Table::make_record_from_old_record(
   }
 
   new_record.set_rid(old_record.rid());
-//  new_record.set_data_owner(new_data, record_size);
-  new_record.set_data(new_data, record_size);
+  new_record.set_data_owner(new_data, record_size);
+//  new_record.set_data(new_data, record_size);
   return RC::SUCCESS;
 }
 

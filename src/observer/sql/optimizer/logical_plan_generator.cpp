@@ -140,7 +140,7 @@ RC LogicalPlanGenerator::create_plan(
 RC LogicalPlanGenerator::create_plan(
     FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  std::vector<unique_ptr<Expression>> exprs;
+  std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
   for (FilterUnit *filter_unit : filter_units) {
 //    const Expression &filter_obj_left = filter_unit->left();
@@ -157,12 +157,12 @@ RC LogicalPlanGenerator::create_plan(
     std::unique_ptr<Expression>& left = filter_unit->left();
     std::unique_ptr<Expression>& right = filter_unit->right();
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
-    exprs.emplace_back(cmp_expr);
+    cmp_exprs.emplace_back(cmp_expr);
   }
 
   unique_ptr<PredicateLogicalOperator> predicate_oper;
-  if (!exprs.empty()) {
-    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, exprs));
+  if (!cmp_exprs.empty()) {
+    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
     predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
   }
 
