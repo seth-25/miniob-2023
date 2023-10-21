@@ -326,7 +326,7 @@ RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *re
 
   size_t copy_len = field->len();
   if (field->type() == CHARS) { // 字符串的len会小于field->len()
-    const size_t data_len = value.length();
+    const size_t data_len = strlen((const char *)cast_data);
     if (copy_len > data_len) {
       copy_len = data_len + 1;
     }
@@ -528,7 +528,8 @@ RC Table::make_record_from_old_record(
 
   int record_size = table_meta_.record_size();
 
-  char *new_data = new char[record_size];
+//  char *new_data = new char[record_size];
+  char *new_data = static_cast<char *>(malloc(record_size));
   memcpy(new_data, old_record.data(), record_size);
 
   for (size_t i = 0; i < fields.size(); i ++ ) {
@@ -542,7 +543,8 @@ RC Table::make_record_from_old_record(
   }
 
   new_record.set_rid(old_record.rid());
-  new_record.set_data_owner(new_data, record_size);
+//  new_record.set_data_owner(new_data, record_size);
+  new_record.set_data(new_data, record_size);
   return RC::SUCCESS;
 }
 

@@ -429,11 +429,19 @@ value:
       $$ = new Value((int)$1);
       @$ = @1;
     }
-    |FLOAT {
+    | '-' NUMBER {
+      $$ = new Value(-(int)$2);
+      @$ = @1;
+    }
+    | FLOAT {
       $$ = new Value((float)$1);
       @$ = @1;
     }
-    |DATE_STR {
+    | '-' FLOAT {
+      $$ = new Value(-(float)$2);
+      @$ = @1;
+    }
+    | DATE_STR {
         int p1 = common::find_ch((yyvsp[0].string),1,'-');
         int p2 = common::find_ch((yyvsp[0].string),p1+1,'-');
         char *y = common::substr((yyvsp[0].string),1,p1-1);            // year
@@ -447,7 +455,7 @@ value:
         free(m);
         free(d);
     }
-    |SSS {
+    | SSS {
       char *tmp = common::substr($1,1,strlen($1)-2);
       $$ = new Value(tmp);
       free(tmp);

@@ -49,7 +49,7 @@ RC UpdatePhysicalOperator::next()
 
     // 将old_record的值更新成新的值
     Record new_record;
-    RC rc = table_->make_record_from_old_record(fields, values, old_record, new_record);
+    rc = table_->make_record_from_old_record(fields, values, old_record, new_record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to make update record: %s", strrc(rc));
       return rc;
