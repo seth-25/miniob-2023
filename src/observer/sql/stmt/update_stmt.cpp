@@ -51,7 +51,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   std::vector<const FieldMeta *> fields;
-  const Value *value;
+  const Value *value = nullptr;
 
   // todo 支持多值update修改
   // for (int i = 0; i < update.attribute_names.size(); i ++ )
