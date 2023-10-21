@@ -20,9 +20,10 @@ See the Mulan PSL v2 for more details. */
 #include "json/json.h"
 
 const static Json::StaticString FIELD_NAME("name");
+const static Json::StaticString UNIQUE_OR_NOT("unique");
 const static Json::StaticString FIELD_FIELD_NAME("field_name");
 
-RC IndexMeta::init(const char *name, std::vector<const FieldMeta *> &fields)
+RC IndexMeta::init(const char *name, bool is_unique, std::vector<const FieldMeta *> &fields)
 {
   if (common::is_blank(name)) {
     LOG_ERROR("Failed to init index, name is empty.");
@@ -36,6 +37,7 @@ RC IndexMeta::init(const char *name, std::vector<const FieldMeta *> &fields)
     fields_string.emplace_back((*field).name());
   }
 
+  is_unique_ = is_unique;
   name_ = name;
   fields_.swap(fields_string);
   return RC::SUCCESS;
@@ -44,6 +46,7 @@ RC IndexMeta::init(const char *name, std::vector<const FieldMeta *> &fields)
 void IndexMeta::to_json(Json::Value &json_value) const
 {
   json_value[FIELD_NAME] = name_;
+  json_value[UNIQUE_OR_NOT] = is_unique_;
   for (size_t i = 0; i < fields_.size(); i++) {
     int idx = i;
     json_value[FIELD_FIELD_NAME][idx] = fields_[idx];
@@ -53,9 +56,14 @@ void IndexMeta::to_json(Json::Value &json_value) const
 RC IndexMeta::from_json(const TableMeta &table, const Json::Value &json_value, IndexMeta &index)
 {
   const Json::Value &name_value = json_value[FIELD_NAME];
+  const Json::Value &unique_value = json_value[UNIQUE_OR_NOT];
   const Json::Value &field_value = json_value[FIELD_FIELD_NAME];
   if (!name_value.isString()) {
     LOG_ERROR("Index name is not a string. json value=%s", name_value.toStyledString().c_str());
+    return RC::INTERNAL;
+  }
+  if (!unique_value.isBool()) {
+    LOG_ERROR("Unique is not a boolean. json value=%s", unique_value.toStyledString().c_str());
     return RC::INTERNAL;
   }
 
@@ -77,7 +85,7 @@ RC IndexMeta::from_json(const TableMeta &table, const Json::Value &json_value, I
     fields.emplace_back(field);
   }
 
-  return index.init(name_value.asCString(), fields);
+  return index.init(name_value.asCString(), unique_value.asBool(), fields);
 }
 
 const char *IndexMeta::name() const

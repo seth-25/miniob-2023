@@ -1361,7 +1361,7 @@ RC BplusTreeHandler::create_new_tree(const char *key, const RID *rid)
   return rc;
 }
 
-MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const RID &rid)
+MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const RID &rid, bool is_unique)
 {
   MemPoolItem::unique_ptr key = mem_pool_item_->alloc_unique_ptr();
   if (key == nullptr) {
@@ -1374,19 +1374,23 @@ MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const R
     pos += file_header_.attr_length[i];
   }
   memcpy(static_cast<char *>(key.get()) + pos, &rid, sizeof(rid));
-//  memcpy(static_cast<char *>(key.get()), user_key, file_header_.attr_length);
-//  memcpy(static_cast<char *>(key.get()) + file_header_.attr_length, &rid, sizeof(rid));
+  if (is_unique)
+  {
+    memset(static_cast<char *>(key.get()) + pos, 0, sizeof(rid));
+  }else{
+    memcpy(static_cast<char *>(key.get()) + pos, &rid, sizeof(rid));
+  }
   return key;
 }
 
-RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
+RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid, bool is_unique)
 {
   if (user_key == nullptr || rid == nullptr) {
     LOG_WARN("Invalid arguments, key is empty or rid is empty");
     return RC::INVALID_ARGUMENT;
   }
 
-  MemPoolItem::unique_ptr pkey = make_key(user_key, *rid);
+  MemPoolItem::unique_ptr pkey = make_key(user_key, *rid, is_unique);
   if (pkey == nullptr) {
     LOG_WARN("Failed to alloc memory for key.");
     return RC::NOMEM;

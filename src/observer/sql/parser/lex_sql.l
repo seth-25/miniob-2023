@@ -125,6 +125,7 @@ MIN                                     RETURN_TOKEN(AGGR_MIN);
 COUNT                                   RETURN_TOKEN(AGGR_COUNT);
 AVG                                     RETURN_TOKEN(AGGR_AVG);
 SUM                                     RETURN_TOKEN(AGGR_SUM);
+UNIQUE                                  RETURN_TOKEN(UNIQUE);
 ORDER                                   RETURN_TOKEN(ORDER);
 BY                                      RETURN_TOKEN(BY);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);

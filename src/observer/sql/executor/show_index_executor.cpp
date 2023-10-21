@@ -45,13 +45,9 @@ RC ShowIndexExecutor::execute(SQLStageEvent *sql_event)
   Db *db = session->get_current_db();
   Table *table = db->find_table(table_name);
   if (table != nullptr) {
-
     TupleSchema* tuple_schema = new TupleSchema;
-//    tuple_schema.append_cell(new TupleCellSpec("", "Table", "Table"));
-//    tuple_schema.append_cell(new TupleCellSpec("", "Key_name", "Key_name"));
-//    tuple_schema.append_cell(new TupleCellSpec("", "Seq_in_fields", "Seq_in_fields"));
-//    tuple_schema.append_cell(new TupleCellSpec("", "Column_name", "Column_name"));
     tuple_schema->append_cell(new TupleCellSpec("Table"));
+    tuple_schema->append_cell(new TupleCellSpec("Unique"));
     tuple_schema->append_cell(new TupleCellSpec("Key_name"));
     tuple_schema->append_cell(new TupleCellSpec("Seq_in_fields"));
     tuple_schema->append_cell(new TupleCellSpec("Column_name"));
@@ -66,7 +62,7 @@ RC ShowIndexExecutor::execute(SQLStageEvent *sql_event)
       const IndexMeta *index_meta = table_meta.index(i);
       std::vector<std::string> fields = *index_meta->field();
       for (size_t j = 0; j < fields.size(); j ++ ) {
-        show_index_opera->append({table_meta.name(), index_meta->name(), to_string(j + 1), fields[j]});
+        show_index_opera->append({table_meta.name(), to_string(index_meta->is_unique()), index_meta->name(), to_string(j + 1), fields[j]});
       }
     }
     sql_result->set_operator(unique_ptr<PhysicalOperator>(show_index_opera));
