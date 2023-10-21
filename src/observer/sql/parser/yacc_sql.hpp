@@ -55,57 +55,62 @@ extern int yydebug;
     TABLE = 261,
     TABLES = 262,
     INDEX = 263,
-    CALC = 264,
-    SELECT = 265,
-    DESC = 266,
-    SHOW = 267,
-    SYNC = 268,
-    INSERT = 269,
-    DELETE = 270,
-    UPDATE = 271,
-    LBRACE = 272,
-    RBRACE = 273,
-    COMMA = 274,
-    TRX_BEGIN = 275,
-    TRX_COMMIT = 276,
-    TRX_ROLLBACK = 277,
-    INT_T = 278,
-    STRING_T = 279,
-    FLOAT_T = 280,
-    DATE_T = 281,
-    HELP = 282,
-    EXIT = 283,
-    DOT = 284,
-    INTO = 285,
-    VALUES = 286,
-    FROM = 287,
-    WHERE = 288,
-    AND = 289,
-    SET = 290,
-    ON = 291,
-    LOAD = 292,
-    DATA = 293,
-    INFILE = 294,
-    EXPLAIN = 295,
-    NOT = 296,
-    LIKE = 297,
-    AGGR_MAX = 298,
-    AGGR_MIN = 299,
-    AGGR_COUNT = 300,
-    AGGR_AVG = 301,
-    AGGR_SUM = 302,
-    EQ = 303,
-    LT = 304,
-    GT = 305,
-    LE = 306,
-    GE = 307,
-    NE = 308,
-    NUMBER = 309,
-    FLOAT = 310,
-    ID = 311,
-    SSS = 312,
-    DATE_STR = 313,
-    UMINUS = 314
+    INNER = 264,
+    JOIN = 265,
+    CALC = 266,
+    SELECT = 267,
+    DESC = 268,
+    ASC = 269,
+    SHOW = 270,
+    SYNC = 271,
+    INSERT = 272,
+    DELETE = 273,
+    UPDATE = 274,
+    LBRACE = 275,
+    RBRACE = 276,
+    COMMA = 277,
+    TRX_BEGIN = 278,
+    TRX_COMMIT = 279,
+    TRX_ROLLBACK = 280,
+    INT_T = 281,
+    STRING_T = 282,
+    FLOAT_T = 283,
+    DATE_T = 284,
+    HELP = 285,
+    EXIT = 286,
+    DOT = 287,
+    INTO = 288,
+    VALUES = 289,
+    FROM = 290,
+    WHERE = 291,
+    AND = 292,
+    SET = 293,
+    ON = 294,
+    LOAD = 295,
+    DATA = 296,
+    INFILE = 297,
+    EXPLAIN = 298,
+    NOT = 299,
+    LIKE = 300,
+    ORDER = 301,
+    BY = 302,
+    AGGR_MAX = 303,
+    AGGR_MIN = 304,
+    AGGR_COUNT = 305,
+    AGGR_AVG = 306,
+    AGGR_SUM = 307,
+    EQ = 308,
+    LT = 309,
+    GT = 310,
+    LE = 311,
+    GE = 312,
+    NE = 313,
+    NUMBER = 314,
+    FLOAT = 315,
+    ID = 316,
+    SSS = 317,
+    DATE_STR = 318,
+    UMINUS = 319
   };
 #endif
 
@@ -113,13 +118,14 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 121 "yacc_sql.y"
+#line 118 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
+  OrderBySqlNode *                  order_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
   Expression *                      expression;
@@ -127,7 +133,8 @@ union YYSTYPE
   std::vector<Value> *              value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
-  std::vector<std::string> *        relation_list;
+  std::vector<OrderBySqlNode> *     order_attr_list;
+  RelationSqlNode *                 relation_list;
   std::vector<std::string> *        rel_index_attr_list;
   char *                            string;
   int                               number;
@@ -138,7 +145,7 @@ union YYSTYPE
   std::vector<ExprSqlNode *> *      expr_list;
 
 
-#line 142 "yacc_sql.hpp"
+#line 149 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
