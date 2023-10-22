@@ -50,6 +50,7 @@ enum class PhysicalOperatorType
   DELETE,
   UPDATE,
   INSERT,
+  TABLE_EMPTY,
 };
 
 /**

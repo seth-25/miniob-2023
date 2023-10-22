@@ -14,7 +14,6 @@
 #include "sql/expr/expression.h"
 #include "sql/expr/arithmetic_expression.h"
 #include "sql/expr/value_expression.h"
-#include "sql/expr/aggregation_expression.h"
 
 using namespace std;
 
@@ -107,6 +106,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         AGGR_COUNT
         AGGR_AVG
         AGGR_SUM
+        LENGTH
+        ROUND
+        DATE_FORMAT
+        AS
         EQ
         LT
         GT
@@ -139,6 +142,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   // 新加的表达式
   ExprSqlNode *                     expr;
   std::vector<ExprSqlNode *> *      expr_list;
+  enum AggrFuncType                 aggr_func_type;
 
 }
 
@@ -163,6 +167,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <condition_list>      where
 %type <condition_list>      condition_list
 %type <condition_list>      inner_condition_list
+%type <relation_list>       select_from
 %type <relation_list>       rel_list
 %type <rel_attr_list>       attr_list
 %type <order_attr_list>     order_by
@@ -198,6 +203,9 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <expr>                expr
 %type <expr>                add_expr
 %type <expr>                mul_expr
+%type <expr>                func_expr
+%type <expr>                aggr_func_expr;
+%type <aggr_func_type>      aggr_func_type;
 %type <expr_list>           expr_list
 %type <expr_list>           select_attr
 
@@ -492,30 +500,36 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where order_by
+    SELECT select_attr SEMICOLON {  // function 可能出现
+      $$ = new ParsedSqlNode(SCF_SELECT);
+      if ($2 != nullptr) {
+        $$->selection.project_exprs.swap(*$2);
+        delete $2;
+      }
+    }
+    | SELECT select_attr FROM select_from where order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
         $$->selection.project_exprs.swap(*$2);
         delete $2;
       }
+      if ($4 != nullptr) {
+        $$->selection.relation_names.swap($4->relation_names);
+        $$->selection.alias_names.swap($4->alias_names);
+        $$->selection.inner_join_conditions.swap($4->conditions);
+        delete $4;
+      }
+      std::reverse($$->selection.relation_names.begin(), $$->selection.relation_names.end());
+
       if ($5 != nullptr) {
-        $$->selection.relations.swap($5->relation_names);
-        $$->selection.inner_join_conditions.swap($5->conditions);
+        $$->selection.conditions.swap(*$5);
         delete $5;
       }
-      $$->selection.relations.push_back($4);
-      std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
-
       if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
+        $$->selection.order_by_cols.swap(*$6);
         delete $6;
       }
-      if ($7 != nullptr) {
-        $$->selection.order_by_cols.swap(*$7);
-        delete $7;
-      }
-      free($4);
     }
     ;
 calc_stmt:
@@ -599,94 +613,18 @@ unary_expr: // 一元表达式
 
       $$ = expr;
     }
-    // todo aggr_func
-    // todo func: length, round, date_format
+    | func_expr {
+      $$ = $1;
+    }
+    | aggr_func_expr {
+      $$ = $1;
+    }
     | LBRACE expr RBRACE {
       $2->with_brace = true;
       $$ = $2;
     }
     ;
 
-
-add_expr:   // 二元表达式 低优先级
-    mul_expr { $$ = $1; }
-    | add_expr '+' mul_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::ADD_OP;
-      binary->left = $1;
-      binary->right = $3;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    | add_expr '-' mul_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::SUB_OP;
-      binary->left = $1;
-      binary->right = $3;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    ;
-
-
-mul_expr:   // 二元表达式 高优先级
-    unary_expr {
-      $$ = $1;
-    }
-    | '-' unary_expr {
-      Value left_val((int)-1);    // val = -1
-      UnaryExprSqlNode* left_unary = new UnaryExprSqlNode;
-      left_unary->is_attr = false;
-      left_unary->value = left_val;
-      ExprSqlNode* left_expr = new ExprSqlNode;
-      left_expr->type = ExprSqlNodeType::UNARY;
-      left_expr->unary_expr = left_unary;
-
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::MUL_OP;
-      binary->left = left_expr;
-      binary->right = $2;
-      binary->is_minus = true;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    | mul_expr '*' unary_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::MUL_OP;
-      binary->left = $1;
-      binary->right = $3;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    | mul_expr '/' unary_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::DIV_OP;
-      binary->left = $1;
-      binary->right = $3;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    ;
 
 expr: // 二元表达式
     expr '+' expr {
@@ -778,6 +716,178 @@ expr_list:
       // delete $2;     在stmt阶段删除
     }
     ;
+
+func_expr:
+    LENGTH LBRACE expr RBRACE {
+      FuncExprSqlNode* func = new FuncExprSqlNode;
+      func->type = FuncType::FUNC_LENGTH;
+      func->exprs.emplace_back($3);
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::FUNCTION;
+      expr->func_expr = func;
+      $$ = expr;
+    }
+    | ROUND LBRACE expr RBRACE {
+      FuncExprSqlNode* func = new FuncExprSqlNode;
+      func->type = FuncType::FUNC_ROUND;
+      func->exprs.emplace_back($3);
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::FUNCTION;
+      expr->func_expr = func;
+      $$ = expr;
+    }
+    | ROUND LBRACE expr COMMA expr RBRACE {
+      FuncExprSqlNode* func = new FuncExprSqlNode;
+      func->type = FuncType::FUNC_ROUND;
+      func->exprs.emplace_back($3);
+      func->exprs.emplace_back($5);
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::FUNCTION;
+      expr->func_expr = func;
+      $$ = expr;
+    }
+    | DATE_FORMAT LBRACE expr COMMA expr RBRACE {
+      FuncExprSqlNode* func = new FuncExprSqlNode;
+      func->type = FuncType::FUNC_DATE_FORMAT;
+      func->exprs.emplace_back($3);
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::FUNCTION;
+      expr->func_expr = func;
+      $$ = expr;
+    }
+    ;
+
+aggr_func_expr:
+    aggr_func_type LBRACE expr RBRACE {
+      AggrExprSqlNode* aggr = new AggrExprSqlNode;
+      aggr->type = $1;
+      aggr->expr = $3;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::AGGREGATION;
+      expr->aggr_expr = aggr;
+      $$ = expr;
+    }
+    | aggr_func_type LBRACE '*' RBRACE {
+      if ($1 != AggrFuncType::AGGR_COUNT) {
+        yyerror (&yylloc, sql_string, sql_result, scanner, YY_("aggr func is illegal"));
+      }
+      AggrExprSqlNode* aggr = new AggrExprSqlNode;
+      aggr->type = $1;
+      aggr->is_star = true;
+      std::string star = "*";
+      Value star_val(star.c_str());    // val = *
+      UnaryExprSqlNode* star_unary = new UnaryExprSqlNode;
+      star_unary->value = star_val;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::AGGREGATION;
+      expr->aggr_expr = aggr;
+      $$ = expr;
+    }
+    ;
+
+aggr_func_type:
+    AGGR_MAX {
+      $$ = AggrFuncType::AGGR_MAX;
+    }
+    | AGGR_MIN {
+      $$ = AggrFuncType::AGGR_MIN;
+    }
+    | AGGR_SUM {
+      $$ = AggrFuncType::AGGR_SUM;
+    }
+    | AGGR_AVG {
+      $$ = AggrFuncType::AGGR_AVG;
+    }
+    | AGGR_COUNT {
+      $$ = AggrFuncType::AGGR_COUNT;
+    }
+    ;
+
+add_expr:   // 二元表达式 低优先级
+    mul_expr { $$ = $1; }
+    | add_expr '+' mul_expr {
+      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
+      binary->op = ExprOp::ADD_OP;
+      binary->left = $1;
+      binary->right = $3;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::BINARY;
+      expr->binary_expr = binary;
+
+      $$ = expr;
+    }
+    | add_expr '-' mul_expr {
+      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
+      binary->op = ExprOp::SUB_OP;
+      binary->left = $1;
+      binary->right = $3;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::BINARY;
+      expr->binary_expr = binary;
+
+      $$ = expr;
+    }
+    ;
+
+
+mul_expr:   // 二元表达式 高优先级
+    unary_expr {
+      $$ = $1;
+    }
+    | '-' unary_expr {
+      Value left_val((int)-1);    // val = -1
+      UnaryExprSqlNode* left_unary = new UnaryExprSqlNode;
+      left_unary->is_attr = false;
+      left_unary->value = left_val;
+      ExprSqlNode* left_expr = new ExprSqlNode;
+      left_expr->type = ExprSqlNodeType::UNARY;
+      left_expr->unary_expr = left_unary;
+
+      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
+      binary->op = ExprOp::MUL_OP;
+      binary->left = left_expr;
+      binary->right = $2;
+      binary->is_minus = true;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::BINARY;
+      expr->binary_expr = binary;
+
+      $$ = expr;
+    }
+    | mul_expr '*' unary_expr {
+      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
+      binary->op = ExprOp::MUL_OP;
+      binary->left = $1;
+      binary->right = $3;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::BINARY;
+      expr->binary_expr = binary;
+
+      $$ = expr;
+    }
+    | mul_expr '/' unary_expr {
+      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
+      binary->op = ExprOp::DIV_OP;
+      binary->left = $1;
+      binary->right = $3;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::BINARY;
+      expr->binary_expr = binary;
+
+      $$ = expr;
+    }
+    ;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 index_attr_list:
     /* empty */
@@ -811,25 +921,8 @@ select_attr:
 
       $$ = new std::vector<ExprSqlNode*>;
       $$->emplace_back(expr);
-
-      /*
-      $$ = new std::vector<RelAttrSqlNode>;
-      RelAttrSqlNode attr;
-      attr.relation_name  = "";
-      attr.attribute_name = "*";
-      $$->emplace_back(attr);*/
     }
     // todo ID DOT '*' attr_list {}
-    /*
-    | rel_attr attr_list {
-      if ($2 != nullptr) {
-        $$ = $2;
-      } else {
-        $$ = new std::vector<RelAttrSqlNode>;
-      }
-      $$->emplace_back(*$1);
-      delete $1;
-    }*/
     | expr expr_list {
       if ($2 != nullptr) {
         $$ = $2;
@@ -837,6 +930,40 @@ select_attr:
         $$ = new std::vector<ExprSqlNode*>;
       }
       $$->emplace_back($1);
+    }
+    | expr AS ID expr_list {
+      if ($4 != nullptr) {
+        $$ = $4;
+      } else {
+        $$ = new std::vector<ExprSqlNode*>;
+      }
+      $1->alias_name = $3;
+      free($3);
+      $$->emplace_back($1);
+    }
+    ;
+
+select_from:
+    ID rel_list {
+      if ($2 != nullptr) {
+        $$ = $2;
+      } else {
+        $$ = new RelationSqlNode;
+      }
+      $$->relation_names.push_back($1);
+      $$->alias_names.push_back("");
+      free($1);
+    }
+    | ID AS ID rel_list {   // 包含别名
+      if ($4 != nullptr) {
+        $$ = $4;
+      } else {
+        $$ = new RelationSqlNode;
+      }
+      $$->relation_names.push_back($1);
+      $$->alias_names.push_back($3);
+      free($1);
+      free($3);
     }
     ;
 
@@ -883,11 +1010,22 @@ rel_list:
       } else {
         $$ = new RelationSqlNode;
       }
-
       $$->relation_names.push_back($2);
+      $$->alias_names.push_back("");
       free($2);
     }
-    | INNER JOIN ID inner_condition_list rel_list{
+    | COMMA ID AS ID rel_list {
+      if ($5 != nullptr) {
+        $$ = $5;
+      } else {
+        $$ = new RelationSqlNode;
+      }
+      $$->relation_names.push_back($2);
+      $$->alias_names.push_back($4);
+      free($2);
+      free($4);
+    }
+    | INNER JOIN ID inner_condition_list rel_list{  // todo INNER JOIN ID AS ID
       if ($5 != nullptr) {
          $$ = $5;
       } else {

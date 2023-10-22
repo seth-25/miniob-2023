@@ -44,8 +44,9 @@ enum class ExprType
   CONJUNCTION,  ///< 多个表达式使用同一种关系(AND或OR)来联结
   ARITHMETIC,   ///< 算术运算
   BINARY,       ///< 二元运算表达式
-
+  FUNCTION,         ///< 函数
   AGGRFUNC,     ///< 聚合表达式
+
 };
 
 /**
@@ -110,12 +111,20 @@ public:
    */
   static void gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name);
 
+  void set_alias(const std::string &alias){
+    alias_ = alias;
+  }
+  const std::string get_alias() const {
+    return alias_;
+  }
+
   void set_with_brace() { with_brace_ = true; }
   bool with_brace() const { return with_brace_; }
 
 private:
-  std::string  name_;
+  std::string name_;
   bool with_brace_ = false;
+  std::string alias_;
 };
 
 /**
@@ -152,6 +161,8 @@ public:
 
   std::string to_string(bool with_table_name) const;
 
+  static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+      const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
 
   /**
    * 从表达式中获取对应的字段

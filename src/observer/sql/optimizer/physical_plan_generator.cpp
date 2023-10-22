@@ -40,6 +40,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "sql/expr/value_expression.h"
 #include "sql/expr/comparison_expression.h"
+#include "sql/operator/table_empty_physical_operator.h"
 
 using namespace std;
 
@@ -221,6 +222,9 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
       LOG_WARN("failed to create project logical operator's child physical operator. rc=%s", strrc(rc));
       return rc;
     }
+  }
+  else if (!project_oper.project_expres().empty()){  // select func，没有from 和 where
+    child_phy_oper = unique_ptr<PhysicalOperator>(new TableEmptyPhysicalOperator());
   }
 
   ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;

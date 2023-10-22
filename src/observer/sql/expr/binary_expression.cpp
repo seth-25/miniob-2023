@@ -125,6 +125,28 @@ RC BinaryExpression::try_get_value(Value &value) const
   return rc;
 }
 
+RC BinaryExpression::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr)
+{
+  assert(expr->type == ExprSqlNodeType::BINARY);
+  bool with_brace = expr->with_brace;
+  std::unique_ptr<Expression> left_expr;
+  std::unique_ptr<Expression> right_expr;
+  RC rc = Expression::create_expression(expr->binary_expr->left, table_map, tables, left_expr);
+  if (rc != RC::SUCCESS) {
+    return rc;
+  }
+  rc = Expression::create_expression(expr->binary_expr->right, table_map, tables, right_expr);
+  if (rc != RC::SUCCESS) {
+    return rc;
+  }
+  std::unique_ptr<BinaryExpression> binary_expr(new BinaryExpression(
+      expr->binary_expr->op, std::move(left_expr), std::move(right_expr), with_brace, expr->binary_expr->is_minus));
+  res_expr = std::move(binary_expr);
+  //    res_expr = std::make_unique<BinaryExpression>(expr->binary_expr->op, std::move(left_expr), std::move(right_expr), with_brace, expr->binary_expr->is_minus);
+  return RC::SUCCESS;
+}
+
 const char BinaryExpression::get_op_char() const
 {
   switch (op_) {

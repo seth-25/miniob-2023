@@ -22,7 +22,6 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #define MAX_NUM 20
 class Expression;
-class AggrFuncExpression;
 
 /**
  * @defgroup SQLParser SQL Parser 
@@ -42,23 +41,11 @@ struct RelAttrSqlNode
   std::string attribute_name;  ///< attribute name              属性名
 };
 
-enum class ExprOp
-{
-  ADD_OP,
-  SUB_OP,
-  MUL_OP,
-  DIV_OP,
-  NEGATIVE_OP,
-};
+enum class ExprOp { ADD_OP, SUB_OP, MUL_OP, DIV_OP, NEGATIVE_OP, };
 
-enum class ExprSqlNodeType
-{
-  UNDEFINED,
-  UNARY,
-  BINARY,
-  AGGR,
-  FUNC,
-};
+enum class ExprSqlNodeType { UNDEFINED, UNARY, BINARY, AGGREGATION, FUNCTION, };
+enum class AggrFuncType { AGGR_MAX, AGGR_MIN, AGGR_SUM, AGGR_AVG, AGGR_COUNT };
+enum class FuncType { FUNC_LENGTH, FUNC_ROUND, FUNC_DATE_FORMAT };
 
 struct UnaryExprSqlNode;
 struct BinaryExprSqlNode;
@@ -72,10 +59,11 @@ struct ExprSqlNode
 {
   ExprSqlNodeType    type = ExprSqlNodeType::UNDEFINED;
   bool               with_brace = false;  // 打印用
+  std::string        alias_name;
   UnaryExprSqlNode  *unary_expr = nullptr;
   BinaryExprSqlNode *binary_expr = nullptr;
-  AggrExprSqlNode   *aggrExprSqlNode = nullptr;
-  FuncExprSqlNode   *funcExprSqlNode = nullptr;
+  AggrExprSqlNode   *aggr_expr = nullptr;
+  FuncExprSqlNode   *func_expr = nullptr;
 };
 
 /**
@@ -100,6 +88,19 @@ struct BinaryExprSqlNode
   ExprSqlNode *right;
 };
 
+
+struct FuncExprSqlNode
+{
+  FuncType type;
+  std::vector<ExprSqlNode *> exprs;
+};
+
+struct AggrExprSqlNode
+{
+  bool is_star = false;
+  AggrFuncType type;
+  ExprSqlNode* expr;
+};
 
 /**
  * @brief 描述比较运算符
@@ -155,7 +156,7 @@ struct ConditionSqlNode
  * @details 一个正常的select语句描述起来比这个要复杂很多，这里做了简化。
  * 一个select语句由三部分组成，分别是select, from, where。
  * select部分表示要查询的字段，from部分表示要查询的表，where部分表示查询的条件。
- * 比如 from 中可以是多个表，也可以是另一个查询语句，这里仅仅支持表，也就是 relations。
+ * 比如 from 中可以是多个表，也可以是另一个查询语句，这里仅仅支持表，也就是 relation。
  * where 条件 conditions，这里表示使用AND串联起来多个条件。正常的SQL语句会有OR，NOT等，
  * 甚至可以包含复杂的表达式。
  */
@@ -168,7 +169,7 @@ struct OrderBySqlNode
 //struct SelectSqlNode
 //{
 //  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
-//  std::vector<std::string>        relations;     ///< 查询的表
+//  std::vector<std::string>        relation_names;     ///< 查询的表
 //  std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
 //};
 
@@ -176,7 +177,8 @@ struct SelectSqlNode
 {
 //  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
   std::vector<ExprSqlNode *>      project_exprs; ///< 投影的表达式
-  std::vector<std::string>        relations;     ///< 查询的表
+  std::vector<std::string>        relation_names;     ///< 查询的表
+  std::vector<std::string>        alias_names;     ///< 查询的表别名
   std::vector<ConditionSqlNode>   inner_join_conditions;   ///内连接的条件
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
   std::vector<OrderBySqlNode>     order_by_cols;     /// order by 的列
@@ -186,6 +188,7 @@ struct SelectSqlNode
 struct RelationSqlNode
 {
   std::vector<std::string>        relation_names;     ///< 查询的表名
+  std::vector<std::string>        alias_names;   /// 别名，没有的话为空字符串
   std::vector<ConditionSqlNode>   conditions;    ///< 内连接on后面的条件，使用AND串联起来多个条件
 };
 

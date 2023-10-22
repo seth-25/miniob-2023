@@ -72,13 +72,6 @@ RC ExecuteStage::handle_request_with_physical_operator(SQLStageEvent *sql_event)
       for (auto& expr_str: select_stmt->project_name()) {
         schema->append_cell(new TupleCellSpec(expr_str.c_str()));
       }
-//      for (const Field &field : select_stmt->query_fields()) {
-//        if (with_table_name) {
-//          schema.append_cell(field.table_name(), field.field_name());
-//        } else {
-//          schema.append_cell(field.field_name());
-//        }
-//      }
     } break;
 
     case StmtType::CALC: {

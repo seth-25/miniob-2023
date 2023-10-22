@@ -30,28 +30,15 @@ public:
   };
   TupleCellSpec(std::unique_ptr<Expression> &&expression): expression_(std::move(expression)) {};
 
-//  const char *table_name() const
-//  {
-//    return table_name_.c_str();
-//  }
-//  const char *field_name() const
-//  {
-//    return field_name_.c_str();
-//  }
   const char *alias() const
   {
     return alias_.c_str();
   }
-//  const std::unique_ptr<Expression>& expression() {
-//    return expression_;
-//  }
   const Expression* expression() const {
     return expression_.get();
   }
 
 private:
-//  std::string table_name_;
-//  std::string field_name_;
   std::string alias_;
   std::unique_ptr<Expression> expression_;
 };

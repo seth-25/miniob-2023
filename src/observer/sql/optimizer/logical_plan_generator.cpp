@@ -98,12 +98,6 @@ RC LogicalPlanGenerator::create_plan(
   std::vector<std::unique_ptr<Expression>> &project_expres = select_stmt->project_expres();
   for (Table *table : tables) {
     std::vector<Field> fields;
-//    for (const Field &field : all_fields) {
-//      if (0 == strcmp(field.table_name(), table->name())) {
-//        fields.push_back(field);
-//      }
-//    }
-//    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, true/*readonly*/));
     unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, true/*readonly*/));
     if (table_oper == nullptr) {
       table_oper = std::move(table_get_oper);
@@ -127,6 +121,8 @@ RC LogicalPlanGenerator::create_plan(
     orderby_oper = std::move(temp_orderby_oper);
   }
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(std::move(project_expres)));
+
+
   if (orderby_oper) {
     if (predicate_oper) {
       if (table_oper) {

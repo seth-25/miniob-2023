@@ -52,6 +52,29 @@ static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression
   }
 }
 
+static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression>> &project_exprs,
+                            std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)  // select * form
+{
+  auto it = alias_map.find(table);
+  std::string table_alias_name;
+  if (it != alias_map.end()) {
+    table_alias_name = it->second;
+  }
+
+  const TableMeta &table_meta = table->table_meta();
+  const int field_num = table_meta.field_num();
+  for (int i = table_meta.sys_field_num(); i < field_num; i++) {
+    FieldExpr* field_expr = new FieldExpr(table, table_meta.field(i));
+    project_exprs.emplace_back(field_expr);
+    if (with_table_name) {
+      field_expr->set_alias(table_alias_name + '.' + table_meta.field(i)->name());
+    }
+    else {
+      field_expr->set_alias(table_meta.field(i)->name());
+    }
+  }
+}
+
 RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 {
   if (nullptr == db) {
@@ -62,8 +85,11 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // collect tables in `from` statement
   std::vector<Table *> tables;
   std::unordered_map<std::string, Table *> table_map;
-  for (size_t i = 0; i < select_sql.relations.size(); i++) {
-    const char *table_name = select_sql.relations[i].c_str();
+  std::unordered_map<Table *, std::string> alias_map;
+  assert(select_sql.relation_names.size() == select_sql.alias_names.size());
+  for (size_t i = 0; i < select_sql.relation_names.size(); i++) {
+    const char *table_name = select_sql.relation_names[i].c_str();
+    const char *alias_name = select_sql.alias_names[i].c_str();
     if (nullptr == table_name) {
       LOG_WARN("invalid argument. relation name is null. index=%d", i);
       return RC::INVALID_ARGUMENT;
@@ -77,6 +103,14 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
     tables.push_back(table);
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
+
+    if (strlen(alias_name) != 0) {
+      if (table_map.count(std::string(alias_name)) != 0) {  // 表的别名和其他的表名重复
+        return RC::SCHEMA_TABLE_EXIST;
+      }
+      table_map.insert(std::pair<std::string, Table *>(alias_name, table)); // 别名的表
+      alias_map.insert(std::pair<Table *, std::string>(table, alias_name));
+    }
   }
 
   // collect query fields in `select` statement
@@ -93,11 +127,12 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
       if (common::is_blank(relation_attr.relation_name.c_str()) &&    // select * from t;
           0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
+        bool with_table_name = (tables.size() > 1);
         for (Table *table : tables) {
-          wildcard_fields(table, project_expres);
+          wildcard_fields(table, project_expres, alias_map, with_table_name);
         }
-
-      } else if (!common::is_blank(relation_attr.relation_name.c_str())) {  // select t.* from t; 或者 select t.id from t;
+      }
+      else if (!common::is_blank(relation_attr.relation_name.c_str())) {  // select t.* from t; 或者 select t.id from t;
         const char *table_name = relation_attr.relation_name.c_str();
         const char *field_name = relation_attr.attribute_name.c_str();
         if (0 == strcmp(table_name, "*")) { // select *.attr from t;
@@ -116,7 +151,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
           }
 
           Table *table = iter->second;
-          if (0 == strcmp(field_name, "*")) {       // select t.* from t;转化
+          if (0 == strcmp(field_name, "*")) {       // select t.* from t;
             wildcard_fields(table, project_expres);
           } else {                                  // select t.id from t;
             const FieldMeta *field_meta = table->table_meta().field(field_name);
@@ -124,8 +159,15 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
               LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
               return RC::SCHEMA_FIELD_MISSING;
             }
-
-            project_expres.emplace_back(new FieldExpr(table, field_meta));
+            FieldExpr* field_expr = new FieldExpr(table, field_meta);
+            std::string table_alias_name; // 表的别名
+            if (tables.size() > 1) {
+              table_alias_name = std::string(table->name()) + '.' + std::string(field_meta->name());
+            } else {
+              table_alias_name = std::string(field_meta->name());
+            }
+            field_expr->set_alias(table_alias_name);
+            project_expres.emplace_back(field_expr);
           }
         }
       } else {  // select id from t  id没有对应表名
@@ -140,7 +182,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
           LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), relation_attr.attribute_name.c_str());
           return RC::SCHEMA_FIELD_MISSING;
         }
-
         project_expres.emplace_back(new FieldExpr(table, field_meta));
       }
     }
@@ -201,7 +242,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->orderby_stmt_ = orderby_stmt;
 
-  bool with_table_name = select_stmt->tables_.size() > 1;
+  bool with_table_name = select_stmt->tables_.size() != 1;
   for (auto &expression: select_stmt->project_expres()) {
     std::string expr_str;
     Expression::gen_project_name(expression.get(), with_table_name, expr_str);

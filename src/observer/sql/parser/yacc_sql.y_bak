@@ -450,11 +450,11 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
       if ($5 != nullptr) {
-        $$->selection.relations.swap(*$5);
+        $$->selection.relation_names.swap(*$5);
         delete $5;
       }
-      $$->selection.relations.push_back($4);
-      std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
+      $$->selection.relation_names.push_back($4);
+      std::reverse($$->selection.relation_names.begin(), $$->selection.relation_names.end());
 
       if ($6 != nullptr) {
         $$->selection.conditions.swap(*$6);
