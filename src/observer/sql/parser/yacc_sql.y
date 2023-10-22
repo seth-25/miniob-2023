@@ -500,7 +500,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr SEMICOLON {  // function 可能出现
+    SELECT select_attr {  // function 可能出现
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
         $$->selection.project_exprs.swap(*$2);
@@ -714,6 +714,26 @@ expr_list:
 
       $$->emplace_back($2);
       // delete $2;     在stmt阶段删除
+    }
+    | COMMA expr AS ID expr_list {  // 别名
+      if ($5 != nullptr) {
+        $$ = $5;
+      } else {
+        $$ = new std::vector<ExprSqlNode *>;
+      }
+      $2->alias_name = $4;
+      free($4);
+      $$->emplace_back($2);
+    }
+    | COMMA expr ID expr_list {  // 别名
+      if ($4 != nullptr) {
+        $$ = $4;
+      } else {
+        $$ = new std::vector<ExprSqlNode *>;
+      }
+      $2->alias_name = $3;
+      free($3);
+      $$->emplace_back($2);
     }
     ;
 
@@ -931,7 +951,7 @@ select_attr:
       }
       $$->emplace_back($1);
     }
-    | expr AS ID expr_list {
+    | expr AS ID expr_list {    // 别名
       if ($4 != nullptr) {
         $$ = $4;
       } else {
@@ -939,6 +959,16 @@ select_attr:
       }
       $1->alias_name = $3;
       free($3);
+      $$->emplace_back($1);
+    }
+    | expr ID expr_list {    // 别名
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<ExprSqlNode*>;
+      }
+      $1->alias_name = $2;
+      free($2);
       $$->emplace_back($1);
     }
     ;
@@ -964,6 +994,17 @@ select_from:
       $$->alias_names.push_back($3);
       free($1);
       free($3);
+    }
+    | ID ID rel_list {   // 包含别名
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new RelationSqlNode;
+      }
+      $$->relation_names.push_back($1);
+      $$->alias_names.push_back($2);
+      free($1);
+      free($2);
     }
     ;
 
@@ -1014,7 +1055,7 @@ rel_list:
       $$->alias_names.push_back("");
       free($2);
     }
-    | COMMA ID AS ID rel_list {
+    | COMMA ID AS ID rel_list { // 别名
       if ($5 != nullptr) {
         $$ = $5;
       } else {
@@ -1024,6 +1065,17 @@ rel_list:
       $$->alias_names.push_back($4);
       free($2);
       free($4);
+    }
+    | COMMA ID ID rel_list { // 别名
+      if ($4 != nullptr) {
+        $$ = $4;
+      } else {
+        $$ = new RelationSqlNode;
+      }
+      $$->relation_names.push_back($2);
+      $$->alias_names.push_back($3);
+      free($2);
+      free($3);
     }
     | INNER JOIN ID inner_condition_list rel_list{  // todo INNER JOIN ID AS ID
       if ($5 != nullptr) {
@@ -1038,6 +1090,7 @@ rel_list:
          delete $4;
       }
       $$->relation_names.push_back($3);
+      $$->alias_names.push_back("");
       free($3);
     }
     ;
