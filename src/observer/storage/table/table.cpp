@@ -425,7 +425,7 @@ RC Table::create_index(Trx *trx, bool is_unique, std::vector<const FieldMeta *> 
 
   std::vector<FieldMeta> field_metas_real;
   field_metas_real.reserve(field_metas.size());
-for (auto & field_meta : field_metas) {
+  for (auto & field_meta : field_metas) {
     field_metas_real.push_back(*field_meta);
   }
   // 创建索引相关数据

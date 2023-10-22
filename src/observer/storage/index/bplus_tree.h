@@ -110,8 +110,9 @@ private:
 class KeyComparator 
 {
 public:
-  void init(std::vector<AttrType> type, std::vector<int> length)
+  void init(bool is_unique, std::vector<AttrType> type, std::vector<int> length)
   {
+    is_unique_ = is_unique;
     attr_comparator_.init(type, length);
   }
 
@@ -123,7 +124,7 @@ public:
   int operator()(const char *v1, const char *v2) const
   {
     int result = attr_comparator_(v1, v2);
-    if (result != 0) {
+    if (is_unique_ || result != 0) {
       return result;
     }
 
@@ -134,6 +135,7 @@ public:
 
 private:
   AttrComparator attr_comparator_;
+  bool is_unique_;
 };
 
 /**
@@ -239,6 +241,7 @@ struct IndexFileHeader
     memset(this, 0, sizeof(IndexFileHeader));
     root_page = BP_INVALID_PAGE_NUM;
   }
+  bool is_unique_ = false;
   PageNum root_page;          ///< 根节点在磁盘中的页号
   int32_t internal_max_size;  ///< 内部节点最大的键值对数
   int32_t leaf_max_size;      ///< 叶子节点最大的键值对数
@@ -496,7 +499,7 @@ public:
    * 此函数创建一个名为fileName的索引。
    * attrType描述被索引属性的类型，attrLength描述被索引属性的长度
    */
-  RC create(const char *file_name, std::vector<AttrType> attr_type, std::vector<int> attr_length,
+  RC create(const char *file_name, bool is_unique, std::vector<AttrType> attr_type, std::vector<int> attr_length,
       std::vector<int> attr_offset, int internal_max_size = -1, int leaf_max_size = -1);
 
   /**
@@ -517,7 +520,7 @@ public:
    * 即向索引中插入一个值为（user_key，rid）的键值对
    * @note 这里假设user_key的内存大小与attr_length 一致
    */
-  RC insert_entry(const char *user_key, const RID *rid, bool is_unique);
+  RC insert_entry(const char *user_key, const RID *rid);
 
   /**
    * 从IndexHandle句柄对应的索引中删除一个值为（*pData，rid）的索引项
@@ -594,11 +597,7 @@ protected:
   RC adjust_root(LatchMemo &latch_memo, Frame *root_frame);
 
 private:
-  common::MemPoolItem::unique_ptr make_key(const char *user_key, const RID &rid, bool is_unique);
-  common::MemPoolItem::unique_ptr make_key(const char *user_key, const RID &rid)
-  {
-    return make_key(user_key, rid, false);
-  }
+  common::MemPoolItem::unique_ptr make_key(const char *user_key, const RID &rid);
   void free_key(char *key);
 
 protected:

@@ -17,7 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/record/record.h"
 #include "sql/stmt/order_by_stmt.h"
 #include "storage/field/field.h"
-
+//todo 支持事务
 RC OrderByPhysicalOperator::open(Trx *trx)
 {
   if (children_.size() != 1) {
