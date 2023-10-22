@@ -104,7 +104,7 @@ public:
 
   /**
    * @brief 根据cell的描述，获取cell的值
-   * 目前只支持spec里是fieldExpr
+   * 目前只支持spec里存的Expression是fieldExpr
    * @param spec cell的描述
    * @param[out] cell 返回的cell
    */
@@ -137,6 +137,27 @@ public:
       str += cell.to_string();
     }
     return str;
+  }
+};
+
+class EmptyTuple : public Tuple {
+public:
+  EmptyTuple() = default;
+  virtual ~EmptyTuple() = default;
+
+  int cell_num() const override {
+    return 0;
+  }
+  void get_record(CompoundRecord &record) const override {}
+  void set_record(CompoundRecord &record) override {}
+  void set_right_record(CompoundRecord &record) override {}
+
+  RC cell_at(int index, Value &cell) const override {
+    return RC::SUCCESS;
+  }
+
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override {
+    return RC::SUCCESS;
   }
 };
 

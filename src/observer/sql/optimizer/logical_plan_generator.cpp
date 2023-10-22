@@ -39,6 +39,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/value_expression.h"
 #include "sql/expr/comparison_expression.h"
 #include "sql/expr/conjunction_expression.h"
+#include "sql/operator/table_empty_logical_operator.h"
 
 using namespace std;
 
@@ -122,7 +123,6 @@ RC LogicalPlanGenerator::create_plan(
   }
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(std::move(project_expres)));
 
-
   if (orderby_oper) {
     if (predicate_oper) {
       if (table_oper) {
@@ -146,6 +146,11 @@ RC LogicalPlanGenerator::create_plan(
           project_oper->add_child(std::move(table_oper));
         }
     }
+  }
+
+  if (tables.empty()){  // select func，没有from 和 where
+    unique_ptr<LogicalOperator> empty_oper(new TableEmptyLogicalOperator());
+    project_oper->add_child(std::move(empty_oper));
   }
 
   logical_operator.swap(project_oper);

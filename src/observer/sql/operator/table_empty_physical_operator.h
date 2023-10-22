@@ -50,6 +50,6 @@ public:
   }
 
 private:
-  RowTuple tuple_;
+  EmptyTuple tuple_;
   bool     first_ = true;
 };

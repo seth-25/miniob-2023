@@ -89,6 +89,11 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
       return create_plan(static_cast<JoinLogicalOperator &>(logical_operator), oper);
     } break;
 
+    case LogicalOperatorType::TABLE_EMPTY: {
+      oper = unique_ptr<PhysicalOperator>(new TableEmptyPhysicalOperator());
+      return RC::SUCCESS;
+    } break;
+
     default: {
       return RC::INVALID_ARGUMENT;
     }
@@ -223,9 +228,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
       return rc;
     }
   }
-  else if (!project_oper.project_expres().empty()){  // select func，没有from 和 where
-    child_phy_oper = unique_ptr<PhysicalOperator>(new TableEmptyPhysicalOperator());
-  }
+
 
   ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
   for (std::unique_ptr<Expression> &expr: project_oper.project_expres()) {
