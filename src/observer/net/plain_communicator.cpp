@@ -164,6 +164,16 @@ RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
       LOG_WARN("failed to send debug info to client. rc=%s, err=%s", strrc(rc), strerror(errno));
     }
   }
+  if (rc != RC::SUCCESS) {
+    const int buf_size = 2048;
+    char *buf = new char[buf_size];
+    const char *result = "FAILURE";
+    snprintf(buf, buf_size, "%s\n", result);
+    writer_->clear();
+    writer_->writen(buf, strlen(buf));
+    need_disconnect = false;
+  }
+
   if (!need_disconnect) {
     rc = writer_->writen(send_message_delimiter_.data(), send_message_delimiter_.size());
     if (OB_FAIL(rc)) {
@@ -172,14 +182,7 @@ RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
       return rc;
     }
   }
-  if (rc != RC::SUCCESS) {
-    const int buf_size = 2048;
-    char *buf = new char[buf_size];
-    const char *result = "FAILURE";
-    snprintf(buf, buf_size, "%s\n", result);
-    writer_->clear();
-    writer_->writen(buf, strlen(buf) + 1);
-  }
+
   writer_->flush(); // TODO handle error
   return rc;
 }
