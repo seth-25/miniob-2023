@@ -85,6 +85,11 @@ RC BufferedWriter::writen(const char *data, int32_t size)
   return RC::SUCCESS;
 }
 
+RC BufferedWriter::clear() {
+    buffer_ = RingBuffer();
+    return RC::SUCCESS;
+}
+
 RC BufferedWriter::flush()
 {
   if (fd_ < 0) {
@@ -97,6 +102,7 @@ RC BufferedWriter::flush()
   }
   return rc;
 }
+
 
 RC BufferedWriter::flush_internal(int32_t size)
 {

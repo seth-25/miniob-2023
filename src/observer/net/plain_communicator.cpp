@@ -161,6 +161,14 @@ RC PlainCommunicator::write_result(SessionEvent *event, bool &need_disconnect)
   if (!need_disconnect) {
     (void)write_debug(event, need_disconnect);
   }
+  if (rc != RC::SUCCESS) {
+    const int buf_size = 2048;
+    char *buf = new char[buf_size];
+    const char *result = "FAILURE";
+    snprintf(buf, buf_size, "%s\n", result);
+    writer_->clear();
+    writer_->writen(buf, strlen(buf) + 1);
+  }
   writer_->flush(); // TODO handle error
   return rc;
 }
