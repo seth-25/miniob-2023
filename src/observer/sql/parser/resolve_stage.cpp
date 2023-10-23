@@ -42,7 +42,6 @@ RC ResolveStage::handle_request(SQLStageEvent *sql_event)
     sql_result->set_state_string("no db selected");
     return rc;
   }
-  sql_debug("%s\n", sql_event->sql().c_str());
   ParsedSqlNode *sql_node = sql_event->sql_node().get();
   Stmt *stmt = nullptr;
   rc = Stmt::create_stmt(db, *sql_node, stmt);  // 解析成语句，生成stmt
