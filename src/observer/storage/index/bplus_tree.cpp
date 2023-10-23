@@ -747,7 +747,7 @@ RC BplusTreeHandler::sync()
   return disk_buffer_pool_->flush_all_pages();
 }
 
-RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType> attr_type, std::vector<int> attr_length,
+RC BplusTreeHandler::create(const char *file_name, bool is_unique, std::vector<AttrType> attr_type, std::vector<int> attr_length,
     std::vector<int> attr_offset, int internal_max_size /* = -1*/, int leaf_max_size /* = -1 */)
 {
   BufferPoolManager &bpm = BufferPoolManager::instance();
@@ -803,6 +803,7 @@ RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType> attr_ty
   file_header->internal_max_size = internal_max_size;
   file_header->leaf_max_size = leaf_max_size;
   file_header->root_page = BP_INVALID_PAGE_NUM;
+  file_header->is_unique_ = is_unique;
   header_frame->mark_dirty();
 
   disk_buffer_pool_ = bp;
@@ -817,7 +818,7 @@ RC BplusTreeHandler::create(const char *file_name, std::vector<AttrType> attr_ty
     return RC::NOMEM;
   }
 
-  key_comparator_.init(attr_type, attr_length);
+  key_comparator_.init(is_unique, attr_type, attr_length);
   key_printer_.init(attr_type, attr_length);
 
   this->sync();
@@ -870,7 +871,7 @@ RC BplusTreeHandler::open(const char *file_name)
     attr_length.push_back(file_header_.attr_length[i]);
   }
 
-  key_comparator_.init(attr_type, attr_length);
+  key_comparator_.init(file_header_.is_unique_,attr_type, attr_length);
   key_printer_.init(attr_type, attr_length);
   LOG_INFO("Successfully open index %s", file_name);
   return RC::SUCCESS;
@@ -1363,20 +1364,19 @@ RC BplusTreeHandler::create_new_tree(const char *key, const RID *rid)
 
 MemPoolItem::unique_ptr BplusTreeHandler::make_key(const char *user_key, const RID &rid)
 {
-  MemPoolItem::unique_ptr key = mem_pool_item_->alloc_unique_ptr();
-  if (key == nullptr) {
+  MemPoolItem::unique_ptr fixed_user_key = mem_pool_item_->alloc_unique_ptr();
+  if (fixed_user_key == nullptr) {
     LOG_WARN("Failed to alloc memory for key.");
     return nullptr;
   }
   int pos = 0;
   for (int i = 0; i < file_header_.attr_num; i++) {
-    memcpy(static_cast<char *>(key.get()) + pos, user_key + pos, file_header_.attr_length[i]);
+    memcpy(static_cast<char *>(fixed_user_key.get())  + pos, user_key + pos, file_header_.attr_length[i]);
     pos += file_header_.attr_length[i];
   }
-  memcpy(static_cast<char *>(key.get()) + pos, &rid, sizeof(rid));
-//  memcpy(static_cast<char *>(key.get()), user_key, file_header_.attr_length);
-//  memcpy(static_cast<char *>(key.get()) + file_header_.attr_length, &rid, sizeof(rid));
-  return key;
+
+  memcpy(static_cast<char *>(fixed_user_key.get()) + pos, &rid, sizeof(rid));
+  return fixed_user_key;
 }
 
 RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
@@ -1385,8 +1385,17 @@ RC BplusTreeHandler::insert_entry(const char *user_key, const RID *rid)
     LOG_WARN("Invalid arguments, key is empty or rid is empty");
     return RC::INVALID_ARGUMENT;
   }
-
-  MemPoolItem::unique_ptr pkey = make_key(user_key, *rid);
+  int pos = 0;
+  MemPoolItem::unique_ptr fixed_user_key = mem_pool_item_->alloc_unique_ptr();
+  if (fixed_user_key == nullptr) {
+    LOG_WARN("Failed to alloc memory for key.");
+    return RC::NOMEM;
+  }
+  for (int i = 0; i < file_header_.attr_num; i++) {
+    memcpy(static_cast<char *>(fixed_user_key.get()) + pos, user_key + file_header_.attr_offset[i], file_header_.attr_length[i]);
+    pos += file_header_.attr_length[i];
+  }
+  MemPoolItem::unique_ptr pkey = make_key(static_cast<char *>(fixed_user_key.get()), *rid);
   if (pkey == nullptr) {
     LOG_WARN("Failed to alloc memory for key.");
     return RC::NOMEM;
@@ -1646,12 +1655,12 @@ RC BplusTreeHandler::delete_entry(const char *user_key, const RID *rid)
   }
   char *key = static_cast<char *>(pkey.get());
 
-  int len_sum = 0;
+  int pos = 0;
   for (int i = 0; i < file_header_.attr_num; i++) {
-    len_sum += file_header_.attr_length[i];
+    memcpy(key + pos, user_key + file_header_.attr_offset[i], file_header_.attr_length[i]);
+    pos += file_header_.attr_length[i];
   }
-  memcpy(key, user_key, len_sum);
-  memcpy(key + len_sum, rid, sizeof(*rid));
+  memcpy(key + pos, rid, sizeof(*rid));
 
   BplusTreeOperationType op = BplusTreeOperationType::DELETE;
   LatchMemo latch_memo(disk_buffer_pool_);

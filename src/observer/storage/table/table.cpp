@@ -408,7 +408,7 @@ RC Table::get_record_scanner(RecordFileScanner &scanner, Trx *trx, bool readonly
   return rc;
 }
 
-RC Table::create_index(Trx *trx,std::vector<const FieldMeta *> &field_metas, const char *index_name)
+RC Table::create_index(Trx *trx, bool is_unique, std::vector<const FieldMeta *> &field_metas, const char *index_name)
 {
   if (common::is_blank(index_name) || field_metas.empty()) {
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
@@ -416,7 +416,7 @@ RC Table::create_index(Trx *trx,std::vector<const FieldMeta *> &field_metas, con
   }
 
   IndexMeta new_index_meta;
-  RC rc = new_index_meta.init(index_name, field_metas);
+  RC rc = new_index_meta.init(index_name,is_unique,field_metas);
   if (rc != RC::SUCCESS) {
     LOG_INFO("Failed to init IndexMeta in table:%s, index_name:%s",
              name(), index_name);
@@ -425,7 +425,7 @@ RC Table::create_index(Trx *trx,std::vector<const FieldMeta *> &field_metas, con
 
   std::vector<FieldMeta> field_metas_real;
   field_metas_real.reserve(field_metas.size());
-for (auto & field_meta : field_metas) {
+  for (auto & field_meta : field_metas) {
     field_metas_real.push_back(*field_meta);
   }
   // 创建索引相关数据

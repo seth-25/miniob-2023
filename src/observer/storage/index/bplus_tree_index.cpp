@@ -34,12 +34,13 @@ RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, st
   std::vector<int> field_len;
   std::vector<int> field_off;
   std::vector<AttrType> field_types;
+  bool unique = index_meta.is_unique();
   for (size_t i = 0; i < field_meta.size(); i++) {
     field_len.push_back(field_meta[i].len());
     field_off.push_back(field_meta[i].offset());
     field_types.push_back(field_meta[i].type());
   }
-  RC rc = index_handler_.create(file_name, field_types, field_len, field_off);
+  RC rc = index_handler_.create(file_name, unique, field_types, field_len, field_off);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, rc:%s",
         file_name,
@@ -94,35 +95,12 @@ RC BplusTreeIndex::close()
 
 RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
 {
-  int len_sum = 0;
-  for (size_t i = 0; i < field_meta_.size(); i++) {
-    len_sum += field_meta_[i].len();
-  }
-
-  int pos = 0;
-  char user_key[len_sum];
-  for (size_t i = 0; i < field_meta_.size(); i++) {
-    memcpy(user_key + pos, record + field_meta_[i].offset(), field_meta_[i].len());
-    pos += field_meta_[i].len();
-  }
-
-  return index_handler_.insert_entry(user_key, rid);
+  return index_handler_.insert_entry(record, rid);
 }
 
 RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
 {
-  int len_sum = 0;
-  for (size_t i = 0; i < field_meta_.size(); i++) {
-    len_sum += field_meta_[i].len();
-  }
-
-  int pos = 0;
-  char user_key[len_sum];
-  for (size_t i = 0; i < field_meta_.size(); i++) {
-    memcpy(user_key + pos, record + field_meta_[i].offset(), field_meta_[i].len());
-    pos += field_meta_[i].len();
-  }
-  return index_handler_.delete_entry(user_key, rid);
+  return index_handler_.delete_entry(record, rid);
 }
 
 IndexScanner *BplusTreeIndex::create_scanner(

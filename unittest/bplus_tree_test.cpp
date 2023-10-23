@@ -327,7 +327,7 @@ TEST(test_bplus_tree, test_leaf_index_node_handle)
   Frame frame;
 
   KeyComparator key_comparator;
-  key_comparator.init(std::vector<AttrType> {INTS}, std::vector<int>{4});
+  key_comparator.init(false, std::vector<AttrType> {INTS}, std::vector<int>{4});
 
   LeafIndexNodeHandler leaf_node(index_file_header, &frame);
   leaf_node.init_empty();
@@ -386,7 +386,7 @@ TEST(test_bplus_tree, test_internal_index_node_handle)
   Frame frame;
 
   KeyComparator key_comparator;
-  key_comparator.init(std::vector<AttrType> {INTS}, std::vector<int>{4});
+  key_comparator.init(false, std::vector<AttrType> {INTS}, std::vector<int>{4});
 
   InternalIndexNodeHandler internal_node(index_file_header, &frame);
   internal_node.init_empty();
@@ -476,7 +476,7 @@ TEST(test_bplus_tree, test_chars)
   const char *index_name = "chars.btree";
   ::remove(index_name);
   handler = new BplusTreeHandler();
-  handler->create(index_name, std::vector<AttrType> {CHARS}, std::vector<int> {8},
+  handler->create(index_name, false, std::vector<AttrType> {CHARS}, std::vector<int> {8},
       std::vector<int> {0}, ORDER, ORDER);
 
   char keys[][9] = {
@@ -520,7 +520,7 @@ TEST(test_bplus_tree, test_scanner)
   const char *index_name = "scanner.btree";
   ::remove(index_name);
   handler = new BplusTreeHandler();
-  handler->create(index_name, std::vector<AttrType> {INTS}, std::vector<int> {sizeof(int)},
+  handler->create(index_name, false, std::vector<AttrType> {INTS}, std::vector<int> {sizeof(int)},
       std::vector<int> {0}, ORDER, ORDER);
 
   int count = 0;
@@ -730,7 +730,7 @@ TEST(test_bplus_tree, test_bplus_tree_insert)
 
   ::remove(index_name);
   handler = new BplusTreeHandler();
-  handler->create(index_name, std::vector<AttrType> {INTS}, std::vector<int> {sizeof(int)},
+  handler->create(index_name, false, std::vector<AttrType> {INTS}, std::vector<int> {sizeof(int)},
       std::vector<int> {0}, ORDER, ORDER);
 
   test_insert();
