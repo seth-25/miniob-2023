@@ -773,6 +773,7 @@ func_expr:
       FuncExprSqlNode* func = new FuncExprSqlNode;
       func->type = FuncType::FUNC_DATE_FORMAT;
       func->exprs.emplace_back($3);
+      func->exprs.emplace_back($5);
 
       ExprSqlNode* expr = new ExprSqlNode;
       expr->type = ExprSqlNodeType::FUNCTION;
