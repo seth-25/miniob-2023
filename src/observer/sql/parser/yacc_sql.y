@@ -128,6 +128,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   Expression *                      expression;
   std::vector<Expression *> *       expression_list;
   std::vector<Value> *              value_list;
+  std::vector<std::vector<Value>> * row_value_list;
   std::vector<ConditionSqlNode> *   condition_list;
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<OrderBySqlNode> *     order_attr_list;
@@ -161,6 +162,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
+%type <value_list>          row_value
+%type <row_value_list>      row_value_list
 %type <condition_list>      where
 %type <condition_list>      condition_list
 %type <condition_list>      inner_condition_list
@@ -418,20 +421,51 @@ type:
     | DATE_T   { $$=DATES; }
     ;
 insert_stmt:        /*insert   语句的语法解析树*/
-    INSERT INTO ID VALUES LBRACE value value_list RBRACE
+    INSERT INTO ID VALUES row_value row_value_list
     {
       $$ = new ParsedSqlNode(SCF_INSERT);
       $$->insertion.relation_name = $3;
-      if ($7 != nullptr) {
-        $$->insertion.values.swap(*$7);
+      if ($6 != nullptr) {
+        $$->insertion.values.swap(*$6);
+        delete $6;
       }
-      $$->insertion.values.emplace_back(*$6);
+      $$->insertion.values.emplace_back(*$5);
       std::reverse($$->insertion.values.begin(), $$->insertion.values.end());
-      delete $6;
+      delete $5;
       free($3);
     }
     ;
+row_value_list:
+		/* EMPTY */
+	{
+	    $$ = nullptr;
+	}
+    | COMMA row_value row_value_list {
+        if ($3 == nullptr)
+        {
+            $$ = new std::vector<std::vector<Value>>;
+        }else
+        {
+            $$ = $3;
+        }
 
+        $$->emplace_back(*$2);
+        delete $2;
+    }
+    ;
+row_value:
+    LBRACE value value_list RBRACE
+    {
+         $$ = new std::vector<Value>;
+         if ($3 != nullptr) {
+           $$->swap(*$3);
+           delete $3;
+         }
+         $$->emplace_back(*$2);
+         std::reverse($$->begin(), $$->end());
+         delete $2;
+    }
+    ;
 value_list:
     /* empty */
     {
