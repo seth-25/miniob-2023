@@ -92,29 +92,30 @@ extern int yydebug;
     EXPLAIN = 298,
     NOT = 299,
     LIKE = 300,
-    ORDER = 301,
-    BY = 302,
-    AGGR_MAX = 303,
-    AGGR_MIN = 304,
-    AGGR_COUNT = 305,
-    AGGR_AVG = 306,
-    AGGR_SUM = 307,
-    LENGTH = 308,
-    ROUND = 309,
-    DATE_FORMAT = 310,
-    AS = 311,
-    EQ = 312,
-    LT = 313,
-    GT = 314,
-    LE = 315,
-    GE = 316,
-    NE = 317,
-    NUMBER = 318,
-    FLOAT = 319,
-    ID = 320,
-    SSS = 321,
-    DATE_STR = 322,
-    UMINUS = 323
+    UNIQUE = 301,
+    ORDER = 302,
+    BY = 303,
+    AGGR_MAX = 304,
+    AGGR_MIN = 305,
+    AGGR_COUNT = 306,
+    AGGR_AVG = 307,
+    AGGR_SUM = 308,
+    LENGTH = 309,
+    ROUND = 310,
+    DATE_FORMAT = 311,
+    AS = 312,
+    EQ = 313,
+    LT = 314,
+    GT = 315,
+    LE = 316,
+    GE = 317,
+    NE = 318,
+    NUMBER = 319,
+    FLOAT = 320,
+    ID = 321,
+    SSS = 322,
+    DATE_STR = 323,
+    UMINUS = 324
   };
 #endif
 
@@ -122,7 +123,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 121 "yacc_sql.y"
+#line 122 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -140,6 +141,8 @@ union YYSTYPE
   std::vector<OrderBySqlNode> *     order_attr_list;
   RelationSqlNode *                 relation_list;
   std::vector<std::string> *        rel_index_attr_list;
+  UpdateValueNode *                 update_value;
+  std::vector<UpdateValueNode> *    update_value_list;
   char *                            string;
   int                               number;
   float                             floats;
@@ -150,7 +153,7 @@ union YYSTYPE
   enum AggrFuncType                 aggr_func_type;
 
 
-#line 154 "yacc_sql.hpp"
+#line 157 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

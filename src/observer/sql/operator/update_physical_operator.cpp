@@ -30,8 +30,6 @@ RC UpdatePhysicalOperator::next()
   }
 
   // todo 支持复杂update
-  vector<const Value *> values;
-  values.emplace_back(&value_); // todo 支持多值update
   vector<const FieldMeta*> fields(fields_); // 存需要更新的fields，和values一一对应
 
 
@@ -49,7 +47,7 @@ RC UpdatePhysicalOperator::next()
 
     // 将old_record的值更新成新的值
     Record new_record;
-    rc = table_->make_record_from_old_record(fields, values, old_record, new_record);
+    rc = table_->make_record_from_old_record(fields, values_, old_record, new_record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to make update record: %s", strrc(rc));
       return rc;

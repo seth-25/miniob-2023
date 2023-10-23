@@ -163,17 +163,6 @@ RC LogicalPlanGenerator::create_plan(
   std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
   for (FilterUnit *filter_unit : filter_units) {
-//    const Expression &filter_obj_left = filter_unit->left();
-//    const Expression &filter_obj_right = filter_unit->right();
-//    unique_ptr<Expression> left(filter_obj_left.is_attr
-//                                         ? static_cast<Expression *>(new FieldExpr(filter_obj_left.field))
-//                                         : static_cast<Expression *>(new ValueExpr(filter_obj_left.value)));
-//
-//    unique_ptr<Expression> right(filter_obj_right.is_attr
-//                                          ? static_cast<Expression *>(new FieldExpr(filter_obj_right.field))
-//                                          : static_cast<Expression *>(new ValueExpr(filter_obj_right.value)));
-//
-//    ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
     std::unique_ptr<Expression>& left = filter_unit->left();
     std::unique_ptr<Expression>& right = filter_unit->right();
     ComparisonExpr *cmp_expr = new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right));
@@ -248,7 +237,8 @@ RC LogicalPlanGenerator::create_plan(
   unique_ptr<LogicalOperator> predicate_oper;
   create_plan(filter_stmt, predicate_oper);
 
-  UpdateLogicalOperator *update_operator = new UpdateLogicalOperator(update_stmt->table(), *update_stmt->value(), update_stmt->fields());
+  UpdateLogicalOperator *update_operator = new UpdateLogicalOperator(
+      update_stmt->table(), std::move(update_stmt->values()), std::move(update_stmt->fields()));
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));
     update_operator->add_child(std::move(predicate_oper));

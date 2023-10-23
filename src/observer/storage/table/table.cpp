@@ -521,7 +521,7 @@ RC Table::delete_record(const Record &record)
 }
 
 RC Table::make_record_from_old_record(
-    vector<const FieldMeta *> &fields, vector<const Value *> &values, Record &old_record, Record &new_record)
+    vector<const FieldMeta *> &fields, vector<Value> &values, Record &old_record, Record &new_record)
 {
   RC rc = RC::SUCCESS;
 
@@ -533,8 +533,8 @@ RC Table::make_record_from_old_record(
 
   for (size_t i = 0; i < fields.size(); i ++ ) {
     const FieldMeta *field = fields[i];
-    const Value *value = values[i];
-    rc = value_cast_record(*value, field, new_data);
+    const Value value = values[i];
+    rc = value_cast_record(value, field, new_data);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Value cast record error.");
       return rc;

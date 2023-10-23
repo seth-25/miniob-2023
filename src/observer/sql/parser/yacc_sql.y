@@ -136,6 +136,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<OrderBySqlNode> *     order_attr_list;
   RelationSqlNode *                 relation_list;
   std::vector<std::string> *        rel_index_attr_list;
+  UpdateValueNode *                 update_value;
+  std::vector<UpdateValueNode> *    update_value_list;
   char *                            string;
   int                               number;
   float                             floats;
@@ -198,6 +200,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <sql_node>            help_stmt
 %type <sql_node>            exit_stmt
 %type <sql_node>            command_wrapper
+%type <update_value>        update_value;
+%type <update_value_list>   update_value_list;
 
 // 新加的表达式
 %type <expr>                unary_expr
@@ -506,6 +510,7 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
+/*
     UPDATE ID SET ID EQ value where
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
@@ -519,7 +524,49 @@ update_stmt:      /*  update 语句的语法解析树*/
       free($2);
       free($4);
     }
+    |*/
+    UPDATE ID SET update_value update_value_list where
+    {
+      $$ = new ParsedSqlNode(SCF_UPDATE);
+      $$->update.relation_name = $2;
+      if ($5 != nullptr) {
+        $$->update.update_values.swap(*$5);
+        delete $5;
+      }
+      $$->update.update_values.emplace_back(*$4);
+      delete $4;
+      if ($6 != nullptr) {
+        $$->update.conditions.swap(*$6);
+        delete $6;
+      }
+      free($2);
+    }
     ;
+
+update_value:
+    ID EQ value {
+      $$ = new UpdateValueNode;
+      $$->attribute_name = $1;
+      $$->value = *$3;
+      free($1);
+      delete($3);
+    }
+
+update_value_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA update_value update_value_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<UpdateValueNode>;
+      }
+      $$->emplace_back(*$2);
+      delete $2;
+    }
+
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT select_attr {  // function 可能出现
       $$ = new ParsedSqlNode(SCF_SELECT);

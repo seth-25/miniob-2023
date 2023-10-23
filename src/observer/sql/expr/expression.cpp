@@ -18,6 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "value_expression.h"
 #include "binary_expression.h"
 #include "function_expression.h"
+#include "aggregation_expression.h"
 #include <regex>
 using namespace std;
 
@@ -39,39 +40,14 @@ RC Expression::create_expression(const ExprSqlNode *expr, const std::unordered_m
   else if (expr->type == ExprSqlNodeType::FUNCTION) {
     rc = FuncExpression::create_expression(expr, table_map, tables, res_expr);
   }
+  else if (expr->type == ExprSqlNodeType::AGGREGATION) {
+    rc = AggrFuncExpr::create_expression(expr, table_map, tables, res_expr);
+  }
 
   if (expr->alias_name.length() != 0) { // 表达式存在别名，如field或function
     res_expr->set_alias(expr->alias_name);
   }
   return rc;
-//  else if (AGGRFUNC == expr->type) {
-//    // TODO(wbj)
-//    if (UNARY == expr->afexp->param->type && 0 == expr->afexp->param->uexp->is_attr) {
-//      // count(*) count(1) count(Value)
-//      assert(AggrFuncType::COUNT == expr->afexp->type);
-//      // substitue * or 1 with some field
-//      Expression *tmp_value_exp = nullptr;
-//      RC rc = create_expression(expr->afexp->param, table_map, tables, tmp_value_exp);
-//      if (rc != RC::SUCCESS) {
-//        return rc;
-//      }
-//      assert(ExprType::VALUE == tmp_value_exp->type());
-//      auto aggr_func_expr = new AggrFuncExpression(
-//          AggrFuncType::COUNT, new FieldExpr(tables[0], tables[0]->table_meta().field(1)), with_brace);
-//      aggr_func_expr->set_param_value((ValueExpr *)tmp_value_exp);
-//      res_expr = aggr_func_expr;
-//      return RC::SUCCESS;
-//    }
-//    Expression *param = nullptr;
-//    RC rc = create_expression(expr->afexp->param, table_map, tables, param);
-//    if (rc != RC::SUCCESS) {
-//      return rc;
-//    }
-//    assert(nullptr != param && ExprType::FIELD == param->type());
-//    res_expr = new AggrFuncExpression(expr->afexp->type, (FieldExpr *)param, with_brace);
-//    return RC::SUCCESS;
-//  }
-  return RC::SUCCESS;
 }
 
 
@@ -140,24 +116,24 @@ void Expression::gen_project_name(const Expression *expr, bool with_table_name, 
           break;
       }
     }
-      //    case ExprType::AGGRFUNCTION: {
-      //      AggrFuncExpression *afexpr = (AggrFuncExpression *)expr;
-      //      result_name += afexpr->get_func_name();
-      //      result_name += '(';
-      //      if (afexpr->is_param_value()) {
-      //        gen_project_name(afexpr->get_param_value(), with_table_name, result_name);
-      //
-      //      } else {
-      //        const Field &field = afexpr->field();
-      //        if (!with_table_name) {
-      //          result_name += std::string(field.table_name()) + '.' + std::string(field.field_name());
-      //        } else {
-      //          result_name += std::string(field.field_name());
-      //        }
-      //      }
-      //      result_name += ')';
-      //      break;
-      //    }
+    case ExprType::AGGRFUNC : {
+      AggrFuncExpr *aggr_expr = (AggrFuncExpr *)expr;
+      result_name += aggr_expr->get_func_name();
+      result_name += '(';
+      if (aggr_expr->is_param_value()) {
+        gen_project_name(aggr_expr->value_expr().get(), with_table_name, result_name);
+
+      } else {
+        const Field &field = aggr_expr->field();
+        if (!with_table_name) {
+          result_name += std::string(field.table_name()) + '.' + std::string(field.field_name());
+        } else {
+          result_name += std::string(field.field_name());
+        }
+      }
+      result_name += ')';
+      break;
+    }
     default:
       break;
   }
@@ -185,7 +161,7 @@ RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &f
       break;
     }
     case ExprType::AGGRFUNC: {
-//       const AggrFuncExpression *aggrfunc_expr = (const AggrFuncExpression *)expr;
+//       const AggrFuncExpr *aggrfunc_expr = (const AggrFuncExpr *)expr;
 //       get_field_from_exprs(aggrfunc_expr->field_expr, fields);
       break;
     }

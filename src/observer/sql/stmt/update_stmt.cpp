@@ -15,6 +15,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "storage/db/db.h"
 #include "sql/stmt/update_stmt.h"
+
+#include <utility>
 #include "sql/stmt/filter_stmt.h"
 #include "common/log/log.h"
 #include "common/lang/typecast.h"
@@ -22,9 +24,9 @@ See the Mulan PSL v2 for more details. */
 // UpdateStmt::UpdateStmt(Table *table, Value *values, int value_amount)
 //    : table_(table), values_(values), value_amount_(value_amount)
 //{}
-UpdateStmt::UpdateStmt(Table *table, const Value *value,
+UpdateStmt::UpdateStmt(Table *table, std::vector<Value>& values,
     std::vector<const FieldMeta *> &fields, FilterStmt *filter_stmt)
-    : table_(table), value_(value), fields_(fields), filter_stmt_(filter_stmt)
+    : table_(table), values_(std::move(values)), fields_(fields), filter_stmt_(filter_stmt)
 {}
 
 UpdateStmt::~UpdateStmt()
@@ -51,13 +53,14 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   std::vector<const FieldMeta *> fields;
-  const Value *value = nullptr;
+  std::vector<Value> values;
+//  const Value *value = nullptr;
 
   // todo 支持多值update修改
-  // for (int i = 0; i < update.attribute_names.size(); i ++ )
+  for (size_t i = 0; i < update.update_values.size(); i ++ )
   {
     bool field_exist = false;
-    const char *attr_name = update.attribute_name.c_str();
+    const char *attr_name = update.update_values[i].attribute_name.c_str();
     if (nullptr == attr_name) {
       LOG_WARN("invalid argument. attribute_name=%p", attr_name);
       return RC::INVALID_ARGUMENT;
@@ -73,11 +76,12 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       const char *field_name = field_meta->name();
       if (strcmp(field_name, attr_name) != 0) continue;
       field_exist = true;
-      value = &update.value;  // todo 多值
+      Value value = update.update_values[i].value;
+      values.emplace_back(value);
 
       // 检查类型
       const AttrType field_type = field_meta->type();
-      const AttrType value_type = value->attr_type();
+      const AttrType value_type = value.attr_type();
       if (field_type != value_type && !common::type_cast_check(value_type, field_type)) {
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
         table_name, field_meta->name(), field_type, value_type);
@@ -93,7 +97,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     }
   }
 
-
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
 
@@ -107,6 +110,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 
 
   // everything alright
-  stmt = new UpdateStmt(table, value, fields, filter_stmt);
+  stmt = new UpdateStmt(table, values, fields, filter_stmt);
   return RC::SUCCESS;
 }

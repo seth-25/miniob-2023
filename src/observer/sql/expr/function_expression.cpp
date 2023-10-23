@@ -244,7 +244,7 @@ RC FuncExpression::create_expression(const ExprSqlNode *expr, const std::unorder
   RC rc = RC::SUCCESS;
   std::unique_ptr<Expression> left = nullptr;
   std::unique_ptr<Expression> right = nullptr;
-  FuncExprSqlNode*func_expr_node = expr->func_expr;
+  FuncExprSqlNode* func_expr_node = expr->func_expr;
   switch (func_expr_node->type) {
     case FuncType::FUNC_LENGTH: {
       rc = Expression::create_expression(func_expr_node->exprs[0], table_map, tables, left);
