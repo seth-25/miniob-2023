@@ -521,7 +521,7 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $4;
       }
       std::reverse($$->selection.relation_names.begin(), $$->selection.relation_names.end());
-
+      std::reverse($$->selection.alias_names.begin(), $$->selection.alias_names.end());
       if ($5 != nullptr) {
         $$->selection.conditions.swap(*$5);
         delete $5;
