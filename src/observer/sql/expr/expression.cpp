@@ -70,8 +70,7 @@ void Expression::gen_project_name(const Expression *expr, bool with_table_name, 
     case ExprType::VALUE: {
       ValueExpr *value_expr = (ValueExpr *)expr;
       result_name += value_expr->to_string();
-      break;
-    }
+    } break;
     case ExprType::BINARY: {
       BinaryExpression *binary_expr = (BinaryExpression *)expr;
       if (binary_expr->is_minus()) {
@@ -81,8 +80,7 @@ void Expression::gen_project_name(const Expression *expr, bool with_table_name, 
         result_name += binary_expr->get_op_char();
       }
       gen_project_name(binary_expr->right().get(), with_table_name, result_name);
-      break;
-    }
+    } break;
     case ExprType::FUNCTION: {
       FuncExpression *func_expr = (FuncExpression *)expr;
       switch (func_expr->get_func_type()) {
@@ -115,7 +113,7 @@ void Expression::gen_project_name(const Expression *expr, bool with_table_name, 
         default:
           break;
       }
-    }
+    } break;
     case ExprType::AGGRFUNC : {
       AggrFuncExpr *aggr_expr = (AggrFuncExpr *)expr;
       result_name += aggr_expr->get_func_name();
