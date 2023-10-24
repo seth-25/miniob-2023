@@ -237,13 +237,13 @@ RC Table::insert_record(Record &record)
   }
 
   rc = insert_entry_of_indexes(record.data(), record.rid());
-  if (rc != RC::SUCCESS) { // 可能出现了键值重复
-    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
-    if (rc2 != RC::SUCCESS) {
-      LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
-                name(), rc2, strrc(rc2));
-    }
-    rc2 = record_handler_->delete_record(&record.rid());
+  if (rc != RC::SUCCESS) { // 可能出现了键值重复,直接在insert_entry_of_indexes里面删除已插入索引,下面删掉
+//    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
+//    if (rc2 != RC::SUCCESS) {
+//      LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
+//                name(), rc2, strrc(rc2));
+//    }
+    RC rc2 = record_handler_->delete_record(&record.rid());
     if (rc2 != RC::SUCCESS) {
       LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
@@ -288,13 +288,13 @@ RC Table::recover_insert_record(Record &record)
   }
 
   rc = insert_entry_of_indexes(record.data(), record.rid());
-  if (rc != RC::SUCCESS) { // 可能出现了键值重复
-    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
-    if (rc2 != RC::SUCCESS) {
-      LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
-                name(), rc2, strrc(rc2));
-    }
-    rc2 = record_handler_->delete_record(&record.rid());
+  if (rc != RC::SUCCESS) { // 可能出现了键值重复,直接在insert_entry_of_indexes里面删除已插入索引,下面删掉
+//    RC rc2 = delete_entry_of_indexes(record.data(), record.rid(), false/*error_on_not_exists*/);
+//    if (rc2 != RC::SUCCESS) {
+//      LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
+//                name(), rc2, strrc(rc2));
+//    }
+    RC rc2 = record_handler_->delete_record(&record.rid());
     if (rc2 != RC::SUCCESS) {
       LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
@@ -563,15 +563,15 @@ RC Table::update_record(const Record &old_record, Record &new_record)
   }
 
   rc = insert_entry_of_indexes(new_record.data(), new_record.rid());
-  if (rc != RC::SUCCESS) { // 可能出现了键值重复
-    // 索引中删除新的record
-    RC rc2 = delete_entry_of_indexes(new_record.data(), new_record.rid(), false/*error_on_not_exists*/);
-    if (rc2 != RC::SUCCESS) {
-      LOG_ERROR("Failed to rollback index data when update index entries failed. table name=%s, rc=%d:%s",
-                name(), rc2, strrc(rc2));
-    }
+  if (rc != RC::SUCCESS) { // 可能出现了键值重复,直接在insert_entry_of_indexes里面删除已插入索引,下面删掉
+//    // 索引中删除新的record
+//    RC rc2 = delete_entry_of_indexes(new_record.data(), new_record.rid(), false/*error_on_not_exists*/);
+//    if (rc2 != RC::SUCCESS) {
+//      LOG_ERROR("Failed to rollback index data when update index entries failed. table name=%s, rc=%d:%s",
+//                name(), rc2, strrc(rc2));
+//    }
     // 索引中插入旧的record
-    rc2 = insert_entry_of_indexes(old_record.data(), old_record.rid());
+    RC rc2 = insert_entry_of_indexes(old_record.data(), old_record.rid());
     if (rc2 != RC::SUCCESS) {
       LOG_ERROR("Failed to rollback index data when update index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));
@@ -590,9 +590,20 @@ RC Table::update_record(const Record &old_record, Record &new_record)
 RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
 {
   RC rc = RC::SUCCESS;
-  for (Index *index : indexes_) {
+  for (int i = 0; i < static_cast<int>(indexes_.size()); i ++ )
+  {
+    Index * index = indexes_[i];
     rc = index->insert_entry(record, &rid);
     if (rc != RC::SUCCESS) {
+      for (int j = i - 1; j >= 0; j -- )
+      {
+         Index * index_to_delete = indexes_[j];
+         RC rc2 = index_to_delete->delete_entry(record, &rid);
+         if (rc2 != RC::SUCCESS) {
+            LOG_ERROR("Failed to rollback index data when insert index entries failed. table name=%s, rc=%d:%s",
+            name(), rc2, strrc(rc2));
+         }
+      }
       break;
     }
   }
