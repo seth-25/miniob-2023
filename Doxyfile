@@ -2425,7 +2425,7 @@ EXTERNAL_PAGES         = YES
 #---------------------------------------------------------------------------
 
 # If set to YES the inheritance and collaboration graphs will hide inheritance
-# and usage relations if the target is undocumented or is not a class.
+# and usage relation_names if the target is undocumented or is not a class.
 # The default value is: YES.
 
 HIDE_UNDOC_RELATIONS   = YES
@@ -2487,12 +2487,12 @@ DOT_FONTPATH           =
 
 # If the CLASS_GRAPH tag is set to YES or GRAPH or BUILTIN then doxygen will
 # generate a graph for each documented class showing the direct and indirect
-# inheritance relations. In case the CLASS_GRAPH tag is set to YES or GRAPH and
+# inheritance relation_names. In case the CLASS_GRAPH tag is set to YES or GRAPH and
 # HAVE_DOT is enabled as well, then dot will be used to draw the graph. In case
 # the CLASS_GRAPH tag is set to YES and HAVE_DOT is disabled or if the
 # CLASS_GRAPH tag is set to BUILTIN, then the built-in generator will be used.
 # If the CLASS_GRAPH tag is set to TEXT the direct and indirect inheritance
-# relations will be shown as texts / links.
+# relation_names will be shown as texts / links.
 # Possible values are: NO, YES, TEXT, GRAPH and BUILTIN.
 # The default value is: YES.
 
@@ -2559,7 +2559,7 @@ DOT_UML_DETAILS        = NO
 DOT_WRAP_THRESHOLD     = 17
 
 # If the TEMPLATE_RELATIONS tag is set to YES then the inheritance and
-# collaboration graphs will show the relations between templates and their
+# collaboration graphs will show the relation_names between templates and their
 # instances.
 # The default value is: NO.
 # This tag requires that the tag HAVE_DOT is set to YES.
@@ -2617,7 +2617,7 @@ GRAPHICAL_HIERARCHY    = YES
 
 # If the DIRECTORY_GRAPH tag is set to YES then doxygen will show the
 # dependencies a directory has on other directories in a graphical way. The
-# dependency relations are determined by the #include relations between the
+# dependency relation_names are determined by the #include relation_names between the
 # files in the directories.
 # The default value is: YES.
 # This tag requires that the tag HAVE_DOT is set to YES.
