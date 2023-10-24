@@ -123,32 +123,48 @@ RC LogicalPlanGenerator::create_plan(
   }
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(std::move(project_expres)));
 
-  if (orderby_oper) {
-    if (predicate_oper) {
-      if (table_oper) {
-        predicate_oper->add_child(std::move(table_oper));
-      }
-        orderby_oper->add_child(std::move(predicate_oper));
-      } else {
-      if (table_oper) {
-        orderby_oper->add_child(std::move(table_oper));
-      }
-    }
-    project_oper->add_child(std::move(orderby_oper));
-  } else {
-      if (predicate_oper) {
-        if (table_oper) {
-          predicate_oper->add_child(std::move(table_oper));
-        }
-      project_oper->add_child(std::move(predicate_oper));
-      } else {
-        if (table_oper) {
-          project_oper->add_child(std::move(table_oper));
-        }
-    }
-  }
+//  if (orderby_oper) {
+//    if (predicate_oper) {
+//      if (table_oper) {
+//        predicate_oper->add_child(std::move(table_oper));
+//      }
+//        orderby_oper->add_child(std::move(predicate_oper));
+//      } else {
+//      if (table_oper) {
+//        orderby_oper->add_child(std::move(table_oper));
+//      }
+//    }
+//    project_oper->add_child(std::move(orderby_oper));
+//  } else {
+//      if (predicate_oper) {
+//        if (table_oper) {
+//          predicate_oper->add_child(std::move(table_oper));
+//        }
+//      project_oper->add_child(std::move(predicate_oper));
+//      } else {
+//        if (table_oper) {
+//          project_oper->add_child(std::move(table_oper));
+//        }
+//    }
+//  }
 
-  if (tables.empty()){  // select func，没有from 和 where
+
+  unique_ptr<LogicalOperator> top_oper(nullptr); // 当前最上层的oper
+  if (table_oper) {
+    top_oper = std::move(table_oper);
+  }
+  if (predicate_oper) {
+    predicate_oper->add_child(std::move(top_oper));
+    top_oper = std::move(predicate_oper);
+  }
+  if (orderby_oper) {
+    orderby_oper->add_child(std::move(top_oper));
+    top_oper = std::move(orderby_oper);
+  }
+  if (top_oper) {
+    project_oper->add_child(std::move(top_oper));
+  }
+  else {  // select func，没有from 和 where，没有table_oper和predicate_oper
     unique_ptr<LogicalOperator> empty_oper(new TableEmptyLogicalOperator());
     project_oper->add_child(std::move(empty_oper));
   }
