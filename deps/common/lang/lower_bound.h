@@ -30,7 +30,7 @@ namespace common {
  */
 template <typename ForwardIterator, typename T, typename Compare>
 ForwardIterator lower_bound(ForwardIterator first, ForwardIterator last,
-			    const T &val, Compare comp, bool *_found = nullptr)
+			    const T &val, Compare comp, bool *_found = nullptr, bool null_different = false)
 {
   bool found = false;
   ForwardIterator iter;
@@ -40,7 +40,7 @@ ForwardIterator lower_bound(ForwardIterator first, ForwardIterator last,
     iter = first;
     auto step = last_count / 2;
     std::advance(iter, step);
-    int result = comp(*iter, val);
+    int result = comp(*iter, val, null_different);
     if (0 == result) {
       first = iter;
       found = true;

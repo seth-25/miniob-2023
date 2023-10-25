@@ -48,8 +48,6 @@ public:
 
   Tuple *current_tuple() override;
 
-  void print_info();
-
 private:
   RC fetch_and_sort_table();
 

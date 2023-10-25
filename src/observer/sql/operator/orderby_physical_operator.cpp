@@ -82,6 +82,15 @@ RC OrderByPhysicalOperator::fetch_and_sort_table()
     for (size_t i = 0; i < cells_a.size(); ++i) {
       auto &cell_a = cells_a[i];
       auto &cell_b = cells_b[i];
+      if (cell_a.is_null() && cell_b.is_null()) {
+        continue;
+      }
+      if (cell_a.is_null()) {
+        return order[i];
+      }
+      if (cell_b.is_null()) {
+        return !order[i];
+      }
       if (cell_a != cell_b) {
         return order[i] ? cell_a < cell_b : cell_a > cell_b;
       }
@@ -100,16 +109,6 @@ RC OrderByPhysicalOperator::fetch_and_sort_table()
   return rc;  // return RC::SUCCESS
 }
 
-void OrderByPhysicalOperator::print_info()
-{
-  std::cout << "sort table info: " << std::endl;
-  for (auto idx : ordered_idx_) {
-    std::cout << idx << std::endl;
-  }
-  std::cout << "current child sort table iter: " << std::endl;
-  std::cout << it_ - ordered_idx_.begin() << std::endl;
-  // std::cout << "current tuple: " << std::endl;
-}
 
 RC OrderByPhysicalOperator::next()
 {

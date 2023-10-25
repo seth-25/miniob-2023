@@ -52,8 +52,9 @@ enum class BplusTreeOperationType
 class AttrComparator 
 {
 public:
-  void init(std::vector<AttrType> type, std::vector<int> length)
+  void init(std::vector<int> id,std::vector<AttrType> type, std::vector<int> length)
   {
+    attr_id_ = id;
     attr_type_ = type;
     attr_length_ = length;
   }
@@ -67,11 +68,25 @@ public:
     return sum_len;
   }
 
-  int operator()(const char *v1, const char *v2) const
+  int operator()(const char *v1, const char *v2, bool null_as_differnet = false) const
   {
     int rc = 0;
-    int pos = 0;
-    for (size_t i = 0; i < attr_length_.size(); i++) {
+    int pos = attr_length_[0];
+    common::Bitmap old_null_bitmap(const_cast<char *>(v1), attr_length_[0]);
+    common::Bitmap new_null_bitmap(const_cast<char *>(v2), attr_length_[0]);
+    for (size_t i = 1; i < attr_length_.size(); i++) {
+      if (new_null_bitmap.get_bit(attr_id_[i])) {
+        if (null_as_differnet)  // NULL比其它值(包括NULL)都大
+          return -1;
+        if (old_null_bitmap.get_bit(attr_id_[i])) {
+          continue;
+        } else {
+          return -1;
+        }
+      } else if (old_null_bitmap.get_bit(attr_id_[i])) {
+        return 1;
+      }
+
       switch (attr_type_[i]) {
         case INTS:
         case DATES: {
@@ -98,6 +113,7 @@ public:
   }
 
 private:
+  std::vector<int> attr_id_;
   std::vector<AttrType> attr_type_;
   std::vector<int> attr_length_;
 };
@@ -110,10 +126,10 @@ private:
 class KeyComparator 
 {
 public:
-  void init(bool is_unique, std::vector<AttrType> type, std::vector<int> length)
+  void init(bool is_unique, std::vector<int> id, std::vector<AttrType> type, std::vector<int> length)
   {
     is_unique_ = is_unique;
-    attr_comparator_.init(type, length);
+    attr_comparator_.init(id, type, length);
   }
 
   const AttrComparator &attr_comparator() const
@@ -121,9 +137,9 @@ public:
     return attr_comparator_;
   }
 
-  int operator()(const char *v1, const char *v2) const
+  int operator()(const char *v1, const char *v2, bool null_different = false) const
   {
-    int result = attr_comparator_(v1, v2);
+    int result = attr_comparator_(v1, v2, null_different);
     if (is_unique_ || result != 0) {
       return result;
     }
@@ -247,6 +263,7 @@ struct IndexFileHeader
   int32_t leaf_max_size;      ///< 叶子节点最大的键值对数
   int32_t key_length;         ///< attr length + sizeof(RID)
   int32_t attr_num;
+  int32_t attr_id[MAX_NUM];
   int32_t attr_length[MAX_NUM];
   int32_t attr_offset[MAX_NUM];
   AttrType attr_type[MAX_NUM];
@@ -395,7 +412,7 @@ public:
    * 查找指定key的插入位置(注意不是key本身)
    * 如果key已经存在，会设置found的值。
    */
-  int lookup(const KeyComparator &comparator, const char *key, bool *found = nullptr) const;
+  int lookup(const KeyComparator &comparator, const char *key, bool *found = nullptr, bool insert_opertion = false) const;
 
   void insert(int index, const char *key, const char *value);
   void remove(int index);
@@ -499,7 +516,8 @@ public:
    * 此函数创建一个名为fileName的索引。
    * attrType描述被索引属性的类型，attrLength描述被索引属性的长度
    */
-  RC create(const char *file_name, bool is_unique, std::vector<AttrType> attr_type, std::vector<int> attr_length,
+  RC create(const char *file_name, bool is_unique, std::vector<int> attr_id,
+      std::vector<AttrType> attr_type, std::vector<int> attr_length,
       std::vector<int> attr_offset, int internal_max_size = -1, int leaf_max_size = -1);
 
   /**

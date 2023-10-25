@@ -315,6 +315,19 @@ const TableMeta &Table::table_meta() const
 
 RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *record_data)
 {
+  const FieldMeta *null_field = table_meta_.null_bitmap_field();
+  common::Bitmap bitmap(record_data + null_field->offset(), null_field->len());
+
+  int idx = field->id();
+  if (AttrType::NULLS == value.attr_type()) {
+
+    bitmap.set_bit(idx);
+    // make sure data all zero bit
+    memset(record_data + field->offset(), 0, field->len());
+    return RC::SUCCESS;
+  }
+  bitmap.clear_bit(idx);
+
   const char *cast_data = value.data();
   if (field->type() != value.attr_type()) { // 进行type cast
     cast_data = common::type_cast_to[value.attr_type()][field->type()](value.data());
@@ -339,7 +352,7 @@ RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *re
 RC Table::make_record(int value_num, const Value *values, Record &record)
 {
   // 检查字段类型是否一致
-  if (value_num + table_meta_.sys_field_num() != table_meta_.field_num()) {
+  if (value_num + table_meta_.sys_field_num() + table_meta_.extra_filed_num() != table_meta_.field_num()) {
     LOG_WARN("Input values don't match the table's schema, table name:%s", table_meta_.name());
     return RC::SCHEMA_FIELD_MISSING;
   }
@@ -348,6 +361,17 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
+    if (AttrType::NULLS == value.attr_type()) {
+      if (!field->nullable()) {
+        LOG_WARN("field type mismatch. can not be null. table=%s, field=%s, field type=%d, value_type=%d",
+              table_meta_.name(),
+              field->name(),
+              field->type(),
+              value.attr_type());
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+      continue;
+    }
     if (field->type() != value.attr_type() && !common::type_cast_check(value.attr_type(), field->type())) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
                 table_meta_.name(), field->name(), field->type(), value.attr_type());
@@ -424,7 +448,8 @@ RC Table::create_index(Trx *trx, bool is_unique, std::vector<const FieldMeta *> 
   }
 
   std::vector<FieldMeta> field_metas_real;
-  field_metas_real.reserve(field_metas.size());
+  field_metas_real.push_back(*table_meta_.null_bitmap_field());
+  field_metas_real.reserve(field_metas.size() + 1); //加上null的field
   for (auto & field_meta : field_metas) {
     field_metas_real.push_back(*field_meta);
   }

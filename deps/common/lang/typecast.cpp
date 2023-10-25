@@ -17,18 +17,22 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
         nullptr,
         nullptr,
         nullptr,
+        nullptr
     },
     { // chars
         nullptr,
         nullptr,
         char_to_int,  // char to int
         nullptr,
-        char_to_float,  // char to float
         nullptr,
+        char_to_float,  // char to float
+        nullptr
+
     },
     { // ints
         nullptr,
         int_to_char,  // int to char
+        nullptr,
         nullptr,
         nullptr,
         int_to_float,  // int to float
@@ -41,6 +45,16 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
         nullptr,
         nullptr,
         nullptr,
+        nullptr
+    },
+    { //null
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr
     },
     { // floats
         nullptr,
@@ -49,6 +63,7 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
         nullptr,
         nullptr,
         nullptr,
+        nullptr
     },
     { // booleans
         nullptr,
@@ -57,6 +72,7 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
         nullptr,
         nullptr,
         nullptr,
+        nullptr
     }
   };
 
