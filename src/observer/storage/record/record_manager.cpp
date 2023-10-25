@@ -16,6 +16,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/bitmap.h"
 #include "storage/common/condition_filter.h"
 #include "storage/trx/trx.h"
+#include "event/sql_debug.h"
 
 using namespace common;
 
@@ -501,7 +502,7 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
   // 如果有text，为每一个text申请多个page,
   if (table_meta) {
     auto fields = table_meta->field_metas();
-    uint16_t text_id = 0;
+    int32_t text_id = 0;
     for (const auto &field : *fields) {
       if (field.type() == TEXTS) {
         if (text_id == 65532) {
@@ -511,9 +512,18 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
         }
         std::vector<RecordPageHandler> record_page_handlers_for_text;
         // 有 \0
+        sql_debug("write text");
         char* text_mem = *(char**)(data + field.offset());
+
         int32_t text_len = strlen(text_mem) + 1;
+        if (text_len > TEXT_MAX_LEN + 1 || text_len < 0) {
+          ret = RC::TEXT_TOO_LONG;
+          LOG_ERROR("text too long before write. ret:%d", ret);
+          return ret;
+        }
         int32_t to_store_text_len = text_len;
+
+        sql_debug("write text len: %d", to_store_text_len);
 
         while (to_store_text_len) {
           // 这次要插入的text位置
@@ -527,7 +537,7 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
           current_page_num = frame->page_num();
           // 把前一页指向这一页
           if (to_store_text_len == text_len) {
-            *(TextRecord*)(data + field.offset()) = {text_id, static_cast<uint16_t>(text_len - 1), current_page_num};
+            *(TextRecord*)(data + field.offset()) = {text_id, text_len - 1, current_page_num};
           } else {
             record_page_handlers_for_text.back().set_text_next_page(current_page_num);
           }
@@ -551,6 +561,8 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
           lock_.unlock();
         }
         text_id++;
+        sql_debug("last page: %d", current_page_num);
+//        sql_debug("write text finish pages: %d", record_page_handlers_for_text.size());
       }
     }
   }
@@ -661,7 +673,7 @@ RC RecordFileHandler::update_record(const Record *record, const vector<const Fie
         std::vector<RecordPageHandler> record_page_handlers_for_text;
         // 有 \0
         char    *text_mem          = record->get_text_mems(text_record.text_id);
-        uint32_t text_len          = strlen(text_mem) + 1;
+        int32_t text_len          = strlen(text_mem) + 1;
         int32_t  to_store_text_len = text_len;
         while (to_store_text_len) {
           // 这次要插入的text位置
@@ -676,7 +688,7 @@ RC RecordFileHandler::update_record(const Record *record, const vector<const Fie
           // 把前一页指向这一页
           if (to_store_text_len == text_len) {
             *(TextRecord *)(record->data() + field->offset()) = {
-                text_record.text_id, static_cast<uint16_t>(text_len - 1), current_page_num};
+                text_record.text_id, text_len - 1, current_page_num};
           } else {
             record_page_handlers_for_text.back().set_text_next_page(current_page_num);
           }
@@ -919,7 +931,7 @@ RC RecordFileScanner::next(Record &record)
   for(auto &field: *table_->table_meta().field_metas()) {
     if (field.type() == TEXTS) {
       auto text_record = *(TextRecord *)(record.data() + field.offset());
-      auto text_mem    = (char *)malloc((uint32_t)text_record.text_len + 1);
+      auto text_mem    = (char *)malloc(text_record.text_len + 1);
       text_mems.push_back(text_mem);
       int next_page_num = text_record.page_num;
       while (next_page_num != -1) {

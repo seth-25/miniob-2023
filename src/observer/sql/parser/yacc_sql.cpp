@@ -2002,7 +2002,7 @@ yyreduce:
       (yyval.attr_info) = new AttrInfoSqlNode;
       (yyval.attr_info)->type = (AttrType)TEXTS;
       (yyval.attr_info)->name = (yyvsp[-1].string);
-      (yyval.attr_info)->length = 8;
+      (yyval.attr_info)->length = 12;
       free((yyvsp[-1].string));
     }
 #line 2009 "yacc_sql.cpp"

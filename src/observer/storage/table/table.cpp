@@ -29,6 +29,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/index/index.h"
 #include "storage/index/bplus_tree_index.h"
 #include "storage/trx/trx.h"
+#include "event/sql_debug.h"
 
 Table::~Table()
 {
@@ -332,9 +333,11 @@ RC Table::value_cast_record(const Value &value, const FieldMeta *field, char *re
       return RC::TEXT_TOO_LONG;
     }
     copy_len       = value.text_length() + 1;
+    sql_debug("copy_len: %d", copy_len);
     char *text_mem = (char *)malloc(copy_len);
     memcpy(text_mem, cast_data, copy_len);
     *(char **)(record_data + field->offset()) = text_mem;
+    *(text_mem + copy_len - 1) = '\0';
     text_mems.push_back(text_mem);
   } else {
     memcpy(record_data + field->offset(), cast_data, copy_len);

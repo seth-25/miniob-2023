@@ -28,8 +28,8 @@ See the Mulan PSL v2 for more details. */
 class Field;
 
 struct TextRecord {
-  uint16_t text_id; /// 是表的第几个text
-  uint16_t text_len; /// 不算\0
+  int32_t text_id; /// 是表的第几个text
+  int32_t text_len; /// 不算\0
   PageNum page_num;
 };
 

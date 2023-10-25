@@ -420,7 +420,7 @@ attr_def:
       $$ = new AttrInfoSqlNode;
       $$->type = (AttrType)TEXTS;
       $$->name = $1;
-      $$->length = 8;
+      $$->length = 12;
       free($1);
     }
     | ID type
