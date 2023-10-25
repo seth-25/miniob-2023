@@ -333,7 +333,6 @@ RC Table::value_cast_record(const Value &value, const FieldMeta *field, char *re
       return RC::TEXT_TOO_LONG;
     }
     copy_len       = value.text_length() + 1;
-    sql_debug("copy_len: %d", copy_len);
     char *text_mem = (char *)malloc(copy_len);
     memcpy(text_mem, cast_data, copy_len);
     *(char **)(record_data + field->offset()) = text_mem;

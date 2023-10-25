@@ -512,7 +512,6 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
         }
         std::vector<RecordPageHandler> record_page_handlers_for_text;
         // 有 \0
-        sql_debug("write text");
         char* text_mem = *(char**)(data + field.offset());
 
         int32_t text_len = strlen(text_mem) + 1;
@@ -523,7 +522,6 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
         }
         int32_t to_store_text_len = text_len;
 
-        sql_debug("write text len: %d", to_store_text_len);
 
         while (to_store_text_len) {
           // 这次要插入的text位置
@@ -561,8 +559,6 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
           lock_.unlock();
         }
         text_id++;
-        sql_debug("last page: %d", current_page_num);
-//        sql_debug("write text finish pages: %d", record_page_handlers_for_text.size());
       }
     }
   }
