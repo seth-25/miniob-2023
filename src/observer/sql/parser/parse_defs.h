@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include <string>
 
 #include "sql/parser/value.h"
-#define MAX_NUM 20
+#define MAX_NUM 10
 class Expression;
 
 /**
@@ -116,6 +116,8 @@ enum CompOp
   GREAT_THAN,   ///< ">"
   LIKE_OP,      ///< "like"
   NOT_LIKE_OP,  ///< "not like"
+  IS_NULL,   ///< "is null"
+  IS_NOT_NULL,  ///< "is not null"
   NO_OP
 };
 
@@ -255,6 +257,7 @@ struct AttrInfoSqlNode
   AttrType    type;       ///< Type of attribute
   std::string name;       ///< Attribute name
   size_t      length;     ///< Length of attribute
+  bool  nullable = false;
 };
 
 /**

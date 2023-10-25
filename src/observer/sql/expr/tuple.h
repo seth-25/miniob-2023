@@ -24,6 +24,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include "sql/expr/expression.h"
 #include "storage/record/record.h"
+#include "common/lang/bitmap.h"
 
 class Table;
 
@@ -182,6 +183,9 @@ public:
   void set_record(Record *record)
   {
     this->record_ = record;
+    const FieldExpr *filed_expr = this->speces_.back();
+    const FieldMeta *null_filed_meta = filed_expr->field().meta();
+    this->bitmap_.init(record->data() + null_filed_meta->offset(), null_filed_meta->len());
   }
 
   void set_schema(const Table *table, const std::vector<FieldMeta> *fields)
@@ -207,8 +211,12 @@ public:
 
     FieldExpr *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
-    cell.set_type(field_meta->type());
-    cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    if (bitmap_.get_bit(index)) {
+      cell.set_null();
+    } else {
+      cell.set_type(field_meta->type());
+      cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    }
     return RC::SUCCESS;
   }
 
@@ -275,6 +283,7 @@ public:
   }
 
 private:
+  common::Bitmap bitmap_;
   Record *record_ = nullptr;
   const Table *table_ = nullptr;
   std::vector<FieldExpr *> speces_;

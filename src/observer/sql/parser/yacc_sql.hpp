@@ -1,9 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.5.1.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
-   Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,9 +29,6 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
-
-/* Undocumented macros, especially those whose name start with YY_,
-   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_YACC_SQL_HPP_INCLUDED
 # define YY_YY_YACC_SQL_HPP_INCLUDED
@@ -95,35 +91,38 @@ extern int yydebug;
     UNIQUE = 301,
     ORDER = 302,
     BY = 303,
-    AGGR_MAX = 304,
-    AGGR_MIN = 305,
-    AGGR_COUNT = 306,
-    AGGR_AVG = 307,
-    AGGR_SUM = 308,
-    LENGTH = 309,
-    ROUND = 310,
-    DATE_FORMAT = 311,
-    AS = 312,
-    EQ = 313,
-    LT = 314,
-    GT = 315,
-    LE = 316,
-    GE = 317,
-    NE = 318,
-    NUMBER = 319,
-    FLOAT = 320,
-    ID = 321,
-    SSS = 322,
-    DATE_STR = 323,
-    UMINUS = 324
+    NULL_T = 304,
+    AGGR_MAX = 305,
+    AGGR_MIN = 306,
+    AGGR_COUNT = 307,
+    AGGR_AVG = 308,
+    AGGR_SUM = 309,
+    LENGTH = 310,
+    ROUND = 311,
+    DATE_FORMAT = 312,
+    AS = 313,
+    IS = 314,
+    EQ = 315,
+    LT = 316,
+    GT = 317,
+    LE = 318,
+    GE = 319,
+    NE = 320,
+    NUMBER = 321,
+    FLOAT = 322,
+    ID = 323,
+    SSS = 324,
+    DATE_STR = 325,
+    UMINUS = 326
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
+
 union YYSTYPE
 {
-#line 122 "yacc_sql.y"
+#line 124 "yacc_sql.y" /* yacc.c:1909  */
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -154,9 +153,9 @@ union YYSTYPE
   enum AggrFuncType                 aggr_func_type;
 
 
-#line 158 "yacc_sql.hpp"
-
+#line 157 "yacc_sql.hpp" /* yacc.c:1909  */
 };
+
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
