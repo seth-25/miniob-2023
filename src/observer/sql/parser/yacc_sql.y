@@ -103,6 +103,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         UNIQUE
         ORDER
         BY
+        NULL_T
         AGGR_MAX
         AGGR_MIN
         AGGR_COUNT
@@ -112,6 +113,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         ROUND
         DATE_FORMAT
         AS
+        IS
         EQ
         LT
         GT
@@ -413,6 +415,7 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = $4;
+      $$->nullable = true;
       free($1);
     }
     | ID TEXT_T
@@ -429,6 +432,43 @@ attr_def:
       $$->type = (AttrType)$2;
       $$->name = $1;
       $$->length = 4;
+      $$->nullable = true;
+      free($1);
+    }
+    | ID type LBRACE number RBRACE NULL_T
+    {
+        $$ = new AttrInfoSqlNode;
+        $$->type = (AttrType)$2;
+        $$->name = $1;
+        $$->length = $4;
+        $$->nullable = true;
+        free($1);
+    }
+    | ID type NULL_T
+    {
+        $$ = new AttrInfoSqlNode;
+        $$->type = (AttrType)$2;
+        $$->name = $1;
+        $$->length = 4;
+        $$->nullable = true;
+        free($1);
+    }
+    | ID type LBRACE number RBRACE NOT NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = $4;
+      $$->nullable = false;
+      free($1);
+    }
+    | ID type NOT NULL_T
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4;
+      $$->nullable = false;
       free($1);
     }
     ;
@@ -537,6 +577,9 @@ value:
       char *tmp = common::substr($1,1,strlen($1)-2);
       $$ = new Value(tmp);
       free(tmp);
+    }
+    | NULL_T {
+        $$ = new Value();
     }
     ;
 
@@ -1303,6 +1346,40 @@ condition:
       $$->left = $1;
       $$->comp = $2;
       $$->right = $3;
+    }
+    | expr IS NULL_T
+    {
+      $$ = new ConditionSqlNode;
+      $$->left = $1;
+      $$->comp = IS_NULL;
+
+      Value value;
+      UnaryExprSqlNode* unary = new UnaryExprSqlNode;
+      unary->is_attr = false;
+      unary->value = value;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::UNARY;
+      expr->unary_expr = unary;
+
+      $$->right = expr;
+    }
+    | expr IS NOT NULL_T
+    {
+      $$ = new ConditionSqlNode;
+      $$->left = $1;
+      $$->comp = IS_NOT_NULL;
+
+      Value value;
+      UnaryExprSqlNode* unary = new UnaryExprSqlNode;
+      unary->is_attr = false;
+      unary->value = value;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::UNARY;
+      expr->unary_expr = unary;
+
+      $$->right = expr;
     }
     // todo IS NULL, IS NOT NULL
     /*rel_attr comp_op value

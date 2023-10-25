@@ -24,6 +24,20 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
 {
   RC rc = RC::SUCCESS;
   result = false;
+  if (CompOp::IS_NULL == comp_) {
+    assert(right.is_null());
+    result = left.is_null();
+    return rc;
+  }
+  if (CompOp::IS_NOT_NULL == comp_) {
+    assert(right.is_null());
+    result = !left.is_null();
+    return rc;
+  }
+  if (left.is_null() || right.is_null()) {
+    result = false;
+    return rc;
+  }
   if (LIKE_OP == comp_ || NOT_LIKE_OP == comp_) {
     assert(CHARS == left.attr_type() && CHARS == right.attr_type() || TEXTS == left.attr_type() && CHARS == right.attr_type());
     std::string raw_reg((const char *)right.get_string().c_str());

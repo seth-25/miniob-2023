@@ -31,16 +31,18 @@ RC BplusTreeIndex::create(const char *file_name, const IndexMeta &index_meta, st
 
   Index::init(index_meta, field_meta);
 
+  std::vector<int> field_id;
   std::vector<int> field_len;
   std::vector<int> field_off;
   std::vector<AttrType> field_types;
   bool unique = index_meta.is_unique();
   for (size_t i = 0; i < field_meta.size(); i++) {
+    field_id.push_back(field_meta[i].id());
     field_len.push_back(field_meta[i].len());
     field_off.push_back(field_meta[i].offset());
     field_types.push_back(field_meta[i].type());
   }
-  RC rc = index_handler_.create(file_name, unique, field_types, field_len, field_off);
+  RC rc = index_handler_.create(file_name, unique, field_id, field_types, field_len, field_off);
   if (RC::SUCCESS != rc) {
     LOG_WARN("Failed to create index_handler, file_name:%s, index:%s, rc:%s",
         file_name,

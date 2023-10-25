@@ -48,7 +48,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
     const Value * value = x.data();
     const int  temp_value_num  = static_cast<int>(x.size());
     const TableMeta &table_meta = table->table_meta();
-    const int        field_num  = table_meta.field_num() - table_meta.sys_field_num();
+    const int   field_num  = table_meta.field_num() - table_meta.sys_field_num() - table_meta.extra_filed_num();
     if (field_num != temp_value_num) {
       LOG_WARN("schema mismatch. value num=%d, field num in schema=%d", temp_value_num, field_num);
       return RC::SCHEMA_FIELD_MISSING;
@@ -60,7 +60,17 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
       const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
       const AttrType   field_type = field_meta->type();
       const AttrType   value_type = value[i].attr_type();
-
+      if (AttrType::NULLS == value_type) {
+        if (!field_meta->nullable()) {
+          LOG_WARN("field type mismatch. can not be null. table=%s, field=%s, field type=%d, value_type=%d",
+              table_name,
+              field_meta->name(),
+              field_type,
+              value_type);
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+        continue;
+      }
       if (field_type != value_type && !common::type_cast_check(value_type, field_type) && !TextHelper::isInsertText(field_type, value_type)) {
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), field_type, value_type);

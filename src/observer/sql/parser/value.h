@@ -29,6 +29,7 @@ enum AttrType
   INTS,           ///< 整数类型(4字节)
   DATES,          ///< 日期类型
   TEXTS,          ///< 变长类型
+  NULLS,          ///< null类型
   FLOATS,         ///< 浮点数类型(4字节)
   BOOLEANS,       ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
@@ -43,13 +44,12 @@ AttrType attr_type_from_string(const char *s);
 class Value 
 {
 public:
-  Value() = default;
 
   Value(AttrType attr_type, char *data, int length = 4) : attr_type_(attr_type)
   {
     this->set_data(data, length);
   }
-
+  explicit Value();
   explicit Value(int val);
   explicit Value(float val);
   explicit Value(bool val);
@@ -68,13 +68,14 @@ public:
   {
     this->set_data(const_cast<char *>(data), length);
   }
+  void set_null();
   void set_int(int val);
   void set_float(float val);
   void set_boolean(bool val);
   void set_string(const char *s, int len = 0);
   void set_value(const Value &value);
   void set_date(const char *y, const char *m, const char *d);
-
+  bool is_null() const;
   std::string to_string() const;
 
   int compare(const Value &other) const;
