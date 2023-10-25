@@ -25,7 +25,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
   RC rc = RC::SUCCESS;
   result = false;
   if (LIKE_OP == comp_ || NOT_LIKE_OP == comp_) {
-    assert(CHARS == left.attr_type() && CHARS == right.attr_type());
+    assert(CHARS == left.attr_type() && CHARS == right.attr_type() || TEXTS == left.attr_type() && CHARS == right.attr_type());
     std::string raw_reg((const char *)right.get_string().c_str());
     replace_all(raw_reg, "_", "[^']");
     replace_all(raw_reg, "%", "[^']*");

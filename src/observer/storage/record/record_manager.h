@@ -100,9 +100,9 @@ public:
   RC   next(Record &record);
 
   /**
-   * 该迭代器是否有效
+   * 该迭代器是否有效, 容量为1证明在存text，也无效
    */
-  bool is_valid() const { return record_page_handler_ != nullptr; }
+  bool is_valid() const;
 
 private:
   RecordPageHandler *record_page_handler_ = nullptr;
@@ -152,6 +152,34 @@ public:
    * @param record_size 每个记录的大小
    */
   RC init_empty_page(DiskBufferPool &buffer_pool, PageNum page_num, int record_size);
+
+  /**
+   * @brief 对一个新的text页面做初始化，初始化关于该页面记录信息的页头PageHeader
+   *
+   * @param buffer_pool 关联某个文件时，都通过buffer pool来做读写文件
+   * @param page_num    当前处理哪个页面
+   * @param record_size 剩余text的大小
+   */
+  RC init_empty_text_page(DiskBufferPool &buffer_pool, PageNum page_num, int &record_size);
+
+  /**
+   *
+   * @param page_num 下一个页面的叶号
+   * @return
+   */
+  RC set_text_next_page(PageNum page_num);
+
+  /**
+   * 返回text的下一个页号，-1就没了
+   * @return
+   */
+  PageNum get_text_next_page();
+
+  /**
+   * 是否是存text的页面
+   * @return
+   */
+  bool isTextPage();
 
   /**
    * @brief 操作结束后做的清理工作，比如释放页面、解锁
@@ -273,7 +301,7 @@ public:
    * 
    * @param rid 待删除记录的标识符
    */
-  RC delete_record(const RID *rid);
+  RC delete_record(const RID *rid, TableMeta *table_meta = nullptr);
 
   /**
    * @brief 插入一个新的记录到指定文件中，并返回该记录的标识符
@@ -282,9 +310,9 @@ public:
    * @param record_size 记录大小
    * @param rid         返回该记录的标识符
    */
-  RC insert_record(const char *data, int record_size, RID *rid);
+  RC insert_record(const char *data, int record_size, RID *rid, TableMeta* table_meta = nullptr);
 
-  RC update_record(const Record *record);
+  RC update_record(const Record *record, const vector<const FieldMeta*>& fields);
 
    /**
    * @brief 数据库恢复时，在指定文件指定位置插入数据

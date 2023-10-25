@@ -76,46 +76,47 @@ extern int yydebug;
     STRING_T = 282,
     FLOAT_T = 283,
     DATE_T = 284,
-    HELP = 285,
-    EXIT = 286,
-    DOT = 287,
-    INTO = 288,
-    VALUES = 289,
-    FROM = 290,
-    WHERE = 291,
-    AND = 292,
-    SET = 293,
-    ON = 294,
-    LOAD = 295,
-    DATA = 296,
-    INFILE = 297,
-    EXPLAIN = 298,
-    NOT = 299,
-    LIKE = 300,
-    UNIQUE = 301,
-    ORDER = 302,
-    BY = 303,
-    AGGR_MAX = 304,
-    AGGR_MIN = 305,
-    AGGR_COUNT = 306,
-    AGGR_AVG = 307,
-    AGGR_SUM = 308,
-    LENGTH = 309,
-    ROUND = 310,
-    DATE_FORMAT = 311,
-    AS = 312,
-    EQ = 313,
-    LT = 314,
-    GT = 315,
-    LE = 316,
-    GE = 317,
-    NE = 318,
-    NUMBER = 319,
-    FLOAT = 320,
-    ID = 321,
-    SSS = 322,
-    DATE_STR = 323,
-    UMINUS = 324
+    TEXT_T = 285,
+    HELP = 286,
+    EXIT = 287,
+    DOT = 288,
+    INTO = 289,
+    VALUES = 290,
+    FROM = 291,
+    WHERE = 292,
+    AND = 293,
+    SET = 294,
+    ON = 295,
+    LOAD = 296,
+    DATA = 297,
+    INFILE = 298,
+    EXPLAIN = 299,
+    NOT = 300,
+    LIKE = 301,
+    UNIQUE = 302,
+    ORDER = 303,
+    BY = 304,
+    AGGR_MAX = 305,
+    AGGR_MIN = 306,
+    AGGR_COUNT = 307,
+    AGGR_AVG = 308,
+    AGGR_SUM = 309,
+    LENGTH = 310,
+    ROUND = 311,
+    DATE_FORMAT = 312,
+    AS = 313,
+    EQ = 314,
+    LT = 315,
+    GT = 316,
+    LE = 317,
+    GE = 318,
+    NE = 319,
+    NUMBER = 320,
+    FLOAT = 321,
+    ID = 322,
+    SSS = 323,
+    DATE_STR = 324,
+    UMINUS = 325
   };
 #endif
 
@@ -123,7 +124,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 122 "yacc_sql.y"
+#line 123 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -154,7 +155,7 @@ union YYSTYPE
   enum AggrFuncType                 aggr_func_type;
 
 
-#line 158 "yacc_sql.hpp"
+#line 159 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;

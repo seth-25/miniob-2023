@@ -61,7 +61,7 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
       const AttrType   field_type = field_meta->type();
       const AttrType   value_type = value[i].attr_type();
 
-      if (field_type != value_type && !common::type_cast_check(value_type, field_type)) {
+      if (field_type != value_type && !common::type_cast_check(value_type, field_type) && !TextHelper::isInsertText(field_type, value_type)) {
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), field_type, value_type);
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;

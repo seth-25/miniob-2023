@@ -16,6 +16,8 @@ See the Mulan PSL v2 for more details. */
 
 #include <string>
 
+#define TEXT_MAX_LEN 65535
+
 /**
  * @brief 属性的类型
  * 注意不少地方的范围判断依赖BOOLEANS、FLOATS等
@@ -26,6 +28,7 @@ enum AttrType
   CHARS,          ///< 字符串类型
   INTS,           ///< 整数类型(4字节)
   DATES,          ///< 日期类型
+  TEXTS,          ///< 变长类型
   FLOATS,         ///< 浮点数类型(4字节)
   BOOLEANS,       ///< boolean类型，当前不是由parser解析出来的，是程序内部使用的
 };
@@ -82,6 +85,11 @@ public:
     return length_;
   }
 
+  int text_length() const
+  {
+    return str_value_.length();
+  }
+
   AttrType attr_type() const
   {
     return attr_type_;
@@ -136,4 +144,13 @@ private:
     bool bool_value_;
   } num_value_;
   std::string str_value_;
+};
+
+/**
+ * text类型有关的方法
+ */
+struct TextHelper {
+  static bool isInsertText(AttrType text_attr, AttrType char_attr) {
+    return text_attr == TEXTS && char_attr == CHARS;
+  }
 };
