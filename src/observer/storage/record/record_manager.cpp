@@ -514,8 +514,10 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
         char* text_mem = *(char**)(data + field.offset());
         uint16_t text_len = strlen(text_mem) + 1;
         int32_t to_store_text_len = text_len;
+//        std::cout<<"to_stringlen:"<<to_store_text_len<<endl;
 
         while (to_store_text_len) {
+//          std::cout<<"剩余len"<<to_store_text_len<<std::endl;
           // 这次要插入的text位置
           char* insert_text_mem = text_mem + text_len - to_store_text_len;
 
