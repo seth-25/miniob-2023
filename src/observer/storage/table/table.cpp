@@ -327,14 +327,14 @@ RC Table::value_cast_record(const Value &value, const FieldMeta *field, char *re
   if (field->type() == TEXTS) {
 //    int text_length = value.text_length();
 //    if (text_length > 4096) text_length = 4096;
-    if (value.text_length() >= TEXT_MAX_LEN) {
-      LOG_ERROR("Text too long.");
+    if (value.text_length() > TEXT_MAX_LEN) {
+      LOG_TRACE("Text too long.");
       return RC::TEXT_TOO_LONG;
     }
     copy_len       = value.text_length() + 1;
     char *text_mem = (char *)malloc(copy_len);
     memcpy(text_mem, cast_data, copy_len);
-    *(void **)(record_data + field->offset()) = text_mem;
+    *(char **)(record_data + field->offset()) = text_mem;
     text_mems.push_back(text_mem);
   } else {
     memcpy(record_data + field->offset(), cast_data, copy_len);
@@ -374,7 +374,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
     const Value     &value = values[i];
     rc                     = value_cast_record(value, field, record_data, text_mems);
     if (rc != RC::SUCCESS) {
-      LOG_ERROR("Value cast record error.");
+      LOG_TRACE("Value cast record error.");
       return rc;
     }
   }
@@ -567,7 +567,7 @@ RC Table::make_record_from_old_record(
     }
     rc = value_cast_record(value, field, new_data, text_mems);
     if (rc != RC::SUCCESS) {
-      LOG_ERROR("Value cast record error.");
+      LOG_TRACE("Value cast record error.");
       return rc;
     }
   }

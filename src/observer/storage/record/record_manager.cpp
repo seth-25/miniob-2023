@@ -512,12 +512,10 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
         std::vector<RecordPageHandler> record_page_handlers_for_text;
         // 有 \0
         char* text_mem = *(char**)(data + field.offset());
-        uint16_t text_len = strlen(text_mem) + 1;
+        int32_t text_len = strlen(text_mem) + 1;
         int32_t to_store_text_len = text_len;
-//        std::cout<<"to_stringlen:"<<to_store_text_len<<endl;
 
         while (to_store_text_len) {
-//          std::cout<<"剩余len"<<to_store_text_len<<std::endl;
           // 这次要插入的text位置
           char* insert_text_mem = text_mem + text_len - to_store_text_len;
 
@@ -527,7 +525,6 @@ RC RecordFileHandler::insert_record(const char *data, int record_size, RID *rid,
             return ret;
           }
           current_page_num = frame->page_num();
-
           // 把前一页指向这一页
           if (to_store_text_len == text_len) {
             *(TextRecord*)(data + field.offset()) = {text_id, static_cast<uint16_t>(text_len - 1), current_page_num};
@@ -664,13 +661,11 @@ RC RecordFileHandler::update_record(const Record *record, const vector<const Fie
         std::vector<RecordPageHandler> record_page_handlers_for_text;
         // 有 \0
         char    *text_mem          = record->get_text_mems(text_record.text_id);
-        uint16_t text_len          = strlen(text_mem) + 1;
+        uint32_t text_len          = strlen(text_mem) + 1;
         int32_t  to_store_text_len = text_len;
-
         while (to_store_text_len) {
           // 这次要插入的text位置
           char *insert_text_mem = text_mem + text_len - to_store_text_len;
-
           Frame *frame = nullptr;
           if ((rc = disk_buffer_pool_->allocate_page(&frame)) != RC::SUCCESS) {
             LOG_ERROR("Failed to allocate page while inserting text record. ret:%d", rc);
@@ -924,7 +919,7 @@ RC RecordFileScanner::next(Record &record)
   for(auto &field: *table_->table_meta().field_metas()) {
     if (field.type() == TEXTS) {
       auto text_record = *(TextRecord *)(record.data() + field.offset());
-      auto text_mem    = (char *)malloc(text_record.text_len + 1);
+      auto text_mem    = (char *)malloc((uint32_t)text_record.text_len + 1);
       text_mems.push_back(text_mem);
       int next_page_num = text_record.page_num;
       while (next_page_num != -1) {
