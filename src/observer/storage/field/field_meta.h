@@ -43,6 +43,12 @@ public:
   int len() const;
   bool visible() const;
 
+  bool equal(const FieldMeta &other) const
+  {
+    return name_ == other.name_ && attr_type_ == other.attr_type_ && attr_offset_ == other.attr_offset_ &&
+           attr_len_ == other.attr_len_ && visible_ == other.visible_;
+  }
+
 public:
   void desc(std::ostream &os) const;
 

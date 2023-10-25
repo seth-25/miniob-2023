@@ -165,7 +165,6 @@ struct OrderBySqlNode
   RelAttrSqlNode       attribute;     ///< 排序的列
   bool is_asc = true;    ///  升序或者降序
 };
-
 //struct SelectSqlNode
 //{
 //  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
@@ -175,13 +174,14 @@ struct OrderBySqlNode
 
 struct SelectSqlNode
 {
-//  std::vector<RelAttrSqlNode>     attributes;    ///< attributes in select clause
   std::vector<ExprSqlNode *>      project_exprs; ///< 投影的表达式
   std::vector<std::string>        relation_names;     ///< 查询的表
   std::vector<std::string>        alias_names;     ///< 查询的表别名
   std::vector<ConditionSqlNode>   inner_join_conditions;   ///内连接的条件
   std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+  std::vector<ConditionSqlNode>   having_conditions;    ///< having条件
   std::vector<OrderBySqlNode>     order_by_cols;     /// order by 的列
+  std::vector<RelAttrSqlNode>     group_by_cols;     /// group by的列
 };
 
 

@@ -23,7 +23,6 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/delete_logical_operator.h"
 #include "sql/operator/join_logical_operator.h"
 #include "sql/operator/orderby_logical_operator.h"
-#include "sql/operator/project_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
 
 #include "sql/stmt/stmt.h"
@@ -40,6 +39,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/comparison_expression.h"
 #include "sql/expr/conjunction_expression.h"
 #include "sql/operator/table_empty_logical_operator.h"
+#include "sql/operator/groupby_logical_operator.h"
 
 using namespace std;
 
@@ -92,10 +92,11 @@ RC LogicalPlanGenerator::create_plan(CalcStmt *calc_stmt, std::unique_ptr<Logica
 RC LogicalPlanGenerator::create_plan(
     SelectStmt *select_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
-  unique_ptr<LogicalOperator> table_oper(nullptr);
+  RC rc = RC::SUCCESS;
 
+  // 1. table_scan_oper
+  unique_ptr<LogicalOperator> table_oper(nullptr);
   const std::vector<Table *> &tables = select_stmt->tables();
-//  const std::vector<Field> &all_fields = select_stmt->query_fields();
   std::vector<std::unique_ptr<Expression>> &project_expres = select_stmt->project_expres();
   for (Table *table : tables) {
     std::vector<Field> fields;
@@ -110,45 +111,39 @@ RC LogicalPlanGenerator::create_plan(
     }
   }
 
-  unique_ptr<LogicalOperator> predicate_oper;
-  RC rc = create_plan(select_stmt->filter_stmt(), predicate_oper);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
-    return rc;
+  // 2. predicate_oper
+  unique_ptr<LogicalOperator> predicate_oper(nullptr);
+  create_plan(select_stmt->filter_stmt(), predicate_oper);
+
+  // 3. order by for group
+  unique_ptr<LogicalOperator> order_by_for_group_oper(nullptr);
+  if (select_stmt->order_by_for_group_stmt() != nullptr) {
+    order_by_for_group_oper = std::make_unique<OrderByLogicalOperator>(select_stmt->order_by_for_group_stmt());
   }
+
+  // 4. group by
+  unique_ptr<LogicalOperator> group_by_oper(nullptr);
+  if (select_stmt->group_by_stmt() != nullptr) {
+    group_by_oper = std::make_unique<GroupByLogicalOperator>(select_stmt->group_by_stmt());
+  }
+
+  // 5. having
+  unique_ptr<LogicalOperator> having_oper(nullptr);
+  create_plan(select_stmt->having_stmt(), having_oper);
+
+  // 6. order by
   unique_ptr<LogicalOperator> orderby_oper(nullptr);
-  if (select_stmt->orderby_stmt() != nullptr){
-    unique_ptr<LogicalOperator> temp_orderby_oper(new OrderByLogicalOperator(select_stmt->orderby_stmt()));
-    orderby_oper = std::move(temp_orderby_oper);
+  if (select_stmt->order_by_stmt() != nullptr){
+    orderby_oper = std::make_unique<OrderByLogicalOperator>(select_stmt->order_by_stmt());
   }
+
+  // 7. project
   unique_ptr<LogicalOperator> project_oper(new ProjectLogicalOperator(std::move(project_expres)));
 
-//  if (orderby_oper) {
-//    if (predicate_oper) {
-//      if (table_oper) {
-//        predicate_oper->add_child(std::move(table_oper));
-//      }
-//        orderby_oper->add_child(std::move(predicate_oper));
-//      } else {
-//      if (table_oper) {
-//        orderby_oper->add_child(std::move(table_oper));
-//      }
-//    }
-//    project_oper->add_child(std::move(orderby_oper));
-//  } else {
-//      if (predicate_oper) {
-//        if (table_oper) {
-//          predicate_oper->add_child(std::move(table_oper));
-//        }
-//      project_oper->add_child(std::move(predicate_oper));
-//      } else {
-//        if (table_oper) {
-//          project_oper->add_child(std::move(table_oper));
-//        }
-//    }
-//  }
 
 
+  // 构造计划树
+  // project -> sort(orderby) -> having(predicate) -> group by -> sort(group) -> pred -> scan
   unique_ptr<LogicalOperator> top_oper(nullptr); // 当前最上层的oper
   if (table_oper) {
     top_oper = std::move(table_oper);
@@ -157,10 +152,23 @@ RC LogicalPlanGenerator::create_plan(
     predicate_oper->add_child(std::move(top_oper));
     top_oper = std::move(predicate_oper);
   }
+  if (order_by_for_group_oper) {
+    order_by_for_group_oper->add_child(std::move(top_oper));
+    top_oper = std::move(order_by_for_group_oper);
+  }
+  if (group_by_oper) {
+    group_by_oper->add_child(std::move(top_oper));
+    top_oper = std::move(group_by_oper);
+  }
+  if (having_oper) {
+    having_oper->add_child(std::move(top_oper));
+    top_oper = std::move(having_oper);
+  }
   if (orderby_oper) {
     orderby_oper->add_child(std::move(top_oper));
     top_oper = std::move(orderby_oper);
   }
+
   if (top_oper) {
     project_oper->add_child(std::move(top_oper));
   }
@@ -170,7 +178,7 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   logical_operator.swap(project_oper);
-  return RC::SUCCESS;
+  return rc;
 }
 
 RC LogicalPlanGenerator::create_plan(

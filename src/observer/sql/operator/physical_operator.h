@@ -39,6 +39,7 @@ enum class PhysicalOperatorType
 {
   TABLE_SCAN,
   ORDER_BY,
+  GROUP_BY,
   INDEX_SCAN,
   NESTED_LOOP_JOIN,
   CACHE_NESTED_LOOP_JOIN,

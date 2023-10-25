@@ -50,6 +50,44 @@ RC Expression::create_expression(const ExprSqlNode *expr, const std::unordered_m
   return rc;
 }
 
+// 获取所有不在aggr内的field
+RC Expression::get_field_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+    const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &field_exprs) {
+  RC rc = RC::SUCCESS;
+  if (expr->type == ExprSqlNodeType::UNARY) {
+    UnaryExprSqlNode *unary_expr = expr->unary_expr;
+    if (unary_expr->is_attr) {
+      std::unique_ptr<Expression> field_expr;
+      rc = FieldExpr::create_expression(expr, table_map, tables, field_expr);
+      field_exprs.emplace_back(std::move(field_expr));
+    }
+  }
+  else if (expr->type == ExprSqlNodeType::BINARY) {
+    rc = get_field_exprs(expr->binary_expr->left, table_map, tables, field_exprs);
+    if (rc != RC::SUCCESS) { return rc; }
+    rc = get_field_exprs(expr->binary_expr->right, table_map, tables, field_exprs);
+  }
+  return rc;
+}
+
+// 获取所有AggrFuncExpr
+RC Expression::get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+    const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &aggr_exprs) {
+  RC rc = RC::SUCCESS;
+  if (expr->type == ExprSqlNodeType::AGGREGATION) {
+    AggrExprSqlNode *aggr_sql = expr->aggr_expr;
+    std::unique_ptr<Expression> aggr_expr;
+    rc = FieldExpr::create_expression(expr, table_map, tables, aggr_expr);
+    aggr_exprs.emplace_back(std::move(aggr_expr));
+  }
+  else if (expr->type == ExprSqlNodeType::BINARY) {
+    rc = get_aggr_exprs(expr->binary_expr->left, table_map, tables, aggr_exprs);
+    if (rc != RC::SUCCESS) { return rc; }
+    rc = get_aggr_exprs(expr->binary_expr->right, table_map, tables, aggr_exprs);
+  }
+  return rc;
+}
+
 
 void Expression::gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name)
 {

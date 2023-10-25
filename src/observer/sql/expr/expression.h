@@ -104,6 +104,14 @@ public:
    */
   static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
       const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
+  /**
+   * 解析select投影和having里的表达式，提取出field和aggregation
+   * @return
+   */
+  static RC get_field_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+      const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &field_exprs);
+  static RC get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
+      const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &aggr_exprs);
 
   /**
    * 解析select投影表达式，设置列名

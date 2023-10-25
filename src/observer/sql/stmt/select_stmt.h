@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
+#include "group_by_stmt.h"
 
 class FieldMeta;
 class FilterStmt;
@@ -46,31 +47,30 @@ public:
   static RC create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt);
 
 public:
-  const std::vector<Table *> &tables() const
-  {
-    return tables_;
-  }
-  std::vector<std::unique_ptr<Expression>> &project_expres()
-  {
-    return project_exprs_;
-  }
-  std::vector<std::string> &project_name()
-  {
-    return project_name_;
-  }
-  FilterStmt *filter_stmt() const
-  {
-    return filter_stmt_;
-  }
-  OrderByStmt *orderby_stmt() const
-  {
-    return orderby_stmt_;
-  }
+  const std::vector<Table *> &tables() const { return tables_; }
+
+  std::vector<std::unique_ptr<Expression>> &project_expres() { return project_exprs_; }
+
+  std::vector<std::string> &project_name() { return project_name_; }
+
+  FilterStmt *filter_stmt() const { return filter_stmt_; }
+
+  OrderByStmt *order_by_stmt() const { return order_by_stmt_; }
+
+  GroupByStmt *group_by_stmt() const { return group_by_stmt_; }
+
+  FilterStmt *having_stmt() const { return having_stmt_; }
+
+  OrderByStmt *order_by_for_group_stmt() const { return order_by_for_group_stmt_; }
 
 private:
-  std::vector<std::unique_ptr<Expression>> project_exprs_;
   std::vector<Table *> tables_;
-  FilterStmt *filter_stmt_ = nullptr;
-  OrderByStmt *orderby_stmt_ = nullptr;
-  std::vector<std::string> project_name_; // 投影表达式的名字
+  FilterStmt *filter_stmt_ = nullptr; // where
+  OrderByStmt *order_by_stmt_ = nullptr;  // order by
+  GroupByStmt *group_by_stmt_ = nullptr;  // group by
+  FilterStmt *having_stmt_ = nullptr; // having
+  OrderByStmt *order_by_for_group_stmt_ = nullptr;
+
+  std::vector<std::unique_ptr<Expression>> project_exprs_;  // 投影列的表达式
+  std::vector<std::string> project_name_; // 投影列的名字
 };

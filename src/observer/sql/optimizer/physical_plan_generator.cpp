@@ -41,6 +41,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/value_expression.h"
 #include "sql/expr/comparison_expression.h"
 #include "sql/operator/table_empty_physical_operator.h"
+#include "sql/operator/groupby_logical_operator.h"
+#include "sql/operator/groupby_physical_operator.h"
 
 using namespace std;
 
@@ -63,6 +65,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
 
     case LogicalOperatorType::ORDER_BY: {
       return create_plan(static_cast<OrderByLogicalOperator &>(logical_operator), oper);
+    } break;
+
+    case LogicalOperatorType::GROUP_BY: {
+      return create_plan(static_cast<GroupByLogicalOperator &>(logical_operator), oper);
     } break;
 
     case LogicalOperatorType::PROJECTION: {
@@ -213,6 +219,27 @@ RC PhysicalPlanGenerator::create_plan(OrderByLogicalOperator &orderby_oper, uniq
   return rc;
 }
 
+RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &group_by_oper, unique_ptr<PhysicalOperator> &oper)
+{
+  vector<unique_ptr<LogicalOperator>> &children_opers = group_by_oper.children();
+  ASSERT(children_opers.size() == 1, "group logical operator's sub oper number should be 1");
+
+  LogicalOperator &child_oper = *children_opers.front();
+
+  unique_ptr<PhysicalOperator> child_phy_oper;
+  RC rc = create(child_oper, child_phy_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create child operator of predicate operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  oper = unique_ptr<PhysicalOperator>(new GroupByPhysicalOperator(std::move(group_by_oper.group_by_field_exprs()),
+      std::move(group_by_oper.aggr_exprs()),
+      std::move(group_by_oper.field_exprs())));
+  oper->add_child(std::move(child_phy_oper));
+  return rc;
+}
+
 RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, unique_ptr<PhysicalOperator> &oper)
 {
   vector<unique_ptr<LogicalOperator>> &child_opers = project_oper.children();
@@ -231,7 +258,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
 
 
   ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
-  for (std::unique_ptr<Expression> &expr: project_oper.project_expres()) {
+  for (std::unique_ptr<Expression> &expr: project_oper.expressions()) {
     project_operator->add_projection(expr);
   }
   if (child_phy_oper) {

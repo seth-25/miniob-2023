@@ -26,11 +26,29 @@ SelectStmt::~SelectStmt()
     delete filter_stmt_;
     filter_stmt_ = nullptr;
   }
-  if (nullptr != orderby_stmt_) {
-    delete orderby_stmt_;
-    orderby_stmt_ = nullptr;
+
+  if (nullptr != order_by_stmt_) {
+    delete order_by_stmt_;
+    order_by_stmt_ = nullptr;
   }
+
+  if (nullptr != group_by_stmt_) {
+    delete group_by_stmt_;
+    group_by_stmt_ = nullptr;
+  }
+
+  if (nullptr != having_stmt_) {
+    delete having_stmt_;
+    having_stmt_ = nullptr;
+  }
+
+  if (nullptr != order_by_for_group_stmt_) {
+    delete order_by_for_group_stmt_;
+    order_by_for_group_stmt_ = nullptr;
+  }
+
   project_exprs_.clear();
+  project_name_.clear();
 }
 
 //static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
@@ -53,8 +71,8 @@ static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression
 }
 
 static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression>> &project_exprs,
-                            std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)  // select * form
-{
+                            std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)
+{  // select * form，投影项是所有表，需要找到这些表对应存在的别名，并设置
   auto it = alias_map.find(table);
   std::string table_alias_name;
   if (it != alias_map.end()) {
@@ -75,46 +93,11 @@ static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression
   }
 }
 
-RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
+RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, const SelectSqlNode &select_sql, Db *db,
+    std::vector<Table *> &tables, std::unordered_map<std::string, Table *> &table_map,
+    std::unordered_map<Table *, std::string> &alias_map)
 {
-  if (nullptr == db) {
-    LOG_WARN("invalid argument. db is null");
-    return RC::INVALID_ARGUMENT;
-  }
 
-  // collect tables in `from` statement
-  std::vector<Table *> tables;
-  std::unordered_map<std::string, Table *> table_map;
-  std::unordered_map<Table *, std::string> alias_map;
-  assert(select_sql.relation_names.size() == select_sql.alias_names.size());
-  for (size_t i = 0; i < select_sql.relation_names.size(); i++) {
-    const char *table_name = select_sql.relation_names[i].c_str();
-    const char *alias_name = select_sql.alias_names[i].c_str();
-    if (nullptr == table_name) {
-      LOG_WARN("invalid argument. relation name is null. index=%d", i);
-      return RC::INVALID_ARGUMENT;
-    }
-
-    Table *table = db->find_table(table_name);
-    if (nullptr == table) {
-      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-      return RC::SCHEMA_TABLE_NOT_EXIST;
-    }
-
-    tables.push_back(table);
-    table_map.insert(std::pair<std::string, Table *>(table_name, table));
-
-    if (strlen(alias_name) != 0) {
-      if (table_map.count(std::string(alias_name)) != 0) {  // 表的别名和其他的表名重复
-        return RC::SCHEMA_TABLE_EXIST;
-      }
-      table_map.insert(std::pair<std::string, Table *>(alias_name, table)); // 别名的表
-      alias_map.insert(std::pair<Table *, std::string>(table, alias_name));
-    }
-  }
-
-  // collect query fields in `select` statement
-  std::vector<std::unique_ptr<Expression>> project_expres;
   for (int i = static_cast<int>(select_sql.project_exprs.size()) - 1; i >= 0; i--) {
     const ExprSqlNode* expr = select_sql.project_exprs[i];
     if (expr->type == ExprSqlNodeType::UNDEFINED) {
@@ -170,7 +153,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
             project_expres.emplace_back(field_expr);
           }
         }
-      } else {  // select id from t  id没有对应表名
+      }
+      else {  // select id from t  id没有对应表名
         if (tables.size() != 1) {
           LOG_WARN("invalid. I do not know the attr's table. attr=%s", relation_attr.attribute_name.c_str());
           return RC::SCHEMA_FIELD_MISSING;
@@ -188,14 +172,55 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     else {  // select 复杂表达式 from t;
       std::unique_ptr<Expression> project_expr;
       RC rc = Expression::create_expression(expr, table_map, tables, project_expr);
-      if (rc != RC::SUCCESS) {
-        return rc;
-      }
+      if (rc != RC::SUCCESS) { return rc; }
       assert(project_expr != nullptr);
       project_expres.emplace_back(std::move(project_expr));
     }
   }
+}
 
+RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
+{
+  if (nullptr == db) {
+    LOG_WARN("invalid argument. db is null");
+    return RC::INVALID_ARGUMENT;
+  }
+
+  // 1. collect tables in `from` statement，记录from后面的table
+  std::vector<Table *> tables;
+  std::unordered_map<std::string, Table *> table_map;
+  std::unordered_map<Table *, std::string> alias_map;
+  assert(select_sql.relation_names.size() == select_sql.alias_names.size());
+  for (size_t i = 0; i < select_sql.relation_names.size(); i++) {
+    const char *table_name = select_sql.relation_names[i].c_str();
+    const char *alias_name = select_sql.alias_names[i].c_str();
+    if (nullptr == table_name) {
+      LOG_WARN("invalid argument. relation name is null. index=%d", i);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    Table *table = db->find_table(table_name);
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    tables.push_back(table);
+    table_map.insert(std::pair<std::string, Table *>(table_name, table));
+
+    if (strlen(alias_name) != 0) {
+      if (table_map.count(std::string(alias_name)) != 0) {  // 表的别名和其他的表名重复
+        return RC::SCHEMA_TABLE_EXIST;
+      }
+      table_map.insert(std::pair<std::string, Table *>(alias_name, table)); // 别名的表
+      alias_map.insert(std::pair<Table *, std::string>(table, alias_name));
+    }
+  }
+
+
+  // 2. collect query fields in `select` statement，将投影列转换成表达式
+  std::vector<std::unique_ptr<Expression>> project_expres;
+  create_query_field(project_expres, select_sql, db, tables, table_map, alias_map);
   for (auto& node: select_sql.project_exprs) {
     delete node;
   }
@@ -207,7 +232,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
-  // create filter statement in `where` statemen
+  // 3. create filter statement in `where` statement，将where后面条件转化成filter_stmt
   std::vector<ConditionSqlNode> sum_conditions = select_sql.inner_join_conditions;
   sum_conditions.insert(sum_conditions.end(), select_sql.conditions.begin(), select_sql.conditions.end());
   FilterStmt *filter_stmt = nullptr;
@@ -221,6 +246,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     LOG_WARN("cannot construct filter stmt");
     return rc;
   }
+
+  // 4. 创建order by statement
   OrderByStmt *orderby_stmt = nullptr;
   if (!select_sql.order_by_cols.empty())
   {
@@ -235,12 +262,106 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       return rc;
     }
   }
-  // create select stmt
+
+
+  // 5. 创建Having statement
+  FilterStmt* having_stmt = nullptr;
+  if (!select_sql.having_conditions.empty()) {
+    rc = FilterStmt::create(db,
+        default_table,
+        &table_map,
+        select_sql.having_conditions.data(),
+        static_cast<int>(select_sql.having_conditions.size()),
+        having_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct having stmt");
+      return rc;
+    }
+  }
+
+
+  // 6. 创建group by statement，在group by oper里计算aggr，所以只要有aggr，不管是否有group by都需要创建
+  std::vector<std::unique_ptr<Expression>> field_exprs;
+  std::vector<std::unique_ptr<Expression>> aggr_exprs;
+  for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取field和aggr
+    rc = Expression::get_field_exprs(project_expr, table_map, tables, field_exprs);
+    if (rc != RC::SUCCESS) { return rc; }
+    rc = Expression::get_aggr_exprs(project_expr, table_map, tables, aggr_exprs);
+    if (rc != RC::SUCCESS) { return rc; }
+  }
+  if (!select_sql.having_conditions.empty()) {
+    for (auto& condition: select_sql.having_conditions) { // 从having条件中中获取field和aggr
+      rc = Expression::get_field_exprs(condition.left, table_map, tables, field_exprs);
+      if (rc != RC::SUCCESS) { return rc; }
+      rc = Expression::get_field_exprs(condition.right, table_map, tables, field_exprs);
+      if (rc != RC::SUCCESS) { return rc; }
+      rc = Expression::get_aggr_exprs(condition.left, table_map, tables, aggr_exprs);
+      if (rc != RC::SUCCESS) { return rc; }
+      rc = Expression::get_aggr_exprs(condition.right, table_map, tables, aggr_exprs);
+      if (rc != RC::SUCCESS) { return rc; }
+    }
+  }
+  GroupByStmt* group_by_stmt = nullptr;
+  if (!aggr_exprs.empty()) {
+    rc = GroupByStmt::create(db,
+        default_table,
+        &table_map,
+        select_sql.group_by_cols,
+        aggr_exprs,
+        field_exprs,
+        group_by_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct group by stmt");
+      return rc;
+    }
+  }
+  // 检查group by 是否合法
+  if (!aggr_exprs.empty() && !field_exprs.empty()) {  // 聚集和单个字段混合，根据题意，如果不是group by，返回fail
+    if (select_sql.group_by_cols.empty()) { // 不存在group by
+      return RC::SQL_SYNTAX;
+    }
+    for (auto& field_expr : field_exprs) {  // 投影和having中非聚集函数内的字段不在group by里
+      bool in_group_by = false;
+      std::vector<std::unique_ptr<FieldExpr>>&group_by_field_exprs = group_by_stmt->group_by_field_exprs();
+      for (auto& group_by_field_expr : group_by_field_exprs) {
+        if (group_by_field_expr->field().equal( ((FieldExpr*)field_expr.get())->field() )) {
+          in_group_by = true;
+          break;
+        }
+      }
+      if (!in_group_by) {
+        return RC::SQL_SYNTAX;
+      }
+    }
+  }
+
+  // 7. 创建order by for group by statement
+  OrderByStmt* order_by_for_group_stmt = nullptr;
+  if (!select_sql.group_by_cols.empty()) {
+    int group_by_num = (int)select_sql.group_by_cols.size();
+    OrderBySqlNode order_by_for_group[group_by_num];
+    for (int i = 0; i < group_by_num; i ++ ) {
+      order_by_for_group[i].attribute = select_sql.group_by_cols[i];
+      order_by_for_group[i].is_asc = true;
+    }
+    rc = OrderByStmt::create(
+        db, default_table, &table_map, order_by_for_group, group_by_num, order_by_for_group_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct order by stmt for groupby");
+      return rc;
+    }
+  }
+
+
+  // 8. create select stmt
   SelectStmt *select_stmt = new SelectStmt();
   select_stmt->tables_.swap(tables);
   select_stmt->project_exprs_ = std::move(project_expres);
   select_stmt->filter_stmt_ = filter_stmt;
-  select_stmt->orderby_stmt_ = orderby_stmt;
+  select_stmt->order_by_stmt_ = orderby_stmt;
+  select_stmt->having_stmt_ = having_stmt;
+  select_stmt->group_by_stmt_ = group_by_stmt;
+  select_stmt->order_by_for_group_stmt_ = order_by_for_group_stmt;
 
   bool with_table_name = select_stmt->tables_.size() != 1;
   for (auto &expression: select_stmt->project_expres()) {
