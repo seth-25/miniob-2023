@@ -325,18 +325,15 @@ RC Table::value_cast_record(const Value &value, const FieldMeta *field, char *re
     }
   }
   if (field->type() == TEXTS) {
-    int text_length = value.text_length();
-    if (text_length > 4096) text_length = 4096;
-//    if (value.text_length() >= TEXT_MAX_LEN) {
-//      LOG_ERROR("Text too long.");
-//      return RC::TEXT_TOO_LONG;
-//    }
-    copy_len       = text_length + 1;
+//    int text_length = value.text_length();
+//    if (text_length > 4096) text_length = 4096;
+    if (value.text_length() >= TEXT_MAX_LEN) {
+      LOG_ERROR("Text too long.");
+      return RC::TEXT_TOO_LONG;
+    }
+    copy_len       = value.text_length() + 1;
     char *text_mem = (char *)malloc(copy_len);
     memcpy(text_mem, cast_data, copy_len);
-
-    *(text_mem + copy_len - 1) = '\0';
-
     *(void **)(record_data + field->offset()) = text_mem;
     text_mems.push_back(text_mem);
   } else {
