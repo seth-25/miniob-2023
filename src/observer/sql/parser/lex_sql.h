@@ -10,6 +10,7 @@
 */
 #define YY_TYPEDEF_YY_SIZE_T
 typedef int yy_size_t;
+#define YY_READ_BUF_SIZE 73728
 
 /* 参考生成的lex_sql.cpp代码，这个宏定义会放在每次运行yylex()最开始的地方 */
 #define YY_USER_INIT                                         \
@@ -26,7 +27,7 @@ do {                                                         \
 }                                                            \
 while (0);
 
-#line 30 "lex_sql.h"
+#line 31 "lex_sql.h"
 
 #define  YY_INT_ALIGNED short int
 
@@ -541,9 +542,9 @@ extern int yylex \
 #undef yyTABLES_NAME
 #endif
 
-#line 158 "lex_sql.l"
+#line 159 "lex_sql.l"
 
 
-#line 548 "lex_sql.h"
+#line 549 "lex_sql.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */
