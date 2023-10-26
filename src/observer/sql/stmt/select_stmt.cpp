@@ -56,7 +56,7 @@ static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression
                             std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)  // select * form
 {
   auto it = alias_map.find(table);
-  std::string table_alias_name;
+  std::string table_alias_name = table->name();
   if (it != alias_map.end()) {
     table_alias_name = it->second;
   }

@@ -48,6 +48,7 @@ enum class PhysicalOperatorType
   CALC,
   STRING_LIST,
   DELETE,
+  CREATE_SELECT,
   UPDATE,
   INSERT,
   TABLE_EMPTY,

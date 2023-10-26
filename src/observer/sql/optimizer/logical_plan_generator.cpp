@@ -25,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/orderby_logical_operator.h"
 #include "sql/operator/project_logical_operator.h"
 #include "sql/operator/explain_logical_operator.h"
+#include "sql/operator/createselect_logical_operator.h"
 
 #include "sql/stmt/stmt.h"
 #include "sql/stmt/calc_stmt.h"
@@ -32,6 +33,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "sql/stmt/order_by_stmt.h"
 #include "sql/stmt/insert_stmt.h"
+#include "sql/stmt/create_table_select_stmt.h"
 #include "sql/stmt/delete_stmt.h"
 #include "sql/stmt/explain_stmt.h"
 #include "sql/stmt/update_stmt.h"
@@ -75,6 +77,11 @@ RC LogicalPlanGenerator::create(Stmt *stmt, unique_ptr<LogicalOperator> &logical
     case StmtType::EXPLAIN: {
       ExplainStmt *explain_stmt = static_cast<ExplainStmt *>(stmt);
       rc = create_plan(explain_stmt, logical_operator);
+    } break;
+
+    case StmtType::CREATE_TABLE_SELECT: {
+      CreateTableSelectStmt *create_table_stmt = static_cast<CreateTableSelectStmt *>(stmt);
+      rc = create_plan(create_table_stmt, logical_operator);
     } break;
     default: {
       rc = RC::UNIMPLENMENT;
@@ -268,6 +275,26 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   logical_operator = unique_ptr<LogicalOperator>(new ExplainLogicalOperator);
+  logical_operator->add_child(std::move(child_oper));
+  return rc;
+}
+
+RC LogicalPlanGenerator::create_plan(
+    CreateTableSelectStmt *create_table_stmt, unique_ptr<LogicalOperator> &logical_operator)
+{
+  Stmt *child_stmt = create_table_stmt->select_stmt();
+  unique_ptr<LogicalOperator> child_oper;
+  RC rc = create(child_stmt, child_oper);
+  if (rc != RC::SUCCESS) {
+    LOG_WARN("failed to create explain's child operator. rc=%s", strrc(rc));
+    return rc;
+  }
+
+  logical_operator = unique_ptr<LogicalOperator>(new CreateselectLogicalOperator(
+      create_table_stmt->get_db(),
+      std::move(create_table_stmt->table_name()),
+      std::move(create_table_stmt->attr_infos())
+      ));
   logical_operator->add_child(std::move(child_oper));
   return rc;
 }
