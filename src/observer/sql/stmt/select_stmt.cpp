@@ -361,8 +361,21 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   stmt = select_stmt;
 
 
+  // todo 回收select_sql的各项表达式
   for (auto& node: select_sql.project_exprs) {
     delete node;  // todo 递归删除
+  }
+  for (auto& node: select_sql.having_conditions) {
+    delete node.left;  // todo 递归删除
+    delete node.right;
+  }
+  for (auto& node: select_sql.inner_join_conditions) {
+    delete node.left;  // todo 递归删除
+    delete node.right;
+  }
+  for (auto& node: select_sql.conditions) {
+    delete node.left;  // todo 递归删除
+    delete node.right;
   }
 
   return RC::SUCCESS;

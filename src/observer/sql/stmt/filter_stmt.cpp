@@ -105,9 +105,6 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     return rc;
   }
 
-  delete condition.left;
-  delete condition.right;
-
   filter_unit = new FilterUnit;
   filter_unit->set_comp(comp);
   filter_unit->set_left(left);
