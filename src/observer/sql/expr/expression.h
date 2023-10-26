@@ -110,8 +110,11 @@ public:
    */
   static RC get_field_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
       const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &field_exprs);
+  static RC get_field_exprs(const std::unique_ptr<Expression>& expr, const std::unordered_map<std::string, Table *> &table_map,
+      const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &field_exprs);
   static RC get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
       const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &aggr_exprs);
+
 
   /**
    * 解析select投影表达式，设置列名

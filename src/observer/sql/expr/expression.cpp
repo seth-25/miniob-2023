@@ -70,6 +70,25 @@ RC Expression::get_field_exprs(const ExprSqlNode *expr, const std::unordered_map
   return rc;
 }
 
+// 获取所有不在aggr内的field
+RC Expression::get_field_exprs(const unique_ptr<Expression>& expr, const std::unordered_map<std::string, Table *> &table_map,
+    const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &field_exprs) {
+  RC rc = RC::SUCCESS;
+  if (expr->type() == ExprType::FIELD) {
+    FieldExpr* field_expr = (FieldExpr*) expr.get();
+    std::unique_ptr<Expression> field_expr_copy(new FieldExpr(field_expr->field()));
+    field_exprs.emplace_back(std::move(field_expr_copy));
+  }
+  else if (expr->type() == ExprType::BINARY) {
+    BinaryExpression* binary_expr = (BinaryExpression*) expr.get();
+    rc = get_field_exprs(binary_expr->left(), table_map, tables, field_exprs);
+    if (rc != RC::SUCCESS) { return rc; }
+    rc = get_field_exprs(binary_expr->right(), table_map, tables, field_exprs);
+    if (rc != RC::SUCCESS) { return rc; }
+  }
+  return rc;
+}
+
 // 获取所有AggrFuncExpr
 RC Expression::get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
     const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &aggr_exprs) {
@@ -80,6 +99,7 @@ RC Expression::get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<
     aggr_exprs.emplace_back(std::move(aggr_expr));
   }
   else if (expr->type == ExprSqlNodeType::BINARY) {
+
     rc = get_aggr_exprs(expr->binary_expr->left, table_map, tables, aggr_exprs);
     if (rc != RC::SUCCESS) { return rc; }
     rc = get_aggr_exprs(expr->binary_expr->right, table_map, tables, aggr_exprs);

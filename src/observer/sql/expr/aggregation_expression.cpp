@@ -18,7 +18,7 @@ RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, const std::unordered
       return rc;
     }
     assert(ExprType::VALUE == value_exp->type());
-    std::unique_ptr<Expression> field_expr(new FieldExpr(tables[0], tables[0]->table_meta().field(0))); // todo 修改
+    std::unique_ptr<Expression> field_expr(new FieldExpr(tables[0], tables[0]->table_meta().field(0))); // todo 可能需要修改field是哪列
     std::unique_ptr<AggrFuncExpr> aggr_func_expr(new AggrFuncExpr(
         AggrFuncType::AGGR_COUNT, std::move(field_expr), std::move(value_exp), with_brace));
     res_expr = std::move(aggr_func_expr);

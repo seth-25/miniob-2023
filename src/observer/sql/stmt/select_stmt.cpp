@@ -97,7 +97,6 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
     std::vector<Table *> &tables, std::unordered_map<std::string, Table *> &table_map,
     std::unordered_map<Table *, std::string> &alias_map)
 {
-
   for (int i = static_cast<int>(select_sql.project_exprs.size()) - 1; i >= 0; i--) {
     const ExprSqlNode* expr = select_sql.project_exprs[i];
     if (expr->type == ExprSqlNodeType::UNDEFINED) {
@@ -220,12 +219,12 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
 
   // 2. collect query fields in `select` statement，将投影列转换成表达式
-  std::vector<std::unique_ptr<Expression>> project_expres;
-  RC rc = create_query_field(project_expres, select_sql, db, tables, table_map, alias_map);
+  std::vector<std::unique_ptr<Expression>> project_exprs;
+  RC rc = create_query_field(project_exprs, select_sql, db, tables, table_map, alias_map);
   if (rc != RC::SUCCESS) {
     return rc;
   }
-  LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), project_expres.size());
+  LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), project_exprs.size());
 
   Table *default_table = nullptr;
   if (tables.size() == 1) {
@@ -283,10 +282,18 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // 6. 创建group by statement，在group by oper里计算aggr，所以只要有aggr，不管是否有group by都需要创建
   std::vector<std::unique_ptr<Expression>> field_exprs;
   std::vector<std::unique_ptr<Expression>> aggr_exprs;
-  for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取field和aggr
-    rc = Expression::get_field_exprs(project_expr, table_map, tables, field_exprs);
-    if (rc != RC::SUCCESS) { return rc; }
+//  for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取field和aggr
+//    rc = Expression::get_field_exprs(project_expr, table_map, tables, field_exprs);
+//    if (rc != RC::SUCCESS) { return rc; }
+//    rc = Expression::get_aggr_exprs(project_expr, table_map, tables, aggr_exprs);
+//    if (rc != RC::SUCCESS) { return rc; }
+//  }
+  for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取aggr
     rc = Expression::get_aggr_exprs(project_expr, table_map, tables, aggr_exprs);
+    if (rc != RC::SUCCESS) { return rc; }
+  }
+  for (auto& project_expr: project_exprs) {  // 从投影中获取field，filed可能有*，用处理后的project_exprs获取
+    rc = Expression::get_field_exprs(project_expr, table_map, tables, field_exprs);
     if (rc != RC::SUCCESS) { return rc; }
   }
   if (!select_sql.having_conditions.empty()) {
@@ -356,7 +363,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // 8. create select stmt
   SelectStmt *select_stmt = new SelectStmt();
   select_stmt->tables_.swap(tables);
-  select_stmt->project_exprs_ = std::move(project_expres);
+  select_stmt->project_exprs_ = std::move(project_exprs);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->order_by_stmt_ = orderby_stmt;
   select_stmt->having_stmt_ = having_stmt;
@@ -369,7 +376,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     Expression::gen_project_name(expression.get(), with_table_name, expr_str);
     select_stmt->project_name_.emplace_back(expr_str);
   }
-
   stmt = select_stmt;
 
 
