@@ -76,6 +76,10 @@ public:
   std::string to_string() const;
 
   int compare(const Value &other) const;
+  static const Value& calc_min(const Value &left, const Value &right);
+  static const Value& calc_max(const Value &left, const Value &right);
+  static Value calc_add(const Value &left, const Value &right);
+  static Value calc_div(const Value &left, const Value &right);
 
   const char *data() const;
   int length() const

@@ -29,7 +29,6 @@ public:
  AttrType value_type() const override { return FLOATS; }
 
  RC get_value(const Tuple &tuple, Value &value) const override;
- RC try_get_value(Value &value) const override;
 
  AggrFuncType aggr_type() const { return aggr_type_; }
 

@@ -1,4 +1,6 @@
 #include "aggregation_expression.h"
+#include "tuple_cell.h"
+#include "tuple.h"
 
 RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
     const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr)
@@ -6,7 +8,7 @@ RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, const std::unordered
   assert(ExprSqlNodeType::AGGREGATION == expr->type);
   bool with_brace = expr->with_brace;
   AggrExprSqlNode* aggr_expr_node = expr->aggr_expr;
-  if (ExprSqlNodeType::UNARY == aggr_expr_node->expr->type && 0 == aggr_expr_node->expr->unary_expr->is_attr) {
+  if (ExprSqlNodeType::UNARY == aggr_expr_node->expr->type && !aggr_expr_node->expr->unary_expr->is_attr) {
     // count(*) count(1) count(Value)
     assert(AggrFuncType::AGGR_COUNT == aggr_expr_node->type);
     std::unique_ptr<Expression> value_exp = nullptr;  // *或1用value表达式
@@ -16,7 +18,7 @@ RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, const std::unordered
       return rc;
     }
     assert(ExprType::VALUE == value_exp->type());
-    std::unique_ptr<Expression> field_expr(new FieldExpr(tables[0], tables[0]->table_meta().field(1)));
+    std::unique_ptr<Expression> field_expr(new FieldExpr(tables[0], tables[0]->table_meta().field(0))); // todo 修改
     std::unique_ptr<AggrFuncExpr> aggr_func_expr(new AggrFuncExpr(
         AggrFuncType::AGGR_COUNT, std::move(field_expr), std::move(value_exp), with_brace));
     res_expr = std::move(aggr_func_expr);
@@ -54,5 +56,10 @@ std::string AggrFuncExpr::get_func_name() const
 }
 
 
-RC AggrFuncExpr::get_value(const Tuple &tuple, Value &value) const { return RC::RECORD_EOF; } // todo
-RC AggrFuncExpr::try_get_value(Value &value) const { return Expression::try_get_value(value); } // todo
+RC AggrFuncExpr::get_value(const Tuple &tuple, Value &value) const {
+  FieldExpr* field_expr = (FieldExpr *)field_expr_.get();
+  std::unique_ptr<FieldExpr> field_expr_copy = std::make_unique<FieldExpr>(field_expr->field());
+  field_expr_copy->set_aggr(aggr_type_);
+  return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value);
+}
+

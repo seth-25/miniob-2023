@@ -44,7 +44,7 @@ struct RelAttrSqlNode
 enum class ExprOp { ADD_OP, SUB_OP, MUL_OP, DIV_OP, NEGATIVE_OP, };
 
 enum class ExprSqlNodeType { UNDEFINED, UNARY, BINARY, AGGREGATION, FUNCTION, };
-enum class AggrFuncType { AGGR_MAX, AGGR_MIN, AGGR_SUM, AGGR_AVG, AGGR_COUNT };
+enum class AggrFuncType { AGGR_MAX, AGGR_MIN, AGGR_SUM, AGGR_AVG, AGGR_COUNT, AGGR_FUNC_TYPE_NUM };
 enum class FuncType { FUNC_LENGTH, FUNC_ROUND, FUNC_DATE_FORMAT };
 
 struct UnaryExprSqlNode;

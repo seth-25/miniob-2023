@@ -113,7 +113,9 @@ RC LogicalPlanGenerator::create_plan(
 
   // 2. predicate_oper
   unique_ptr<LogicalOperator> predicate_oper(nullptr);
-  create_plan(select_stmt->filter_stmt(), predicate_oper);
+  if (select_stmt->filter_stmt() != nullptr) {
+    create_plan(select_stmt->filter_stmt(), predicate_oper);
+  }
 
   // 3. order by for group
   unique_ptr<LogicalOperator> order_by_for_group_oper(nullptr);
@@ -129,7 +131,10 @@ RC LogicalPlanGenerator::create_plan(
 
   // 5. having
   unique_ptr<LogicalOperator> having_oper(nullptr);
-  create_plan(select_stmt->having_stmt(), having_oper);
+  if (select_stmt->having_stmt() != nullptr) {
+    create_plan(select_stmt->having_stmt(), having_oper);
+  }
+
 
   // 6. order by
   unique_ptr<LogicalOperator> orderby_oper(nullptr);

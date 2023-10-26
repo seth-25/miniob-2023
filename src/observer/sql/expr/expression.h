@@ -172,14 +172,31 @@ public:
   static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
       const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
 
-  /**
-   * 从表达式中获取对应的字段
-   * @return res_expr
-   */
-  static RC get_field_from_exprs(const Expression* expr, std::vector<Field> &fields);
+
+  bool with_aggr() const
+  {
+    return static_cast<int>(aggr_type_) >= 0 && aggr_type_ < AggrFuncType::AGGR_FUNC_TYPE_NUM;
+  }
+  AggrFuncType get_aggr_type() const
+  {
+    assert(with_aggr());
+    return aggr_type_;
+  }
+  void set_aggr(AggrFuncType type)
+  {
+    assert(static_cast<int>(type) >= 0 && type < AggrFuncType::AGGR_FUNC_TYPE_NUM);
+    this->aggr_type_ = type;
+  }
+//  /**
+//   * 从表达式中获取对应的字段
+//   * @return res_expr
+//   */
+//  static RC get_field_from_exprs(const Expression* expr, std::vector<Field> &fields);
 
 private:
   Field field_;
+
+  AggrFuncType aggr_type_ = AggrFuncType::AGGR_FUNC_TYPE_NUM; // 用于AggrFunc的get_value(group tuple的)
 };
 
 

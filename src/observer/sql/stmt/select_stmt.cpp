@@ -74,7 +74,7 @@ static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression
                             std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)
 {  // select * form，投影项是所有表，需要找到这些表对应存在的别名，并设置
   auto it = alias_map.find(table);
-  std::string table_alias_name;
+  std::string table_alias_name = table->name();
   if (it != alias_map.end()) {
     table_alias_name = it->second;
   }
@@ -177,6 +177,7 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
       project_expres.emplace_back(std::move(project_expr));
     }
   }
+  return RC::SUCCESS;
 }
 
 RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
@@ -220,11 +221,10 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
   // 2. collect query fields in `select` statement，将投影列转换成表达式
   std::vector<std::unique_ptr<Expression>> project_expres;
-  create_query_field(project_expres, select_sql, db, tables, table_map, alias_map);
-  for (auto& node: select_sql.project_exprs) {
-    delete node;
+  RC rc = create_query_field(project_expres, select_sql, db, tables, table_map, alias_map);
+  if (rc != RC::SUCCESS) {
+    return rc;
   }
-
   LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), project_expres.size());
 
   Table *default_table = nullptr;
@@ -236,7 +236,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   std::vector<ConditionSqlNode> sum_conditions = select_sql.inner_join_conditions;
   sum_conditions.insert(sum_conditions.end(), select_sql.conditions.begin(), select_sql.conditions.end());
   FilterStmt *filter_stmt = nullptr;
-  RC rc = FilterStmt::create(db,
+  rc = FilterStmt::create(db,
       default_table,
       &table_map,
       sum_conditions.data(),
@@ -371,6 +371,11 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   }
 
   stmt = select_stmt;
+
+
+  for (auto& node: select_sql.project_exprs) {
+    delete node;  // todo 递归删除
+  }
 
   return RC::SUCCESS;
 }

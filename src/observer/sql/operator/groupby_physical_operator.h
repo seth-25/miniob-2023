@@ -12,8 +12,7 @@ public:
       std::vector<std::unique_ptr<Expression>>&& field_exprs
       )
       : group_by_field_exprs_(std::move(group_by_field_exprs)),
-        aggr_exprs_(std::move(aggr_exprs)),
-        field_exprs_(std::move(field_exprs))
+        tuple_(std::move(aggr_exprs), std::move(field_exprs))
   {}
 
   PhysicalOperatorType type() const override {
@@ -30,11 +29,12 @@ public:
 
 private:
   std::vector<std::unique_ptr<FieldExpr>> group_by_field_exprs_; // 需要分组的字段
+  GroupTuple tuple_;
 
-  // sql执行顺序：record -> where -> group by -> order by -> having -> 投影
-  // 所以group by需要记录having和投影的字段计算结果，不需要记录where的字段
-  // 投影列和having的所有字段：
-  std::vector<std::unique_ptr<Expression>> aggr_exprs_; // 聚集表达式的字段
-  std::vector<std::unique_ptr<Expression>> field_exprs_;   // 非聚集表达式的字段
+  bool is_first_ = true;  // 第一次运行
+  bool is_new_group_ = true;  // 对列排序后，遇到的值是否是是新的group
+  bool is_record_eof_ = false;  // 记录结束
+
+  std::vector<Value> pre_values_; // 各个groupby的字段，上一个值，用于判断是否是新的group
 };
 

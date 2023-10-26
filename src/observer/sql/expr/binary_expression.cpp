@@ -68,12 +68,9 @@ RC BinaryExpression::calc_value(const Value &left_value, const Value &right_valu
     } break;
     case ExprOp::DIV_OP: {
       if (abs(right_float) < 1e-6) {
-        // todo NULL
         value.set_null();
         return rc;
         LOG_WARN("0作为除数");
-        //ans = numeric_limits<float>::max();
-//        return RC::UNIMPLENMENT;
       }
       else {
         ans = left_float / right_float;

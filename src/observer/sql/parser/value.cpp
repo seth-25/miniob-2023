@@ -275,6 +275,63 @@ int Value::compare(const Value &other) const
   LOG_WARN("not supported compare type");
   return -1;  // TODO return rc?
 }
+const Value& Value::calc_min(const Value &left, const Value &right) {
+  if (left.is_null()) {
+    return right;
+  }
+  return left > right ? right : left;
+}
+
+const Value& Value::calc_max(const Value &left, const Value &right) {
+  if (left.is_null()) {
+    return right;
+  }
+  return left > right ? left : right;
+}
+
+Value Value::calc_add(const Value &left, const Value &right) {
+  Value result_value;
+  if (left.is_null() || right.is_null()) {
+    result_value.set_null();
+    return result_value;
+  }
+  if (left.attr_type_ == INTS && right.attr_type_ == INTS) {
+    int result = left.get_int() + right.get_int();
+    result_value.set_int(result);
+  }
+  else {
+    float *left_float = (float *)common::type_cast_to[left.attr_type_][FLOATS](left.data());
+    float *right_float = (float *)common::type_cast_to[right.attr_type_][FLOATS](right.data());
+    assert(nullptr != left_float);
+    assert(nullptr != right_float);
+    float  result = *left_float + *right_float;
+    result_value.set_float(result);
+    free(left_float);
+    free(right_float);
+  }
+  return result_value;
+}
+
+Value Value::calc_div(const Value &left, const Value &right) {
+  Value result_value;
+  if (left.is_null() || right.is_null()) {
+    result_value.set_null();
+    return result_value;
+  }
+  float *left_float = (float *)common::type_cast_to[left.attr_type_][FLOATS](left.data());
+  float *right_float = (float *)common::type_cast_to[right.attr_type_][FLOATS](right.data());
+  assert(nullptr != left_float);
+  assert(nullptr != right_float);
+  if (abs(*right_float) < 1e-6) {
+    result_value.set_type(AttrType::NULLS);
+  } else {
+    float result = *left_float / *right_float;
+    result_value.set_float(result);
+  }
+  free(left_float);
+  free(right_float);
+  return result_value;
+}
 
 int Value::get_int() const  // TODO 考虑DATES
 {

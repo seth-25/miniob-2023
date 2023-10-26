@@ -942,13 +942,21 @@ aggr_func_expr:
       if ($1 != AggrFuncType::AGGR_COUNT) {
         yyerror (&yylloc, sql_string, sql_result, scanner, YY_("aggr func is illegal"));
       }
-      AggrExprSqlNode* aggr = new AggrExprSqlNode;
-      aggr->type = $1;
-      aggr->is_star = true;
+
       std::string star = "*";
       Value star_val(star.c_str());    // val = *
       UnaryExprSqlNode* star_unary = new UnaryExprSqlNode;
       star_unary->value = star_val;
+      star_unary->is_attr = false;
+
+      ExprSqlNode* star_expr = new ExprSqlNode;
+      star_expr->type = ExprSqlNodeType::UNARY;
+      star_expr->unary_expr = star_unary;
+
+      AggrExprSqlNode* aggr = new AggrExprSqlNode;
+      aggr->type = $1;
+      aggr->is_star = true;
+      aggr->expr = star_expr;
 
       ExprSqlNode* expr = new ExprSqlNode;
       expr->type = ExprSqlNodeType::AGGREGATION;

@@ -75,9 +75,8 @@ RC Expression::get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<
     const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &aggr_exprs) {
   RC rc = RC::SUCCESS;
   if (expr->type == ExprSqlNodeType::AGGREGATION) {
-    AggrExprSqlNode *aggr_sql = expr->aggr_expr;
     std::unique_ptr<Expression> aggr_expr;
-    rc = FieldExpr::create_expression(expr, table_map, tables, aggr_expr);
+    AggrFuncExpr::create_expression(expr, table_map, tables, aggr_expr);
     aggr_exprs.emplace_back(std::move(aggr_expr));
   }
   else if (expr->type == ExprSqlNodeType::BINARY) {
@@ -158,10 +157,9 @@ void Expression::gen_project_name(const Expression *expr, bool with_table_name, 
       result_name += '(';
       if (aggr_expr->is_param_value()) {
         gen_project_name(aggr_expr->value_expr().get(), with_table_name, result_name);
-
       } else {
         const Field &field = aggr_expr->field();
-        if (!with_table_name) {
+        if (with_table_name) {
           result_name += std::string(field.table_name()) + '.' + std::string(field.field_name());
         } else {
           result_name += std::string(field.field_name());
@@ -187,31 +185,31 @@ RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 }
 
 
-RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &fields)
-{
-  switch (expr->type()) {
-    case ExprType::FIELD: {
-      const FieldExpr* field_expr = (const FieldExpr *)(expr);
-      const Field &field = field_expr->field();
-      fields.emplace_back(field);
-      break;
-    }
-    case ExprType::AGGRFUNC: {
-//       const AggrFuncExpr *aggrfunc_expr = (const AggrFuncExpr *)expr;
-//       get_field_from_exprs(aggrfunc_expr->field_expr, fields);
-      break;
-    }
-    case ExprType::BINARY: {
-      BinaryExpression* binary_expr = (BinaryExpression*) expr;
-      get_field_from_exprs(binary_expr->left().get(), fields);
-      get_field_from_exprs(binary_expr->right().get(), fields);
-      break;
-    }
-    default:
-      break;
-  }
-  return RC::SUCCESS;
-}
+//RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &fields)
+//{
+//  switch (expr->type()) {
+//    case ExprType::FIELD: {
+//      const FieldExpr* field_expr = (const FieldExpr *)(expr);
+//      const Field &field = field_expr->field();
+//      fields.emplace_back(field);
+//      break;
+//    }
+//    case ExprType::AGGRFUNC: {
+////       const AggrFuncExpr *aggrfunc_expr = (const AggrFuncExpr *)expr;
+////       get_field_from_exprs(aggrfunc_expr->field_expr, fields);
+//      break;
+//    }
+//    case ExprType::BINARY: {
+//      BinaryExpression* binary_expr = (BinaryExpression*) expr;
+//      get_field_from_exprs(binary_expr->left().get(), fields);
+//      get_field_from_exprs(binary_expr->right().get(), fields);
+//      break;
+//    }
+//    default:
+//      break;
+//  }
+//  return RC::SUCCESS;
+//}
 
 std::string FieldExpr::to_string(bool with_table_name) const
 {

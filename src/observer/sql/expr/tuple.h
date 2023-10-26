@@ -31,7 +31,7 @@ class Table;
 /**
  * @defgroup Tuple
  * @brief Tuple 元组，表示一行数据，当前返回客户端时使用
- * @details 
+ * @details
  * tuple是一种可以嵌套的数据结构。
  * 比如select t1.a+t2.b from t1, t2;
  * 需要使用下面的结构表示：
@@ -42,51 +42,45 @@ class Table;
  *      /     \
  *   Row(t1) Row(t2)
  * @endcode
- * 
+ *
  */
 
 /**
  * @brief 元组的结构，包含哪些字段(这里成为Cell)，每个字段的说明
  * @ingroup Tuple
  */
-class TupleSchema 
+class TupleSchema
 {
 public:
-  virtual ~TupleSchema() {
-    for (auto cell: cells_) {
+  virtual ~TupleSchema()
+  {
+    for (auto cell : cells_) {
       delete cell;
     }
     cells_.clear();
   }
-  void append_cell(TupleCellSpec *cell)
-  {
-    cells_.emplace_back(cell);
-  }
-  void append_cell(const char *alias)
-  {
-    append_cell(new TupleCellSpec(alias));
-  }
-  int cell_num() const
-  {
-    return static_cast<int>(cells_.size());
-  }
-  const TupleCellSpec* cell_at(int i) const
-  {
-    return cells_[i];
-  }
+
+  void append_cell(TupleCellSpec *cell) { cells_.emplace_back(cell); }
+
+  void append_cell(const char *alias) { append_cell(new TupleCellSpec(alias)); }
+
+  int cell_num() const { return static_cast<int>(cells_.size()); }
+
+  const TupleCellSpec *cell_at(int i) const { return cells_[i]; }
+
 
 private:
-  std::vector<TupleCellSpec*> cells_;
+  std::vector<TupleCellSpec *> cells_;
 };
 
 /**
  * @brief 元组的抽象描述
  * @ingroup Tuple
  */
-class Tuple 
+class Tuple
 {
 public:
-  Tuple() = default;
+  Tuple()          = default;
   virtual ~Tuple() = default;
 
   /**
@@ -97,7 +91,7 @@ public:
 
   /**
    * @brief 获取指定位置的Cell
-   * 
+   *
    * @param index 位置
    * @param[out] cell  返回的Cell
    */
@@ -124,7 +118,7 @@ public:
   virtual std::string to_string() const
   {
     std::string str;
-    const int cell_num = this->cell_num();
+    const int   cell_num = this->cell_num();
     for (int i = 0; i < cell_num - 1; i++) {
       Value cell;
       cell_at(i, cell);
@@ -141,25 +135,23 @@ public:
   }
 };
 
-class EmptyTuple : public Tuple {
+class EmptyTuple : public Tuple
+{
 public:
-  EmptyTuple() = default;
+  EmptyTuple()          = default;
   virtual ~EmptyTuple() = default;
 
-  int cell_num() const override {
-    return 0;
-  }
+  int  cell_num() const override { return 0; }
+
   void get_record(CompoundRecord &record) const override {}
+
   void set_record(CompoundRecord &record) override {}
+
   void set_right_record(CompoundRecord &record) override {}
 
-  RC cell_at(int index, Value &cell) const override {
-    return RC::SUCCESS;
-  }
+  RC cell_at(int index, Value &cell) const override { return RC::SUCCESS; }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell) const override {
-    return RC::SUCCESS;
-  }
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return RC::SUCCESS; }
 };
 
 /**
@@ -168,7 +160,7 @@ public:
  * @ingroup Tuple
  * @details 直接就是获取表中的一条记录
  */
-class RowTuple : public Tuple 
+class RowTuple : public Tuple
 {
 public:
   RowTuple() = default;
@@ -182,8 +174,8 @@ public:
 
   void set_record(Record *record)
   {
-    this->record_ = record;
-    const FieldExpr *filed_expr = this->speces_.back();
+    this->record_                    = record;
+    const FieldExpr *filed_expr      = this->speces_.back();
     const FieldMeta *null_filed_meta = filed_expr->field().meta();
     this->bitmap_.init(record->data() + null_filed_meta->offset(), null_filed_meta->len());
   }
@@ -197,11 +189,11 @@ public:
     }
   }
 
-  int cell_num() const override
-  {
-    return speces_.size();
-  }
+  int cell_num() const override { return speces_.size(); }
 
+  /**
+   * 根据index，获取第i个字段的值
+   */
   RC cell_at(int index, Value &cell) const override
   {
     if (index < 0 || index >= static_cast<int>(speces_.size())) {
@@ -209,7 +201,7 @@ public:
       return RC::INVALID_ARGUMENT;
     }
 
-    FieldExpr *field_expr = speces_[index];
+    FieldExpr       *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
     if (bitmap_.get_bit(index)) {
       cell.set_null();
@@ -220,14 +212,16 @@ public:
     return RC::SUCCESS;
   }
 
+  /**
+   * @brief 根据spec的fieldExpr，获取某条record对应field的值
+   * 目前只支持spec里存的Expression是fieldExpr
+   */
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
-//    const char *table_name = spec.table_name();
-//    const char *field_name = spec.field_name();
     assert(spec.expression()->type() == ExprType::FIELD);
-    FieldExpr *spec_field_expr = (FieldExpr *)spec.expression();
-    const char *table_name = spec_field_expr->table_name();
-    const char *field_name = spec_field_expr->field_name();
+    FieldExpr  *spec_field_expr = (FieldExpr *)spec.expression();
+    const char *table_name      = spec_field_expr->table_name();
+    const char *field_name      = spec_field_expr->field_name();
 
     if (0 != strcmp(table_name, table_->name())) {
       return RC::NOTFOUND;
@@ -235,7 +229,7 @@ public:
 
     for (size_t i = 0; i < speces_.size(); ++i) {
       const FieldExpr *field_expr = speces_[i];
-      const Field &field = field_expr->field();
+      const Field     &field      = field_expr->field();
       if (0 == strcmp(field_name, field.field_name())) {
         return cell_at(i, cell);
       }
@@ -255,15 +249,9 @@ public:
   }
 #endif
 
-  Record &record()
-  {
-    return *record_;
-  }
+  Record &record() { return *record_; }
 
-  const Record &record() const
-  {
-    return *record_;
-  }
+  const Record &record() const { return *record_; }
 
   void set_record(CompoundRecord &record) override
   {
@@ -277,15 +265,12 @@ public:
     assert(!record.empty());
     set_record(record);
   }
-  void get_record(CompoundRecord &record) const override
-  {
-    record.emplace_back(record_);
-  }
+  void get_record(CompoundRecord &record) const override { record.emplace_back(record_); }
 
 private:
-  common::Bitmap bitmap_;
-  Record *record_ = nullptr;
-  const Table *table_ = nullptr;
+  common::Bitmap           bitmap_;
+  Record                  *record_ = nullptr;
+  const Table             *table_  = nullptr;
   std::vector<FieldExpr *> speces_;
 };
 
@@ -297,7 +282,7 @@ private:
  * 投影也可以是很复杂的操作，比如某些字段需要做类型转换、重命名、表达式运算、函数计算等。
  * 当前的实现是比较简单的，只是选择部分字段，不做任何其他操作。
  */
-class ProjectTuple : public Tuple 
+class ProjectTuple : public Tuple
 {
 public:
   ProjectTuple() = default;
@@ -309,20 +294,15 @@ public:
     speces_.clear();
   }
 
-  void set_tuple(Tuple *tuple)
-  {
-    this->tuple_ = tuple;
-  }
+  void set_tuple(Tuple *tuple) { this->tuple_ = tuple; }
 
-  void add_cell_spec(TupleCellSpec *spec)
-  {
-    speces_.push_back(spec);
-  }
-  int cell_num() const override
-  {
-    return speces_.size();
-  }
+  void add_cell_spec(TupleCellSpec *spec) { speces_.push_back(spec); }
+  int  cell_num() const override { return speces_.size(); }
 
+  /**
+   * @brief 根据index，获取第i个投影列表达式的值
+   * ProjectTuple是最顶层，由plain_communicator调用
+   */
   RC cell_at(int index, Value &cell) const override
   {
     if (index < 0 || index >= static_cast<int>(speces_.size())) {
@@ -333,30 +313,20 @@ public:
     }
 
     const TupleCellSpec *spec = speces_[index];
-//    return tuple_->find_cell(*spec, cell);
     return spec->expression()->get_value(*tuple_, cell);
   }
 
+  /**
+   * 调用子tuple的find_cell，子tuple一般是row tuple或join tuple
+   * ProjectTuple是最顶层，目前没有能直接调ProjectTuple的find_cell的地方
+   */
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return tuple_->find_cell(spec, cell); }
 
-  RC find_cell(const TupleCellSpec &spec, Value &cell) const override
-  {
-    return tuple_->find_cell(spec, cell);
-  }
+  void get_record(CompoundRecord &record) const override { tuple_->get_record(record); }
 
-  void get_record(CompoundRecord &record) const override
-  {
-    tuple_->get_record(record);
-  }
+  void set_record(CompoundRecord &record) override { tuple_->set_record(record); }
 
-  void set_record(CompoundRecord &record) override
-  {
-    tuple_->set_record(record);
-  }
-
-  void set_right_record(CompoundRecord &record) override
-  {
-    tuple_->set_right_record(record);
-  }
+  void set_right_record(CompoundRecord &record) override { tuple_->set_right_record(record); }
 
 #if 0
   RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
@@ -370,25 +340,17 @@ public:
 #endif
 private:
   std::vector<TupleCellSpec *> speces_;
-  Tuple *tuple_ = nullptr;
+  Tuple                       *tuple_ = nullptr;
 };
 
-class ExpressionTuple : public Tuple 
+class ExpressionTuple : public Tuple
 {
 public:
-  ExpressionTuple(std::vector<std::unique_ptr<Expression>> &expressions)
-    : expressions_(expressions)
-  {
-  }
-  
-  virtual ~ExpressionTuple()
-  {
-  }
+  ExpressionTuple(std::vector<std::unique_ptr<Expression>> &expressions) : expressions_(expressions) {}
 
-  int cell_num() const override
-  {
-    return expressions_.size();
-  }
+  virtual ~ExpressionTuple() {}
+
+  int cell_num() const override { return expressions_.size(); }
 
   RC cell_at(int index, Value &cell) const override
   {
@@ -409,17 +371,10 @@ public:
     }
     return RC::NOTFOUND;
   }
-  void set_record(CompoundRecord &record) override
-  {
-  }
+  void set_record(CompoundRecord &record) override {}
 
-  void set_right_record(CompoundRecord &record) override
-  {
-  }
-  void get_record(CompoundRecord &record) const override
-  {
-  }
-
+  void set_right_record(CompoundRecord &record) override {}
+  void get_record(CompoundRecord &record) const override {}
 
 private:
   const std::vector<std::unique_ptr<Expression>> &expressions_;
@@ -429,21 +384,15 @@ private:
  * @brief 一些常量值组成的Tuple
  * @ingroup Tuple
  */
-class ValueListTuple : public Tuple 
+class ValueListTuple : public Tuple
 {
 public:
-  ValueListTuple() = default;
+  ValueListTuple()          = default;
   virtual ~ValueListTuple() = default;
 
-  void set_cells(const std::vector<Value> &cells)
-  {
-    cells_ = cells;
-  }
+  void set_cells(const std::vector<Value> &cells) { cells_ = cells; }
 
-  virtual int cell_num() const override
-  {
-    return static_cast<int>(cells_.size());
-  }
+  virtual int cell_num() const override { return static_cast<int>(cells_.size()); }
 
   virtual RC cell_at(int index, Value &cell) const override
   {
@@ -455,21 +404,12 @@ public:
     return RC::SUCCESS;
   }
 
-  virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
-  {
-    return RC::INTERNAL;
-  }
+  virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return RC::INTERNAL; }
 
-  void set_record(CompoundRecord &record) override
-  {
-  }
+  void set_record(CompoundRecord &record) override {}
 
-  void set_right_record(CompoundRecord &record) override
-  {
-  }
-  void get_record(CompoundRecord &record) const override
-  {
-  }
+  void set_right_record(CompoundRecord &record) override {}
+  void get_record(CompoundRecord &record) const override {}
 
 private:
   std::vector<Value> cells_;
@@ -480,25 +420,16 @@ private:
  * @ingroup Tuple
  * @details 在join算子中使用
  */
-class JoinedTuple : public Tuple 
+class JoinedTuple : public Tuple
 {
 public:
-  JoinedTuple() = default;
+  JoinedTuple()          = default;
   virtual ~JoinedTuple() = default;
 
-  void set_left(Tuple *left)
-  {
-    left_ = left;
-  }
-  void set_right(Tuple *right)
-  {
-    right_ = right;
-  }
+  void set_left(Tuple *left) { left_ = left; }
+  void set_right(Tuple *right) { right_ = right; }
 
-  int cell_num() const override
-  {
-    return left_->cell_num() + right_->cell_num();
-  }
+  int cell_num() const override { return left_->cell_num() + right_->cell_num(); }
 
   RC cell_at(int index, Value &value) const override
   {
@@ -539,7 +470,69 @@ public:
     left_->get_record(record);
     right_->get_record(record);
   }
+
 private:
-  Tuple *left_ = nullptr;
+  Tuple *left_  = nullptr;
   Tuple *right_ = nullptr;
+};
+
+class GroupTuple : public Tuple
+{
+public:
+  GroupTuple(
+      std::vector<std::unique_ptr<Expression>> &&aggr_exprs, std::vector<std::unique_ptr<Expression>> &&field_exprs)
+      : aggr_exprs_(std::move(aggr_exprs)),  field_exprs_(std::move(field_exprs))
+  {
+    aggr_counts_.resize(aggr_exprs_.size());
+    aggr_all_null_.resize(aggr_exprs_.size());
+    aggr_results_.resize(aggr_exprs_.size());
+    field_results_.resize(field_exprs_.size());
+  }
+
+  virtual ~GroupTuple() {}
+
+  void set_tuple(Tuple *tuple) { this->tuple_ = tuple; }
+
+  int cell_num() const override { return tuple_->cell_num(); }
+
+  RC cell_at(int index, Value &value) const override
+  {
+    if (tuple_ == nullptr) {
+      return RC::EMPTY;
+    }
+    return tuple_->cell_at(index, value);
+  }
+
+
+  /**
+   * @brief 根据spec的fieldExpr和aggr type，获取该field的aggr表达式的值
+   * 目前只支持spec里存的Expression是fieldExpr
+   * 由AggrFuncExpr的get_value或FieldExpr的get_value调用
+   * 而这两的get_value是ProjectTuple的cell_at调用
+   */
+  RC find_cell(const TupleCellSpec &spec, Value &value) const override;
+  void get_record(CompoundRecord &record) const override {}
+  void set_record(CompoundRecord &record) override {}
+  void set_right_record(CompoundRecord &record) override {}
+
+  void do_aggregate_first();
+
+  void do_aggregate();
+
+  void do_aggregate_done();
+
+private:
+  // sql执行顺序：record -> where -> group by -> order by -> having -> 投影
+  // 所以group by需要记录having和投影的字段计算结果，不需要记录where的字段
+  // 投影列和having的所有字段：
+  std::vector<std::unique_ptr<Expression>> aggr_exprs_; // 聚集表达式的字段
+  std::vector<std::unique_ptr<Expression>> field_exprs_;   // 非聚集表达式的字段
+
+  std::vector<bool> aggr_all_null_; // 和aggr_exprs_一一对应
+  std::vector<int>  aggr_counts_; // 和aggr_exprs_一一对应
+
+  std::vector<Value> aggr_results_; // 和aggr_exprs_一一对应
+  std::vector<Value> field_results_;  // 和field_exprs_一一对应
+
+  Tuple *tuple_ = nullptr;
 };
