@@ -101,7 +101,11 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         LIKE
         UNIQUE
         ORDER
+        GROUP
         BY
+        HAVING
+        EXISTS
+        IN
         NULL_T
         AGGR_MAX
         AGGR_MIN
@@ -173,6 +177,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value_list>          row_value
 %type <row_value_list>      row_value_list
 %type <condition_list>      where
+%type <condition_list>      having
 %type <condition_list>      condition_list
 %type <condition_list>      inner_condition_list
 %type <relation_list>       select_from
@@ -180,6 +185,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <rel_attr_list>       attr_list
 %type <order_attr_list>     order_by
 %type <order_attr_list>     sort_list
+%type <rel_attr_list>       group_by
+%type <rel_attr_list>       group_list
 %type <rel_index_attr_list> index_attr_list
 %type <expression>          expression
 %type <expression_list>     expression_list
@@ -652,7 +659,7 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
     }
-    | SELECT select_attr FROM select_from where order_by
+    | SELECT select_attr FROM select_from where group_by having order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -672,8 +679,16 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $5;
       }
       if ($6 != nullptr) {
-        $$->selection.order_by_cols.swap(*$6);
+        $$->selection.group_by_cols.swap(*$6);
         delete $6;
+      }
+      if ($7 != nullptr) {
+        $$->selection.having_conditions.swap(*$7);
+        delete $7;
+      }
+      if ($8 != nullptr) {
+        $$->selection.order_by_cols.swap(*$8);
+        delete $8;
       }
     }
     ;
@@ -1265,6 +1280,42 @@ where:
       $$ = $2;  
     }
     ;
+
+having:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | HAVING condition_list {
+      $$ = $2;
+    }
+    ;
+
+group_list:
+	rel_attr
+    {
+        $$ = new std::vector<RelAttrSqlNode>;
+        $$->emplace_back(*$1);
+        delete $1;
+    }
+	| rel_attr COMMA group_list
+	{
+        $$ = $3;
+        $$->emplace_back(*$1);
+        delete $1;
+	}
+	;
+group_by:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | GROUP BY group_list {
+      $$ = $3;
+      std::reverse($$->begin(), $$->end());
+    }
+    ;
+
 sort_unit:
 	rel_attr
 	{
@@ -1321,6 +1372,7 @@ order_by:
       std::reverse($$->begin(), $$->end());
     }
     ;
+
 
 condition_list:
     /* empty */

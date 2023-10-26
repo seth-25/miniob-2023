@@ -94,7 +94,7 @@ RC GroupTuple::find_cell(const TupleCellSpec &spec, Value &value) const
     return RC::EMPTY;
   }
   assert(spec.expression()->type() == ExprType::FIELD);
-  FieldExpr *field_expr = (FieldExpr *)spec.expression();
+  FieldExpr *field_expr = (FieldExpr *)spec.expression(); // 查询的field
   if (field_expr->with_aggr()) {
     for (size_t i = 0; i < aggr_exprs_.size(); ++i) {
       AggrFuncExpr *aggr_expr = (AggrFuncExpr *)(aggr_exprs_[i].get());
@@ -105,9 +105,9 @@ RC GroupTuple::find_cell(const TupleCellSpec &spec, Value &value) const
       }
     }
   }
-  for (size_t i = 0; i < field_exprs_.size(); ++i) {
-    FieldExpr *file_expr = (FieldExpr *)field_exprs_[i].get();
-    if (file_expr->field().equal(file_expr->field())) {
+  for (size_t i = 0; i < field_exprs_.size(); ++i) {  // 所有需要group by的field
+    FieldExpr *expr = (FieldExpr *)field_exprs_[i].get();
+    if (field_expr->field().equal(expr->field())) {
       value = field_results_[i];
       LOG_INFO("Field is found in field_exprs");
       return RC::SUCCESS;
