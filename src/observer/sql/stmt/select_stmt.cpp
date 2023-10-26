@@ -322,25 +322,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
       return rc;
     }
   }
-  // 检查group by 是否合法
-  if (!aggr_exprs.empty() && !field_exprs.empty()) {  // 聚集和单个字段混合，根据题意，如果不是group by，返回fail
-    if (select_sql.group_by_cols.empty()) { // 不存在group by
-      return RC::SQL_SYNTAX;
-    }
-    for (auto& field_expr : field_exprs) {  // 投影和having中非聚集函数内的字段不在group by里
-      bool in_group_by = false;
-      std::vector<std::unique_ptr<FieldExpr>>&group_by_field_exprs = group_by_stmt->group_by_field_exprs();
-      for (auto& group_by_field_expr : group_by_field_exprs) {
-        if (group_by_field_expr->field().equal( ((FieldExpr*)field_expr.get())->field() )) {
-          in_group_by = true;
-          break;
-        }
-      }
-      if (!in_group_by) {
-        return RC::SQL_SYNTAX;
-      }
-    }
-  }
+
 
   // 7. 创建order by for group by statement
   OrderByStmt* order_by_for_group_stmt = nullptr;

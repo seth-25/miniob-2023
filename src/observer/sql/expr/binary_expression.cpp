@@ -55,7 +55,7 @@ RC BinaryExpression::calc_value(const Value &left_value, const Value &right_valu
   else {
     right_float = right_value.get_float();
   }
-  float ans;
+  float ans = 0;
   switch (op_) {
     case ExprOp::ADD_OP: {
       ans = left_float + right_float;
@@ -96,6 +96,7 @@ RC BinaryExpression::calc_value(const Value &left_value, const Value &right_valu
     } break;
     case UNDEFINED:
     case DATES:
+    case NULLS:
     case BOOLEANS: {
       return RC::UNIMPLENMENT;
     } break;

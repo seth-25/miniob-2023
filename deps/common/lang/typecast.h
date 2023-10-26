@@ -31,5 +31,6 @@ char *int_to_char(const char *value_data);
 char *int_to_float(const char *value_data);
 char *float_to_char(const char *value_data);
 char *float_to_int(const char *value_data);
+char *float_to_float(const char *value_data);
 
 }  // namespace common

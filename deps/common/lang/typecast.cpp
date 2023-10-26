@@ -62,7 +62,7 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
         float_to_int,  // float to int
         nullptr,
         nullptr,
-        nullptr,
+        float_to_float, // float to float
         nullptr
     },
     { // booleans
@@ -127,6 +127,14 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
     char *res = static_cast<char *>(malloc(sizeof(int)));
     int num = *(float*) value_data + 0.5;
     memcpy(res, &num, sizeof(int));
+    return res;
+  }
+
+  char *float_to_float(const char *value_data)
+  {
+    assert(nullptr != value_data);
+    char *res = static_cast<char *>(malloc(sizeof(float)));
+    memcpy(res, (float *)value_data, sizeof(int));
     return res;
   }
 }
