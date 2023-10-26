@@ -29,6 +29,13 @@ RC BinaryExpression::calc_value(const Value &left_value, const Value &right_valu
   if (target_type == AttrType::UNDEFINED) {
     return RC::UNIMPLENMENT;
   }
+
+  if (left_value.is_null()||right_value.is_null())
+  {
+    value.set_null();
+    return rc;
+  }
+
   const AttrType left_type = left_value.attr_type();
   const AttrType right_type = right_value.attr_type();
   assert(left_->value_type() == AttrType::INTS || left_->value_type() == AttrType::FLOATS || left_->value_type() == AttrType::CHARS);
@@ -62,8 +69,10 @@ RC BinaryExpression::calc_value(const Value &left_value, const Value &right_valu
     case ExprOp::DIV_OP: {
       if (abs(right_float) < 1e-6) {
         // todo NULL
+        value.set_null();
+        return rc;
         LOG_WARN("0作为除数");
-        ans = numeric_limits<float>::max();
+        //ans = numeric_limits<float>::max();
 //        return RC::UNIMPLENMENT;
       }
       else {

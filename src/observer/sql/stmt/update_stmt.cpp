@@ -69,7 +69,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 
     const TableMeta &table_meta = table->table_meta();
     const int sys_field_num = table_meta.sys_field_num();
-    const int field_num = table_meta.field_num();
+    const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
     // 找到属性对应字段，sys_field_num到field_num之间是用户创建的field
     for (int j = sys_field_num; j < field_num; j ++ ) {
       const FieldMeta *field_meta = table_meta.field(j);
@@ -82,6 +82,18 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       // 检查类型
       const AttrType field_type = field_meta->type();
       const AttrType value_type = value.attr_type();
+      if (AttrType::NULLS == value_type) {
+        if (!field_meta->nullable()) {
+          LOG_WARN("field type mismatch. can not be null. table=%s, field=%s, field type=%d, value_type=%d",
+              table_name,
+              field_meta->name(),
+              field_type,
+              value_type);
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+        fields.emplace_back(field_meta);
+        continue;
+      }
       if (field_type != value_type && !common::type_cast_check(value_type, field_type) && !TextHelper::isInsertText(field_type, value_type)) {
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
         table_name, field_meta->name(), field_type, value_type);

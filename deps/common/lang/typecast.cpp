@@ -18,24 +18,27 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
         nullptr,
         nullptr,
         nullptr,
+        nullptr,
     },
     { // chars
         nullptr,  // char to undefined
         nullptr,  // char to char
         char_to_int,  // char to int
-        nullptr,  // char to date
-        nullptr,  // char to text
+        nullptr,
+        nullptr,
+        nullptr,
         char_to_float,  // char to float
-        nullptr,  // char to boolean
+        nullptr,
     },
     { // ints
-        nullptr,  // int to undefined
+        nullptr,
         int_to_char,  // int to char
-        nullptr,  // int to int
-        nullptr,  // int to date
-        nullptr,  // int to text
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
         int_to_float,  // int to float
-        nullptr,  // int to boolean
+        nullptr,
     },
     { // dates
         nullptr,
@@ -45,26 +48,20 @@ cast_func_ptr type_cast_to[AttrType::BOOLEANS + 1][AttrType::BOOLEANS + 1] = {
         nullptr,
         nullptr,
         nullptr,
-    },
-    { // texts
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
-        nullptr,
         nullptr,
     },
     { // floats
-        nullptr,  // float to undefined
+        nullptr,
         float_to_char,  // float to char
         float_to_int,  // float to int
-        nullptr,  // float to date
-        nullptr,  // float to text
-        nullptr,   // float to float
-        nullptr,  // float to boolean
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
+        nullptr,
     },
     { // booleans
+        nullptr,
         nullptr,
         nullptr,
         nullptr,

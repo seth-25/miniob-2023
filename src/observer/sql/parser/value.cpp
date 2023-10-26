@@ -20,10 +20,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/lang/typecast.h"
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "text", "floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "nulls", "text", "floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
+  assert(type!=NULLS);
   if (type >= UNDEFINED && type <= FLOATS) {
     return ATTR_TYPE_NAME[type];
   }
@@ -37,6 +38,10 @@ AttrType attr_type_from_string(const char *s)
     }
   }
   return UNDEFINED;
+}
+Value::Value()
+{
+  set_null();
 }
 
 Value::Value(int val)
@@ -72,10 +77,10 @@ void Value::set_data(char *data, int length)
       set_string(data, length);
       break;
     case DATES:
-    case INTS:
+    case INTS: {
       num_value_.int_value_ = *(int *)data;
       length_ = length;
-      break;
+    } break;
     case FLOATS: {
       num_value_.float_value_ = *(float *)data;
       length_ = length;
@@ -88,6 +93,10 @@ void Value::set_data(char *data, int length)
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
   }
+}
+void Value::set_null()
+{
+  attr_type_ = AttrType::NULLS;
 }
 void Value::set_int(int val)
 {
@@ -197,6 +206,9 @@ std::string Value::to_string() const
     case CHARS:
       os << str_value_;
       break;
+    case NULLS: {
+      os << "NULL";
+    } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
     } break;
@@ -327,6 +339,10 @@ float Value::get_float() const  // TODO 考虑DATES
     }
   }
   return 0;
+}
+bool Value::is_null() const
+{
+  return AttrType::NULLS == attr_type_;
 }
 
 std::string Value::get_string() const
