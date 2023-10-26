@@ -96,27 +96,29 @@ extern int yydebug;
     UNIQUE = 302,
     ORDER = 303,
     BY = 304,
-    AGGR_MAX = 305,
-    AGGR_MIN = 306,
-    AGGR_COUNT = 307,
-    AGGR_AVG = 308,
-    AGGR_SUM = 309,
-    LENGTH = 310,
-    ROUND = 311,
-    DATE_FORMAT = 312,
-    AS = 313,
-    EQ = 314,
-    LT = 315,
-    GT = 316,
-    LE = 317,
-    GE = 318,
-    NE = 319,
-    NUMBER = 320,
-    FLOAT = 321,
-    ID = 322,
-    SSS = 323,
-    DATE_STR = 324,
-    UMINUS = 325
+    NULL_T = 305,
+    AGGR_MAX = 306,
+    AGGR_MIN = 307,
+    AGGR_COUNT = 308,
+    AGGR_AVG = 309,
+    AGGR_SUM = 310,
+    LENGTH = 311,
+    ROUND = 312,
+    DATE_FORMAT = 313,
+    AS = 314,
+    IS = 315,
+    EQ = 316,
+    LT = 317,
+    GT = 318,
+    LE = 319,
+    GE = 320,
+    NE = 321,
+    NUMBER = 322,
+    FLOAT = 323,
+    ID = 324,
+    SSS = 325,
+    DATE_STR = 326,
+    UMINUS = 327
   };
 #endif
 
@@ -124,7 +126,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 123 "yacc_sql.y"
+#line 125 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -155,7 +157,7 @@ union YYSTYPE
   enum AggrFuncType                 aggr_func_type;
 
 
-#line 159 "yacc_sql.hpp"
+#line 161 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
