@@ -190,6 +190,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <sql_node>            update_stmt
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
+%type <sql_node>            create_table_select_stmt
 %type <sql_node>            drop_table_stmt
 %type <sql_node>            show_tables_stmt
 %type <sql_node>            show_index_stmt
@@ -243,6 +244,7 @@ command_wrapper:
   | update_stmt
   | delete_stmt
   | create_table_stmt
+  | create_table_select_stmt
   | drop_table_stmt
   | show_tables_stmt
   | show_index_stmt
@@ -391,6 +393,18 @@ create_table_stmt:    /*create table 语句的语法解析树*/
       delete $5;
     }
     ;
+create_table_select_stmt:
+     CREATE TABLE ID AS select_stmt
+     {
+        $$ = new ParsedSqlNode(SCF_CREATE_TABLE_SELECT);
+        CreateTableSelectSqlNode &create_table_select = $$->create_table_select;
+        create_table_select.relation_name = $3;
+        free($3);
+
+        create_table_select.selection = $5->selection;
+        delete $5;
+     }
+     ;
 attr_def_list:
     /* empty */
     {

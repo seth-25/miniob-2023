@@ -23,6 +23,8 @@ std::string physical_operator_type_name(PhysicalOperatorType type)
       return "ORDER_BY";
     case PhysicalOperatorType::INDEX_SCAN:
       return "INDEX_SCAN";
+    case PhysicalOperatorType::CREATE_SELECT:
+      return "CREATE_SELECT";
     case PhysicalOperatorType::NESTED_LOOP_JOIN:
       return "NESTED_LOOP_JOIN";
     case PhysicalOperatorType::CACHE_NESTED_LOOP_JOIN:

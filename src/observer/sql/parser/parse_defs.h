@@ -272,6 +272,17 @@ struct CreateTableSqlNode
 };
 
 /**
+ * @brief 描述一个create table from select语句
+ * @ingroup SQLParser
+ * @details 这里也做了很多简化。
+ */
+struct CreateTableSelectSqlNode
+{
+  std::string                  relation_name;         ///< Relation name
+  SelectSqlNode                selection;               ///<查询语句
+};
+
+/**
  * @brief 描述一个drop table语句
  * @ingroup SQLParser
  */
@@ -385,6 +396,7 @@ enum SqlCommandFlag
   SCF_UPDATE,
   SCF_DELETE,
   SCF_CREATE_TABLE,
+  SCF_CREATE_TABLE_SELECT,
   SCF_DROP_TABLE,
   SCF_CREATE_INDEX,
   SCF_DROP_INDEX,
@@ -417,6 +429,7 @@ public:
   DeleteSqlNode             deletion;
   UpdateSqlNode             update;
   CreateTableSqlNode        create_table;
+  CreateTableSelectSqlNode  create_table_select;
   DropTableSqlNode          drop_table;
   CreateIndexSqlNode        create_index;
   DropIndexSqlNode          drop_index;
