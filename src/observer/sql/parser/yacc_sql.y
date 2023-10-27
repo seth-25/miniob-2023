@@ -108,6 +108,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         EXISTS
         IN
         NULL_T
+        VIEW
         AGGR_MAX
         AGGR_MIN
         AGGR_COUNT
@@ -197,6 +198,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <sql_node>            update_stmt
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
+%type <sql_node>            create_view_stmt
 %type <sql_node>            create_table_select_stmt
 %type <sql_node>            drop_table_stmt
 %type <sql_node>            show_tables_stmt
@@ -251,6 +253,7 @@ command_wrapper:
   | update_stmt
   | delete_stmt
   | create_table_stmt
+  | create_view_stmt
   | create_table_select_stmt
   | drop_table_stmt
   | show_tables_stmt
@@ -442,6 +445,68 @@ create_table_select_stmt:
         delete $9;
      }
      |CREATE TABLE ID LBRACE attr_def attr_def_list RBRACE select_stmt
+     {
+        $$ = new ParsedSqlNode(SCF_CREATE_TABLE_SELECT);
+        CreateTableSelectSqlNode &create_table_select = $$->create_table_select;
+        create_table_select.relation_name = $3;
+        free($3);
+
+        std::vector<AttrInfoSqlNode> *src_attrs = $6;
+
+        if (src_attrs != nullptr) {
+          create_table_select.attr_infos.swap(*src_attrs);
+        }
+        create_table_select.attr_infos.emplace_back(*$5);
+        std::reverse(create_table_select.attr_infos.begin(), create_table_select.attr_infos.end());
+        delete $5;
+
+
+        create_table_select.selection = $8->selection;
+        delete $8;
+     }
+     ;
+create_view_stmt:
+     CREATE VIEW ID AS select_stmt
+     {
+        $$ = new ParsedSqlNode(SCF_CREATE_TABLE_SELECT);
+        CreateTableSelectSqlNode &create_table_select = $$->create_table_select;
+        create_table_select.relation_name = $3;
+        free($3);
+
+        create_table_select.selection = $5->selection;
+        delete $5;
+     }
+     |CREATE VIEW ID select_stmt
+       {
+          $$ = new ParsedSqlNode(SCF_CREATE_TABLE_SELECT);
+          CreateTableSelectSqlNode &create_table_select = $$->create_table_select;
+          create_table_select.relation_name = $3;
+          free($3);
+
+          create_table_select.selection = $4->selection;
+          delete $4;
+       }
+     |CREATE VIEW ID LBRACE attr_def attr_def_list RBRACE AS select_stmt
+     {
+        $$ = new ParsedSqlNode(SCF_CREATE_TABLE_SELECT);
+        CreateTableSelectSqlNode &create_table_select = $$->create_table_select;
+        create_table_select.relation_name = $3;
+        free($3);
+
+        std::vector<AttrInfoSqlNode> *src_attrs = $6;
+
+        if (src_attrs != nullptr) {
+          create_table_select.attr_infos.swap(*src_attrs);
+        }
+        create_table_select.attr_infos.emplace_back(*$5);
+        std::reverse(create_table_select.attr_infos.begin(), create_table_select.attr_infos.end());
+        delete $5;
+
+
+        create_table_select.selection = $9->selection;
+        delete $9;
+     }
+     |CREATE VIEW ID LBRACE attr_def attr_def_list RBRACE select_stmt
      {
         $$ = new ParsedSqlNode(SCF_CREATE_TABLE_SELECT);
         CreateTableSelectSqlNode &create_table_select = $$->create_table_select;
