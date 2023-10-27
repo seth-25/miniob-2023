@@ -52,7 +52,7 @@ RC UpdatePhysicalOperator::next()
       LOG_WARN("failed to make update record: %s", strrc(rc));
       return rc;
     }
-    rc = trx_->update_record(table_, old_record, new_record); //todo
+    rc = trx_->update_record(table_, old_record, new_record, fields); //todo
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to update record: %s", strrc(rc));
       return rc;

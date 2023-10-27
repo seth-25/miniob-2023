@@ -38,6 +38,7 @@ enum class LogicalOperatorType
   GROUP_BY,   ///< group_by
   PREDICATE,  ///< 过滤，就是谓词
   PROJECTION, ///< 投影，就是select
+  CREATE_SELECT,  ///< create table select
   JOIN,       ///< 连接
   INSERT,     ///< 插入
   DELETE,     ///< 删除，删除可能会有子查询

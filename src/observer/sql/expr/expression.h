@@ -196,6 +196,12 @@ public:
 //   */
 //  static RC get_field_from_exprs(const Expression* expr, std::vector<Field> &fields);
 
+  /**最上层输入为true
+   * 是否是nullable的
+   * @return res_expr
+   */
+  static RC get_field_isnull_from_exprs(const Expression* expr, bool &nullable);
+
 private:
   Field field_;
 

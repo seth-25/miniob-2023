@@ -207,7 +207,13 @@ public:
       cell.set_null();
     } else {
       cell.set_type(field_meta->type());
-      cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+      if (field_meta->type() == TEXTS) {
+        TextRecord &text_record = *(TextRecord*)(this->record_->data() + field_meta->offset());
+        char* str = this->record_->get_text_mems(text_record.text_id);
+        cell.set_data(str, strlen(str));
+      } else {
+        cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+      }
     }
     return RC::SUCCESS;
   }

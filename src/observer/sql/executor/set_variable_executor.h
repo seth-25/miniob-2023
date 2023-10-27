@@ -67,7 +67,7 @@ private:
       bool_value = var_value.get_int() != 0;
     } else if (var_value.attr_type() == AttrType::FLOATS) {
       bool_value = var_value.get_float() != 0.0;
-    } else if (var_value.attr_type() == AttrType::CHARS) {
+    } else if (var_value.attr_type() == AttrType::CHARS || var_value.attr_type() == AttrType::TEXTS) {
 
       std::string true_strings[] = {
           "true",

@@ -230,7 +230,7 @@ RC Table::open(const char *meta_file, const char *base_dir)
 RC Table::insert_record(Record &record)
 {
   RC rc = RC::SUCCESS;
-  rc = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid());
+  rc    = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid(), &table_meta_);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Insert record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
     return rc;
@@ -313,7 +313,7 @@ const TableMeta &Table::table_meta() const
   return table_meta_;
 }
 
-RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *record_data)
+RC Table::value_cast_record(const Value &value, const FieldMeta *field, char *record_data, std::vector<char*> &text_mems)
 {
   const FieldMeta *null_field = table_meta_.null_bitmap_field();
   common::Bitmap bitmap(record_data + null_field->offset(), null_field->len());
@@ -329,7 +329,8 @@ RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *re
   bitmap.clear_bit(idx);
 
   const char *cast_data = value.data();
-  if (field->type() != value.attr_type()) { // 进行type cast
+  if (field->type() != value.attr_type() &&
+      !TextHelper::isInsertText(field->type(), value.attr_type())) {  // 进行type cast
     cast_data = common::type_cast_to[value.attr_type()][field->type()](value.data());
     if (cast_data == nullptr) {
       LOG_ERROR("Typecast error.");
@@ -344,7 +345,22 @@ RC Table::value_cast_record(const Value& value, const FieldMeta *field, char *re
       copy_len = data_len + 1;
     }
   }
-  memcpy(record_data + field->offset(), cast_data, copy_len);
+  if (field->type() == TEXTS) {
+    int text_length = value.text_length();
+//    if (text_length > 4096) text_length = 4096;
+    if (text_length > TEXT_MAX_LEN) {
+      LOG_TRACE("Text too long.");
+      return RC::TEXT_TOO_LONG;
+    }
+    copy_len = text_length + 1;
+    char *text_mem = (char *)malloc(copy_len);
+    memcpy(text_mem, cast_data, copy_len);
+    *(char **)(record_data + field->offset()) = text_mem;
+    *(text_mem + text_length) = '\0';
+    text_mems.push_back(text_mem);
+  } else {
+    memcpy(record_data + field->offset(), cast_data, copy_len);
+  }
 
   return RC::SUCCESS;
 }
@@ -360,7 +376,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   const int normal_field_start_index = table_meta_.sys_field_num();
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-    const Value &value = values[i];
+    const Value  &value = values[i];
     if (AttrType::NULLS == value.attr_type()) {
       if (!field->nullable()) {
         LOG_WARN("field type mismatch. can not be null. table=%s, field=%s, field type=%d, value_type=%d",
@@ -372,13 +388,15 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
       }
       continue;
     }
-    if (field->type() != value.attr_type() && !common::type_cast_check(value.attr_type(), field->type())) {
+    if (field->type() != value.attr_type() && !common::type_cast_check(value.attr_type(), field->type()) &&
+        !TextHelper::isInsertText(field->type(), value.attr_type())) {
       LOG_ERROR("Invalid value type. table name =%s, field name=%s, type=%d, but given=%d",
                 table_meta_.name(), field->name(), field->type(), value.attr_type());
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     }
   }
 
+  std::vector<char*> text_mems;
   // 复制所有字段的值
   int record_size = table_meta_.record_size();
   char *record_data = (char *)malloc(record_size);
@@ -387,7 +405,7 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
     const Value &value = values[i];
-    rc = value_cast_record(value, field, record_data);
+    rc = value_cast_record(value, field, record_data, text_mems);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Value cast record error.");
       return rc;
@@ -395,6 +413,13 @@ RC Table::make_record(int value_num, const Value *values, Record &record)
   }
 
   record.set_data_owner(record_data, record_size);
+  if (!text_mems.empty()) {
+    auto text_mems_to_delete = new TextMems;
+    text_mems_to_delete->text_mems = std::move(text_mems);
+    record.set_text_mems(text_mems_to_delete);
+  }
+
+
   return RC::SUCCESS;
 }
 
@@ -437,6 +462,13 @@ RC Table::create_index(Trx *trx, bool is_unique, std::vector<const FieldMeta *> 
   if (common::is_blank(index_name) || field_metas.empty()) {
     LOG_INFO("Invalid input arguments, table name is %s, index_name is blank or attribute_name is blank", name());
     return RC::INVALID_ARGUMENT;
+  }
+
+  for (const auto &field: field_metas) {
+    if (field->type() == TEXTS) {
+      LOG_ERROR("Invalid input arguments, table name is %s, index field is text", name());
+      return RC::INVALID_ARGUMENT;
+    }
   }
 
   IndexMeta new_index_meta;
@@ -537,11 +569,14 @@ RC Table::delete_record(const Record &record)
   RC rc = RC::SUCCESS;
   for (Index *index : indexes_) {
     rc = index->delete_entry(record.data(), &record.rid());
-    ASSERT(RC::SUCCESS == rc, 
-           "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
-           name(), index->index_meta().name(), record.rid().to_string().c_str(), strrc(rc));
+    ASSERT(RC::SUCCESS == rc,
+        "failed to delete entry from index. table name=%s, index name=%s, rid=%s, rc=%s",
+        name(),
+        index->index_meta().name(),
+        record.rid().to_string().c_str(),
+        strrc(rc));
   }
-  rc = record_handler_->delete_record(&record.rid());
+  rc = record_handler_->delete_record(&record.rid(), &table_meta_);
   return rc;
 }
 
@@ -550,38 +585,52 @@ RC Table::make_record_from_old_record(
 {
   RC rc = RC::SUCCESS;
 
-
   int record_size = table_meta_.record_size();
 
+  std::vector<char*> text_mems;
   char *new_data = static_cast<char *>(malloc(record_size));
   memcpy(new_data, old_record.data(), record_size);
 
-  for (size_t i = 0; i < fields.size(); i ++ ) {
+  for (size_t i = 0; i < fields.size(); i++) {
     const FieldMeta *field = fields[i];
-    const Value value = values[i];
-    rc = value_cast_record(value, field, new_data);
+    const Value      value = values[i];
+    if (field->type() == TEXTS) {
+      auto &text_record = *(TextRecord*)(old_record.data() + field->offset());
+      while (text_mems.size() != text_record.text_id) {
+        text_mems.push_back(nullptr);
+      }
+    }
+    rc = value_cast_record(value, field, new_data, text_mems);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Value cast record error.");
       return rc;
     }
   }
 
+
   new_record.set_rid(old_record.rid());
   new_record.set_data_owner(new_data, record_size);
-//  new_record.set_data(new_data, record_size);
+  //  new_record.set_data(new_data, record_size);
+
+  if (!text_mems.empty()) {
+    auto text_mems_to_delete = new TextMems;
+    text_mems_to_delete->text_mems = std::move(text_mems);
+    new_record.set_text_mems(text_mems_to_delete);
+  }
+
   return RC::SUCCESS;
 }
 
-RC Table::update_record(const Record &old_record, Record &new_record)
+RC Table::update_record(const Record &old_record, Record &new_record, const vector<const FieldMeta*>& fields)
 {
 
   RC rc = RC::SUCCESS;
-  rc = delete_entry_of_indexes(old_record.data(), old_record.rid(), false);
+  rc    = delete_entry_of_indexes(old_record.data(), old_record.rid(), false);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to delete index data when update index. table name=%s, rc=%d:%s",
                 name(), rc, strrc(rc));
   }
-  rc = record_handler_->update_record(&new_record);
+  rc = record_handler_->update_record(&new_record, fields);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Update record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
     return rc;
@@ -602,7 +651,7 @@ RC Table::update_record(const Record &old_record, Record &new_record)
                 name(), rc2, strrc(rc2));
     }
     // 还原成旧的record
-    rc2 = record_handler_->update_record(&old_record);
+    rc2 = record_handler_->update_record(&old_record, fields);
     if (rc2 != RC::SUCCESS) {
       LOG_PANIC("Failed to rollback record data when insert index entries failed. table name=%s, rc=%d:%s",
                 name(), rc2, strrc(rc2));

@@ -53,13 +53,16 @@ RC OrderByPhysicalOperator::fetch_and_sort_table()
     pair_sort_table.emplace_back(std::make_pair(pair_cell, index++));
     // store child records
     CompoundRecord cpd_rcd;
+    CompoundRecord cpd_rcd_after;
     children_[0]->current_tuple()->get_record(cpd_rcd);
     // need to deep copy the rcd and push back to rht
     // remember to delete them in dtor
     for (auto &rcd_ptr : cpd_rcd) {
-      rcd_ptr = new Record(*rcd_ptr);
+      Record *rcd_ptr_after = new Record();
+      rcd_ptr_after->copy_data(*rcd_ptr);
+      cpd_rcd_after.emplace_back(rcd_ptr_after);
     }
-    st_.emplace_back(cpd_rcd);
+    st_.emplace_back(cpd_rcd_after);
   }
   if (RC::RECORD_EOF != rc) {
     LOG_ERROR("Fetch Table Error In OrderByPhysicalOperator. RC: %d", rc);

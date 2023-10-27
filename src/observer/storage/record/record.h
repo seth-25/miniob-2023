@@ -27,6 +27,17 @@ See the Mulan PSL v2 for more details. */
 
 class Field;
 
+struct TextRecord {
+  int32_t text_id; /// 是表的第几个text
+  int32_t text_len; /// 不算\0
+  PageNum page_num;
+};
+
+struct TextMems {
+  std::vector<char*> text_mems;
+};
+
+
 /**
  * @brief 标识一个记录的位置
  * 一个记录是放在某个文件的某个页面的某个槽位。这里不记录文件信息，记录页面和槽位信息
@@ -82,6 +93,8 @@ struct RID
   }
 };
 
+
+
 /**
  * @brief 表示一个记录
  * 当前的记录都是连续存放的空间（内存或磁盘上）。
@@ -94,48 +107,50 @@ public:
   Record() = default;
   ~Record()
   {
-    if (owner_ && data_ != nullptr) {
-      free(data_);
-      data_ = nullptr;
+    clear();
+  }
+
+  void clearText() {
+    if (text_mems_) {
+      for(auto mem: text_mems_->text_mems) {
+        if (mem) {
+          free(mem);
+        }
+      }
+      delete text_mems_;
+      text_mems_ = nullptr;
     }
   }
+
   void clear() {
     if (owner_ && data_ != nullptr) {
+      clearText();
       free(data_);
       data_ = nullptr;
     }
   }
 
-  Record(const Record &other)
-  {
+  void copy_data(const Record &other) {
+    clear();
     rid_   = other.rid_;
     data_  = other.data_;
     len_   = other.len_;
-    owner_ = other.owner_;
+    owner_ = true;
 
-    if (other.owner_) {
-      char *tmp = (char *)malloc(other.len_);
-      ASSERT(nullptr != tmp, "failed to allocate memory. size=%d", other.len_);
-      memcpy(tmp, other.data_, other.len_);
-      data_ = tmp;
-    }
+    char *tmp = (char *)malloc(len_);
+    ASSERT(nullptr != tmp, "failed to allocate memory. size=%d", other.len_);
+    memcpy(tmp, other.data_, other.len_);
+    data_ = tmp;
+
   }
 
-  Record &operator=(const Record &other)
-  {
-    if (this == &other) {
-      return *this;
-    }
-
-    this->~Record();
-    new (this) Record(other); // placement new
-    return *this;
-  }
 
   void set_data(char *data, int len = 0)
   {
     this->data_ = data;
     this->len_  = len;
+
+    clearText();
   }
   void set_data_owner(char *data, int len)
   {
@@ -146,6 +161,13 @@ public:
     this->len_   = len;
     this->owner_ = true;
   }
+  void set_text_mems(TextMems* text_mems) {
+    this->text_mems_ = text_mems;
+  }
+  char* get_text_mems(int text_id) const {
+    return text_mems_->text_mems[text_id];
+  }
+
 
   char       *data() { return this->data_; }
   const char *data() const { return this->data_; }
@@ -164,8 +186,11 @@ private:
   RID rid_;
 
   char *data_  = nullptr;
-  int   len_   = 0;       /// 如果不是record自己来管理内存，这个字段可能是无效的
   bool  owner_ = false;   /// 表示当前是否由record来管理内存
+  int   len_   = 0;       /// 如果不是record自己来管理内存，这个字段可能是无效的
+
+
+  TextMems* text_mems_ = nullptr; /// text用，因为要删除申请的string的空间
 };
 
 typedef std::vector<Record *> CompoundRecord;

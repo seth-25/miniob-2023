@@ -60,7 +60,7 @@ RC insert_record_from_file(Table *table,
     const FieldMeta *field = table->table_meta().field(i + sys_field_num);
 
     std::string &file_value = file_values[i];
-    if (field->type() != CHARS) {
+    if (field->type() != CHARS && field->type() != TEXTS) {
       common::strip(file_value);
     }
 
@@ -95,9 +95,10 @@ RC insert_record_from_file(Table *table,
           record_values[i].set_float(float_value);
         }
       } break;
-      case CHARS: {
+      case TEXTS:
+      case CHARS:
         record_values[i].set_string(file_value.c_str());
-      } break;
+        break;
       default: {
         errmsg << "Unsupported field type to loading: " << field->type();
         rc = RC::SCHEMA_FIELD_TYPE_MISMATCH;

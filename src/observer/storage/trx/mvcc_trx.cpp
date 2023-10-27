@@ -185,7 +185,7 @@ RC MvccTrx::delete_record(Table * table, Record &record)
   return RC::SUCCESS;
 }
 
-RC MvccTrx::update_record(Table *table, Record &old_record, Record &new_record) {
+RC MvccTrx::update_record(Table *table, Record &old_record, Record &new_record, const vector<const FieldMeta*>& fields) {
   // todo
   return RC::EMPTY;
 }

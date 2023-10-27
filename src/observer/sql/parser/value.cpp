@@ -20,7 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/string.h"
 #include "common/lang/typecast.h"
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "nulls", "floats", "booleans"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "dates", "nulls", "text", "floats", "booleans"};
 
 const char *attr_type_to_string(AttrType type)
 {
@@ -72,9 +72,10 @@ Value::Value(const char *y, const char *m, const char *d)
 void Value::set_data(char *data, int length)
 {
   switch (attr_type_) {
-    case CHARS: {
+    case TEXTS:
+    case CHARS:
       set_string(data, length);
-    } break;
+      break;
     case DATES:
     case INTS: {
       num_value_.int_value_ = *(int *)data;
@@ -157,9 +158,10 @@ void Value::set_value(const Value &value)
     case FLOATS: {
       set_float(value.get_float());
     } break;
-    case CHARS: {
+    case TEXTS:
+    case CHARS:
       set_string(value.get_string().c_str());
-    } break;
+      break;
     case BOOLEANS: {
       set_boolean(value.get_boolean());
     } break;
@@ -201,9 +203,10 @@ std::string Value::to_string() const
     case BOOLEANS: {
       os << num_value_.bool_value_;
     } break;
-    case CHARS: {
+    case TEXTS:
+    case CHARS:
       os << str_value_;
-    } break;
+      break;
     case NULLS: {
       os << "NULL";
     } break;
@@ -216,6 +219,7 @@ std::string Value::to_string() const
 
 int Value::compare(const Value &other) const
 {
+  // NULL cannot be here.
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
       case DATES:  // date的值转化后存在int里，比较直接复用int的比较
@@ -225,12 +229,13 @@ int Value::compare(const Value &other) const
       case FLOATS: {
         return common::compare_float((void *)&this->num_value_.float_value_, (void *)&other.num_value_.float_value_);
       } break;
-      case CHARS: {
+      case TEXTS:
+      case CHARS:
         return common::compare_string((void *)this->str_value_.c_str(),
             this->str_value_.length(),
             (void *)other.str_value_.c_str(),
             other.str_value_.length());
-      } break;
+       break;
       case BOOLEANS: {
         return common::compare_int((void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
       }
@@ -271,6 +276,11 @@ int Value::compare(const Value &other) const
     else if ((this->attr_type_ == INTS || this->attr_type_ == FLOATS) && other.attr_type_ == CHARS) {
     void * p_float = (float *)common::type_cast_to[other.attr_type_][FLOATS](other.data());
     return common::compare_float((void *)this->data(), p_float);
+  } else if (this->attr_type_ == TEXTS && other.attr_type_ == CHARS || this->attr_type_ == CHARS && other.attr_type_ == TEXTS){
+    return common::compare_string((void *)this->str_value_.c_str(),
+        this->str_value_.length(),
+        (void *)other.str_value_.c_str(),
+        other.str_value_.length());
   }
 
   LOG_WARN("not supported compare type");

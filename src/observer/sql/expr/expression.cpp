@@ -232,6 +232,31 @@ RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 //  }
 //  return RC::SUCCESS;
 //}
+RC FieldExpr::get_field_isnull_from_exprs(const Expression* expr, bool &nullable)
+{
+  switch (expr->type()) {
+    case ExprType::FIELD: {
+      const FieldExpr* field_expr = (const FieldExpr *)(expr);
+      nullable &= field_expr->field().meta()->nullable();
+      break;
+    }
+    case ExprType::AGGRFUNC: {
+      nullable = false;
+      //       const AggrFuncExpr *aggrfunc_expr = (const AggrFuncExpr *)expr;
+      //       get_field_from_exprs(aggrfunc_expr->field_expr, fields);
+      break;
+    }
+    case ExprType::BINARY: {
+      BinaryExpression* binary_expr = (BinaryExpression*) expr;
+      get_field_isnull_from_exprs(binary_expr->left().get(), nullable);
+      get_field_isnull_from_exprs(binary_expr->right().get(), nullable);
+      break;
+    }
+    default:
+      break;
+  }
+  return RC::SUCCESS;
+}
 
 std::string FieldExpr::to_string(bool with_table_name) const
 {

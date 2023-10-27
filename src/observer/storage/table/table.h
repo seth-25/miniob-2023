@@ -82,7 +82,7 @@ public:
   RC insert_record(Record &record);
   RC delete_record(const Record &record);
   RC make_record_from_old_record(std::vector<const FieldMeta*>& fields, std::vector<Value>& values, Record& old_record, Record &new_record);
-  RC update_record(const Record &old_record, Record &new_record);
+  RC update_record(const Record &old_record, Record &new_record, const std::vector<const FieldMeta*>& fields);
   RC visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor);
   RC get_record(const RID &rid, Record &record);
 
@@ -117,7 +117,7 @@ private:
   /**
    * @brief 将Value通过类型转换，转成记录内容，由make_record调用
    */
-  RC value_cast_record(const Value& value, const FieldMeta *field, char *record_data);
+  RC value_cast_record(const Value& value, const FieldMeta *field, char *record_data, std::vector<char*> &text_mems);
 
 public:
   Index *find_index(const char *index_name) const;
