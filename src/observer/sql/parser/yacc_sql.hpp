@@ -76,52 +76,53 @@ extern int yydebug;
     STRING_T = 282,
     FLOAT_T = 283,
     DATE_T = 284,
-    HELP = 285,
-    EXIT = 286,
-    DOT = 287,
-    INTO = 288,
-    VALUES = 289,
-    FROM = 290,
-    WHERE = 291,
-    AND = 292,
-    SET = 293,
-    ON = 294,
-    LOAD = 295,
-    DATA = 296,
-    INFILE = 297,
-    EXPLAIN = 298,
-    NOT = 299,
-    LIKE = 300,
-    UNIQUE = 301,
-    ORDER = 302,
-    GROUP = 303,
-    BY = 304,
-    HAVING = 305,
-    EXISTS = 306,
-    IN = 307,
-    NULL_T = 308,
-    AGGR_MAX = 309,
-    AGGR_MIN = 310,
-    AGGR_COUNT = 311,
-    AGGR_AVG = 312,
-    AGGR_SUM = 313,
-    LENGTH = 314,
-    ROUND = 315,
-    DATE_FORMAT = 316,
-    AS = 317,
-    IS = 318,
-    EQ = 319,
-    LT = 320,
-    GT = 321,
-    LE = 322,
-    GE = 323,
-    NE = 324,
-    NUMBER = 325,
-    FLOAT = 326,
-    ID = 327,
-    SSS = 328,
-    DATE_STR = 329,
-    UMINUS = 330
+    TEXT_T = 285,
+    HELP = 286,
+    EXIT = 287,
+    DOT = 288,
+    INTO = 289,
+    VALUES = 290,
+    FROM = 291,
+    WHERE = 292,
+    AND = 293,
+    SET = 294,
+    ON = 295,
+    LOAD = 296,
+    DATA = 297,
+    INFILE = 298,
+    EXPLAIN = 299,
+    NOT = 300,
+    LIKE = 301,
+    UNIQUE = 302,
+    ORDER = 303,
+    GROUP = 304,
+    BY = 305,
+    HAVING = 306,
+    EXISTS = 307,
+    IN = 308,
+    NULL_T = 309,
+    AGGR_MAX = 310,
+    AGGR_MIN = 311,
+    AGGR_COUNT = 312,
+    AGGR_AVG = 313,
+    AGGR_SUM = 314,
+    LENGTH = 315,
+    ROUND = 316,
+    DATE_FORMAT = 317,
+    AS = 318,
+    IS = 319,
+    EQ = 320,
+    LT = 321,
+    GT = 322,
+    LE = 323,
+    GE = 324,
+    NE = 325,
+    NUMBER = 326,
+    FLOAT = 327,
+    ID = 328,
+    SSS = 329,
+    DATE_STR = 330,
+    UMINUS = 331
   };
 #endif
 
@@ -129,7 +130,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 128 "yacc_sql.y"
+#line 129 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -160,7 +161,7 @@ union YYSTYPE
   enum AggrFuncType                 aggr_func_type;
 
 
-#line 164 "yacc_sql.hpp"
+#line 165 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
