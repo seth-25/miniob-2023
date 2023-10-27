@@ -49,11 +49,11 @@ void GroupTuple::do_aggregate_first()
 
 void GroupTuple::do_aggregate()
 {
-  Value tmp;
+  Value value;
   for (size_t i = 0; i < aggr_exprs_.size(); ++i) {
     const AggrFuncExpr *aggr_expr = (AggrFuncExpr*) aggr_exprs_[i].get();
-    aggr_expr->get_value(*tuple_, tmp);
-    if (tmp.is_null()) {  // cannot do any aggregate for NULL
+    aggr_expr->get_value(*tuple_, value);
+    if (value.is_null()) {  // cannot do any aggregate for NULL
       continue;
     }
     aggr_all_null_[i] = false;
@@ -61,20 +61,21 @@ void GroupTuple::do_aggregate()
     if (AggrFuncType::AGGR_COUNT == aggr_expr->aggr_type()) {
       continue;
     }
-    // NOTE: aggr_results_[i] maybe null. tmp is not null
+    // NOTE: aggr_results_[i] maybe null. value is not null
     if (aggr_results_[i].is_null()) {
-      aggr_results_[i] = tmp;
+      aggr_results_[i] = value;
+      continue ;
     }
     switch (aggr_expr->aggr_type()) {
       case AggrFuncType::AGGR_MIN:
-        aggr_results_[i] = Value::calc_min(aggr_results_[i], tmp);
+        aggr_results_[i] = Value::calc_min(aggr_results_[i], value);
         break;
       case AggrFuncType::AGGR_MAX:
-        aggr_results_[i] = Value::calc_max(aggr_results_[i], tmp);
+        aggr_results_[i] = Value::calc_max(aggr_results_[i], value);
         break;
       case AggrFuncType::AGGR_SUM:
       case AggrFuncType::AGGR_AVG:
-        aggr_results_[i] = Value::calc_add(aggr_results_[i], tmp);
+        aggr_results_[i] = Value::calc_add(aggr_results_[i], value);
         break;
       default:
         LOG_ERROR("Unsupported AggrFuncType");
