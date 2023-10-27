@@ -508,12 +508,14 @@ public:
    * @brief 根据spec的fieldExpr和aggr type，获取该field的aggr表达式的值
    * 目前只支持spec里存的Expression是fieldExpr
    * 由AggrFuncExpr的get_value或FieldExpr的get_value调用
-   * 而这两的get_value是由ProjectTuple的cell_at调用
+   * 而上面这两用到GroupTuple的get_value，是由ProjectTuple的cell_at调用
    */
   RC find_cell(const TupleCellSpec &spec, Value &value) const override;
   void get_record(CompoundRecord &record) const override {}
   void set_record(CompoundRecord &record) override {}
   void set_right_record(CompoundRecord &record) override {}
+
+  void do_aggregate_empty();
 
   void do_aggregate_first();
 
@@ -534,5 +536,6 @@ private:
   std::vector<Value> aggr_results_; // 和aggr_exprs_一一对应
   std::vector<Value> field_results_;  // 和field_exprs_一一对应
 
-  Tuple *tuple_ = nullptr;
+  Tuple *tuple_ = nullptr;   // 通常是table_scan的row_tuple
+
 };

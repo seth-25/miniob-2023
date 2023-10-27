@@ -24,8 +24,10 @@ RC GroupByPhysicalOperator::next()
     rc = children_[0]->next();
     is_first_ = false;
     is_new_group_ = true;
-    if (RC::SUCCESS != rc) {
-      return rc;
+    if (RC::RECORD_EOF == rc) { // 第一次执行就没有record，如果是count需要打印0，如果是avg sum max min需要打印NULL
+      tuple_.do_aggregate_empty();
+      is_record_eof_ = true;
+      return RC::SUCCESS;
     }
     // set initial value of pre_values_
     for (auto& field_expr : group_by_field_exprs_) {
@@ -50,7 +52,7 @@ RC GroupByPhysicalOperator::next()
       auto&field_expr = group_by_field_exprs_[i];
       Value value;
       field_expr->get_value(*children_[0]->current_tuple(), value);
-      if (value != pre_values_[i]) {
+      if (value != pre_values_[i] && !(value.is_null() && pre_values_[i].is_null())) {  // 两个null看作相等
         // 2. update pre_values_ and set new group
         pre_values_[i] = value;
         is_new_group_ = true;

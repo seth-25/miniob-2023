@@ -43,7 +43,9 @@ RC Expression::create_expression(const ExprSqlNode *expr, const std::unordered_m
   else if (expr->type == ExprSqlNodeType::AGGREGATION) {
     rc = AggrFuncExpr::create_expression(expr, table_map, tables, res_expr);
   }
-
+  if (rc != RC::SUCCESS) {
+    return rc;
+  }
   if (expr->alias_name.length() != 0) { // 表达式存在别名，如field或function
     res_expr->set_alias(expr->alias_name);
   }

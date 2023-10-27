@@ -282,12 +282,6 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // 6. 创建group by statement，在group by oper里计算aggr，所以只要有aggr，不管是否有group by都需要创建
   std::vector<std::unique_ptr<Expression>> field_exprs;
   std::vector<std::unique_ptr<Expression>> aggr_exprs;
-//  for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取field和aggr
-//    rc = Expression::get_field_exprs(project_expr, table_map, tables, field_exprs);
-//    if (rc != RC::SUCCESS) { return rc; }
-//    rc = Expression::get_aggr_exprs(project_expr, table_map, tables, aggr_exprs);
-//    if (rc != RC::SUCCESS) { return rc; }
-//  }
   for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取aggr
     rc = Expression::get_aggr_exprs(project_expr, table_map, tables, aggr_exprs);
     if (rc != RC::SUCCESS) { return rc; }

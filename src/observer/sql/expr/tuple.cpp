@@ -1,6 +1,24 @@
 #include "tuple.h"
 #include "aggregation_expression.h"
 
+void GroupTuple::do_aggregate_empty() {
+  assert(aggr_results_.size() == aggr_exprs_.size());
+  assert(aggr_exprs_.size() == aggr_all_null_.size());
+  assert(aggr_exprs_.size() == aggr_counts_.size());
+  assert(field_results_.size() == field_exprs_.size());
+  for (size_t i = 0; i < aggr_exprs_.size(); i ++ ) {
+    AggrFuncExpr* aggr_expr = (AggrFuncExpr*) aggr_exprs_[i].get();
+    Value value = Value(0);
+    if (aggr_expr->aggr_type() == AggrFuncType::AGGR_COUNT) {
+      aggr_results_[i] = value;
+    }
+    else {
+      value.set_null();
+      aggr_results_[i] = value;
+    }
+  }
+}
+
 void GroupTuple::do_aggregate_first()
 {
   assert(aggr_results_.size() == aggr_exprs_.size());
