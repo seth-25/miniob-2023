@@ -218,6 +218,7 @@ std::string Value::to_string() const
 
 int Value::compare(const Value &other) const
 {
+  // NULL cannot be here.
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
       case DATES:  // date的值转化后存在int里，比较直接复用int的比较

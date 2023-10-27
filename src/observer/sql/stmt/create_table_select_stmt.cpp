@@ -41,9 +41,13 @@ RC CreateTableSelectStmt::create(Db *db, const CreateTableSelectSqlNode &create_
   for (size_t i = 0; i < select_stmt->project_name().size(); i ++ )
   {
     AttrInfoSqlNode attr_info;
-    attr_info.type = select_stmt->project_expres()[i].get()->value_type();
+    Expression * expr = select_stmt->project_expres()[i].get();
+    attr_info.type = expr->value_type();
     attr_info.length = 4;
     attr_info.name = select_stmt->project_name()[i];
+    bool nullable = true;
+    FieldExpr::get_field_isnull_from_exprs(expr, nullable);
+    attr_info.nullable = nullable;
     attr_infos.emplace_back(attr_info);
   }
 
@@ -51,6 +55,6 @@ RC CreateTableSelectStmt::create(Db *db, const CreateTableSelectSqlNode &create_
       new CreateTableSelectStmt(create_table.relation_name, attr_infos,
           select_stmt, db);
   stmt = create_stmt;
-  sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
+//  sql_debug("create table statement: table name %s", create_table.relation_name.c_str());
   return RC::SUCCESS;
 }
