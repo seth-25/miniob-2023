@@ -282,6 +282,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   // 6. 创建group by statement，在group by oper里计算aggr，所以只要有aggr，不管是否有group by都需要创建
   std::vector<std::unique_ptr<Expression>> field_exprs;
   std::vector<std::unique_ptr<Expression>> aggr_exprs;
+  int num_project_field = 0, num_project_aggr = 0;  // 用于记录哪些是投影的表达式，哪些是having的表达式
   for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取aggr
     rc = Expression::get_aggr_exprs(project_expr, table_map, tables, aggr_exprs);
     if (rc != RC::SUCCESS) { return rc; }
@@ -290,6 +291,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     rc = Expression::get_field_exprs(project_expr, table_map, tables, field_exprs);
     if (rc != RC::SUCCESS) { return rc; }
   }
+  num_project_field = (int)field_exprs.size();
+  num_project_aggr = (int)aggr_exprs.size();
   if (!select_sql.having_conditions.empty()) {
     for (auto& condition: select_sql.having_conditions) { // 从having条件中中获取field和aggr
       rc = Expression::get_field_exprs(condition.left, table_map, tables, field_exprs);
@@ -310,6 +313,8 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
         select_sql.group_by_cols,
         aggr_exprs,
         field_exprs,
+        num_project_aggr,
+        num_project_field,
         group_by_stmt);
     if (rc != RC::SUCCESS) {
       LOG_WARN("cannot construct group by stmt");

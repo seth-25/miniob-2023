@@ -25,9 +25,9 @@ RC GroupByPhysicalOperator::next()
     is_first_ = false;
     is_new_group_ = true;
     if (RC::RECORD_EOF == rc) { // 第一次执行就没有record，如果是count需要打印0，如果是avg sum max min需要打印NULL
-      tuple_.do_aggregate_empty();
+      rc = tuple_.do_aggregate_empty();
       is_record_eof_ = true;
-      return RC::SUCCESS;
+      return rc;
     }
     // set initial value of pre_values_
     for (auto& field_expr : group_by_field_exprs_) {

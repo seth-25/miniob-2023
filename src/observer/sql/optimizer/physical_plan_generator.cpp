@@ -235,7 +235,10 @@ RC PhysicalPlanGenerator::create_plan(GroupByLogicalOperator &group_by_oper, uni
 
   oper = unique_ptr<PhysicalOperator>(new GroupByPhysicalOperator(std::move(group_by_oper.group_by_field_exprs()),
       std::move(group_by_oper.aggr_exprs()),
-      std::move(group_by_oper.field_exprs())));
+      std::move(group_by_oper.field_exprs()),
+      group_by_oper.num_project_aggr(),
+      group_by_oper.num_project_field()
+      ));
   oper->add_child(std::move(child_phy_oper));
   return rc;
 }

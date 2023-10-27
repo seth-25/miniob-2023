@@ -5,7 +5,7 @@
 
 RC GroupByStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const std::vector<RelAttrSqlNode> &group_by_cols, std::vector<std::unique_ptr<Expression>> &aggr_exprs,
-    std::vector<std::unique_ptr<Expression>> &field_exprs, GroupByStmt *&stmt)
+    std::vector<std::unique_ptr<Expression>> &field_exprs, int num_project_aggr, int num_project_field, GroupByStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
   stmt = new GroupByStmt;
@@ -18,7 +18,8 @@ RC GroupByStmt::create(Db *db, Table *default_table, std::unordered_map<std::str
     std::unique_ptr<FieldExpr> expr(new FieldExpr(table, field));
     stmt->group_by_field_exprs_.emplace_back(std::move(expr));
   }
-
+  stmt->num_project_aggr_ = num_project_aggr;
+  stmt->num_project_field_ = num_project_field;
 
   // 检查group by 是否合法
   if (!stmt->aggr_exprs_.empty() && !stmt->field_exprs_.empty()) {  // 聚集和单个字段混合，根据题意，如果不是group by，返回fail

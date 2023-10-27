@@ -480,8 +480,10 @@ class GroupTuple : public Tuple
 {
 public:
   GroupTuple(
-      std::vector<std::unique_ptr<Expression>> &&aggr_exprs, std::vector<std::unique_ptr<Expression>> &&field_exprs)
-      : aggr_exprs_(std::move(aggr_exprs)),  field_exprs_(std::move(field_exprs))
+      std::vector<std::unique_ptr<Expression>> &&aggr_exprs, std::vector<std::unique_ptr<Expression>> &&field_exprs,
+      int num_project_aggr, int num_project_field)
+      : aggr_exprs_(std::move(aggr_exprs)),  field_exprs_(std::move(field_exprs)),
+        num_project_aggr_(num_project_aggr), num_project_field_(num_project_field)
   {
     aggr_counts_.resize(aggr_exprs_.size());
     aggr_all_null_.resize(aggr_exprs_.size());
@@ -515,7 +517,7 @@ public:
   void set_record(CompoundRecord &record) override {}
   void set_right_record(CompoundRecord &record) override {}
 
-  void do_aggregate_empty();
+  RC do_aggregate_empty();
 
   void do_aggregate_first();
 
@@ -529,6 +531,8 @@ private:
   // 投影列和having的所有字段：
   std::vector<std::unique_ptr<Expression>> aggr_exprs_; // 聚集表达式的字段，需要group by操作
   std::vector<std::unique_ptr<Expression>> field_exprs_;   // 非聚集表达式的字段，需要group by操作
+  int num_project_aggr_;  // 投影列中有多少聚集表达式，aggr_exprs_.size()减去它，剩下的就是having条件里的
+  int num_project_field_;  // 投影列中有多少表达式
 
   std::vector<bool> aggr_all_null_; // 和aggr_exprs_一一对应
   std::vector<int>  aggr_counts_; // 和aggr_exprs_一一对应

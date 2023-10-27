@@ -1,11 +1,14 @@
 #include "tuple.h"
 #include "aggregation_expression.h"
 
-void GroupTuple::do_aggregate_empty() {
+RC GroupTuple::do_aggregate_empty() {
   assert(aggr_results_.size() == aggr_exprs_.size());
   assert(aggr_exprs_.size() == aggr_all_null_.size());
   assert(aggr_exprs_.size() == aggr_counts_.size());
   assert(field_results_.size() == field_exprs_.size());
+  if (num_project_field_ > 0) {  // 投影列存在普通field的时候不需要返回答案，只有聚集函数的时候才需要
+    return RC::RECORD_EOF;
+  }
   for (size_t i = 0; i < aggr_exprs_.size(); i ++ ) {
     AggrFuncExpr* aggr_expr = (AggrFuncExpr*) aggr_exprs_[i].get();
     Value value = Value(0);
@@ -17,6 +20,7 @@ void GroupTuple::do_aggregate_empty() {
       aggr_results_[i] = value;
     }
   }
+  return RC::SUCCESS;
 }
 
 void GroupTuple::do_aggregate_first()

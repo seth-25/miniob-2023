@@ -32,11 +32,15 @@ public:
   std::vector<std::unique_ptr<Expression>>&field_exprs() {
     return field_exprs_;
   }
+  int num_project_field() const {
+    return num_project_field_;
+  }
+  int num_project_aggr() const {
+    return num_project_aggr_;
+  }
   static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-      const std::vector<RelAttrSqlNode>& group_by_cols,
-      std::vector<std::unique_ptr<Expression>>& aggr_expr,
-      std::vector<std::unique_ptr<Expression>>& field_expr,
-      GroupByStmt *&stmt);
+      const std::vector<RelAttrSqlNode> &group_by_cols, std::vector<std::unique_ptr<Expression>> &aggr_exprs,
+      std::vector<std::unique_ptr<Expression>> &field_exprs, int num_project_aggr, int num_project_field, GroupByStmt *&stmt);
 
 private:
   std::vector<std::unique_ptr<FieldExpr>> group_by_field_exprs_; // 需要分组的字段
@@ -46,5 +50,7 @@ private:
   // 投影列和having的所有字段：
   std::vector<std::unique_ptr<Expression>> aggr_exprs_; // 聚集表达式的字段
   std::vector<std::unique_ptr<Expression>> field_exprs_;   // 非聚集表达式的字段
+  int num_project_field_;
+  int num_project_aggr_;
 };
 

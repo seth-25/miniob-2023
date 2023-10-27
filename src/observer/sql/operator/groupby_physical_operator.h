@@ -9,10 +9,12 @@ public:
   GroupByPhysicalOperator(
       std::vector<std::unique_ptr<FieldExpr>>&& group_by_field_exprs,
       std::vector<std::unique_ptr<Expression>>&& aggr_exprs,
-      std::vector<std::unique_ptr<Expression>>&& field_exprs
+      std::vector<std::unique_ptr<Expression>>&& field_exprs,
+      int num_project_aggr,
+      int num_project_field
       )
       : group_by_field_exprs_(std::move(group_by_field_exprs)),
-        tuple_(std::move(aggr_exprs), std::move(field_exprs))
+        tuple_(std::move(aggr_exprs), std::move(field_exprs), num_project_aggr, num_project_field)
   {}
 
   PhysicalOperatorType type() const override {

@@ -30,6 +30,8 @@ public:
     group_by_field_exprs_ = std::move(group_by_stmt->group_by_field_exprs());
     aggr_exprs_ = std::move(group_by_stmt->aggr_exprs());
     field_exprs_ = std::move(group_by_stmt->field_exprs());
+    num_project_aggr_ = group_by_stmt->num_project_aggr();
+    num_project_field_ = group_by_stmt->num_project_field();
   }
   virtual ~GroupByLogicalOperator() = default;
 
@@ -38,6 +40,8 @@ public:
   std::vector<std::unique_ptr<FieldExpr>>& group_by_field_exprs() { return group_by_field_exprs_; }
   std::vector<std::unique_ptr<Expression>>& aggr_exprs() { return aggr_exprs_; }
   std::vector<std::unique_ptr<Expression>>& field_exprs() { return field_exprs_; }
+  int num_project_field() const { return num_project_field_; }
+  int num_project_aggr() const { return num_project_aggr_; }
 
 private:
   std::vector<std::unique_ptr<FieldExpr>> group_by_field_exprs_; // 需要分组的字段
@@ -46,4 +50,7 @@ private:
   // 投影列和having的所有字段：
   std::vector<std::unique_ptr<Expression>> aggr_exprs_; // 聚集表达式的字段
   std::vector<std::unique_ptr<Expression>> field_exprs_;   // 非聚集表达式的字段
+  int num_project_aggr_;
+  int num_project_field_;
+
 };
