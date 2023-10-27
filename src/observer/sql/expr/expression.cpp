@@ -110,9 +110,9 @@ RC Expression::get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<
 }
 
 
-void Expression::gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name)
+void Expression::gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name, bool use_alias)
 {
-  if (expr->get_alias().length() > 0) {
+  if (expr->get_alias().length() > 0 && use_alias) {
     result_name = expr->get_alias();
     return;
   }

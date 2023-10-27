@@ -120,7 +120,7 @@ public:
    * 解析select投影表达式，设置列名
    * @return res_expr
    */
-  static void gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name);
+  static void gen_project_name(const Expression *expr, bool with_table_name, std::string &result_name, bool use_alias = true);
 
   void set_alias(const std::string &alias){
     alias_ = alias;

@@ -50,10 +50,15 @@ RC CreateTableSelectStmt::create(Db *db, const CreateTableSelectSqlNode &create_
        Expression * expr = select_stmt->project_expres()[i].get();
        attr_info.type = expr->value_type();
        attr_info.length = 4;
-       attr_info.name = select_stmt->project_name()[i];
+
+       std::string name_to_get;
+       Expression::gen_project_name(expr, false, name_to_get, false);
+       attr_info.name = name_to_get;
+
        bool nullable = true;
        FieldExpr::get_field_isnull_from_exprs(expr, nullable);
        attr_info.nullable = nullable;
+
        attr_infos.emplace_back(attr_info);
      }
   }
