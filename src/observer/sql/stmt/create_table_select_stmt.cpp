@@ -38,17 +38,24 @@ RC CreateTableSelectStmt::create(Db *db, const CreateTableSelectSqlNode &create_
   }
   SelectStmt *select_stmt = static_cast<SelectStmt *>(tmp_stmt);
   std::vector<AttrInfoSqlNode> attr_infos;
-  for (size_t i = 0; i < select_stmt->project_name().size(); i ++ )
+
+  if (!create_table.attr_infos.empty())
   {
-    AttrInfoSqlNode attr_info;
-    Expression * expr = select_stmt->project_expres()[i].get();
-    attr_info.type = expr->value_type();
-    attr_info.length = 4;
-    attr_info.name = select_stmt->project_name()[i];
-    bool nullable = true;
-    FieldExpr::get_field_isnull_from_exprs(expr, nullable);
-    attr_info.nullable = nullable;
-    attr_infos.emplace_back(attr_info);
+     attr_infos = create_table.attr_infos;
+  }else
+  {
+     for (size_t i = 0; i < select_stmt->project_name().size(); i ++ )
+     {
+       AttrInfoSqlNode attr_info;
+       Expression * expr = select_stmt->project_expres()[i].get();
+       attr_info.type = expr->value_type();
+       attr_info.length = 4;
+       attr_info.name = select_stmt->project_name()[i];
+       bool nullable = true;
+       FieldExpr::get_field_isnull_from_exprs(expr, nullable);
+       attr_info.nullable = nullable;
+       attr_infos.emplace_back(attr_info);
+     }
   }
 
   auto * create_stmt =
