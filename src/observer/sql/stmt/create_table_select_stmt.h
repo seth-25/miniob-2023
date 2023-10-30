@@ -50,7 +50,7 @@ public:
   {
     return db_;
   }
-  static RC create(Db *db, const CreateTableSelectSqlNode &create_table, Stmt *&stmt);
+  static RC create(Db *db, Trx* trx, const CreateTableSelectSqlNode &create_table, Stmt *&stmt);
 
 private:
   std::string table_name_;

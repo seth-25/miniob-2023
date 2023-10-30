@@ -42,6 +42,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/expr/conjunction_expression.h"
 #include "sql/operator/table_empty_logical_operator.h"
 #include "sql/operator/groupby_logical_operator.h"
+#include "sql/expr/subquery_expression.h"
 
 using namespace std;
 
@@ -193,9 +194,59 @@ RC LogicalPlanGenerator::create_plan(
   return rc;
 }
 
+// 构建子查询逻辑计划operator，赋给子查询表达式
+RC LogicalPlanGenerator::set_sub_query_log_oper(unique_ptr<Expression> &expr) {
+  SubQueryExpr* sub_query_expr = (SubQueryExpr*) expr.get();
+  Stmt* sub_select_stmt = (Stmt *)sub_query_expr->get_qub_query_stmt();
+  unique_ptr<LogicalOperator> sub_query_oper(nullptr);
+  RC rc = create(sub_select_stmt, sub_query_oper);
+  if (rc != RC::SUCCESS) return rc;
+  sub_query_expr->set_log_oper(std::move(sub_query_oper));
+  return RC::SUCCESS;
+}
+
+// 递归构造AND OR表达式树
+RC LogicalPlanGenerator::create_sub_query_plan(FilterUnit *filter_unit, unique_ptr<Expression> &res_expr) {
+  RC rc = RC::SUCCESS;
+  if (filter_unit->comp() == CompOp::AND_OP || filter_unit->comp() == CompOp::OR_OP) {  // 不是树最底层，继续递归创建
+    unique_ptr<Expression> left_expr;
+    rc = create_sub_query_plan(filter_unit->left_unit(), left_expr);
+    if (rc != RC::SUCCESS)  return rc;
+    unique_ptr<Expression> right_expr;
+    rc = create_sub_query_plan(filter_unit->right_unit(), right_expr);
+
+    std::vector<std::unique_ptr<Expression>> cmp_exprs;
+    cmp_exprs.emplace_back(std::move(left_expr));
+    cmp_exprs.emplace_back(std::move(right_expr));
+    ConjunctionExpr::Type type;
+    if (filter_unit->comp() == CompOp::AND_OP)  type = ConjunctionExpr::Type::AND;
+    else type = ConjunctionExpr::Type::OR;
+    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(type, cmp_exprs));
+    res_expr = std::move(conjunction_expr);
+    return rc;
+  }
+  else {  // 最底层，将两侧表达式赋给cmp_expr。先判断是否是子查询。如果是，创建逻辑计划并传给sub_query_expr
+    if (filter_unit->left()->type() == ExprType::SUBSQUERY) {
+      rc = set_sub_query_log_oper(filter_unit->left());
+      if (rc != RC::SUCCESS)  return rc;
+    }
+    if (filter_unit->right()->type() == ExprType::SUBSQUERY) {
+      rc = set_sub_query_log_oper(filter_unit->right());
+      if (rc != RC::SUCCESS)  return rc;
+    }
+
+    std::unique_ptr<Expression>& left = filter_unit->left();
+    std::unique_ptr<Expression>& right = filter_unit->right();
+    unique_ptr<Expression> cmp_expr(new ComparisonExpr(filter_unit->comp(), std::move(left), std::move(right)));
+    res_expr = std::move(cmp_expr);
+    return rc;
+  }
+}
+
 RC LogicalPlanGenerator::create_plan(
     FilterStmt *filter_stmt, unique_ptr<LogicalOperator> &logical_operator)
 {
+  /*
   std::vector<unique_ptr<Expression>> cmp_exprs;
   const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
   for (FilterUnit *filter_unit : filter_units) {
@@ -212,7 +263,27 @@ RC LogicalPlanGenerator::create_plan(
   }
 
   logical_operator = std::move(predicate_oper);
-  return RC::SUCCESS;
+
+  return RC::SUCCESS;*/
+
+  RC rc = RC::SUCCESS;
+  const std::vector<FilterUnit *> &filter_units = filter_stmt->filter_units();
+  std::vector<unique_ptr<Expression>> cmp_exprs;
+
+  for (FilterUnit *filter_unit : filter_units) {  // where 条件和having、join条件，用AND连接。where条件只有一个filter_unit，是树的形式，支持AND和OR
+    unique_ptr<Expression> res_expr;
+    rc = create_sub_query_plan(filter_unit, res_expr);
+    cmp_exprs.emplace_back(std::move(res_expr));
+    if (rc != RC::SUCCESS)
+      return rc;
+  }
+  unique_ptr<PredicateLogicalOperator> predicate_oper;
+  if (!cmp_exprs.empty()) {
+    unique_ptr<ConjunctionExpr> conjunction_expr(new ConjunctionExpr(ConjunctionExpr::Type::AND, cmp_exprs));
+    predicate_oper = unique_ptr<PredicateLogicalOperator>(new PredicateLogicalOperator(std::move(conjunction_expr)));
+  }
+  logical_operator = std::move(predicate_oper);
+  return rc;
 }
 
 RC LogicalPlanGenerator::create_plan(

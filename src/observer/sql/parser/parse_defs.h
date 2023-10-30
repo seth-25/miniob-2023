@@ -41,29 +41,35 @@ struct RelAttrSqlNode
   std::string attribute_name;  ///< attribute name              属性名
 };
 
-enum class ExprOp { ADD_OP, SUB_OP, MUL_OP, DIV_OP, NEGATIVE_OP, };
+enum class ExprOp { ADD_OP, SUB_OP, MUL_OP, DIV_OP, NEGATIVE_OP, UNDEFINED };
 
-enum class ExprSqlNodeType { UNDEFINED, UNARY, BINARY, AGGREGATION, FUNCTION, };
-enum class AggrFuncType { AGGR_MAX, AGGR_MIN, AGGR_SUM, AGGR_AVG, AGGR_COUNT, AGGR_FUNC_TYPE_NUM };
+enum class ExprSqlNodeType { UNARY, BINARY, AGGREGATION, FUNCTION, VALUELIST, SUBQUERY, CONDITION, UNDEFINED };
+enum class AggrFuncType { AGGR_MAX, AGGR_MIN, AGGR_SUM, AGGR_AVG, AGGR_COUNT, UNDEFINED };
 enum class FuncType { FUNC_LENGTH, FUNC_ROUND, FUNC_DATE_FORMAT };
 
 struct UnaryExprSqlNode;
 struct BinaryExprSqlNode;
 struct AggrExprSqlNode;
 struct FuncExprSqlNode;
+struct ValueListExprSqlNode;
+struct SubQueryExprSqlNode;
+struct ConditionSqlNode;
 
 /**
  * 各种类型的表达式
  */
 struct ExprSqlNode
 {
-  ExprSqlNodeType    type = ExprSqlNodeType::UNDEFINED;
-  bool               with_brace = false;  // 打印用
-  std::string        alias_name;
-  UnaryExprSqlNode  *unary_expr = nullptr;
-  BinaryExprSqlNode *binary_expr = nullptr;
-  AggrExprSqlNode   *aggr_expr = nullptr;
-  FuncExprSqlNode   *func_expr = nullptr;
+  ExprSqlNodeType       type = ExprSqlNodeType::UNDEFINED;
+  bool                  with_brace = false;  // 打印用
+  std::string           alias_name;
+  UnaryExprSqlNode     *unary_expr = nullptr;
+  BinaryExprSqlNode    *binary_expr = nullptr;
+  AggrExprSqlNode      *aggr_expr = nullptr;
+  FuncExprSqlNode      *func_expr = nullptr;
+  ValueListExprSqlNode *value_list_expr = nullptr;
+  SubQueryExprSqlNode  *sub_query_expr = nullptr;
+  ConditionSqlNode     *condition_expr = nullptr;
 };
 
 /**
@@ -82,10 +88,10 @@ struct UnaryExprSqlNode
  */
 struct BinaryExprSqlNode
 {
-  ExprOp op;
+  ExprOp op = ExprOp::UNDEFINED;
   bool is_minus = false;  // 打印用
-  ExprSqlNode *left;
-  ExprSqlNode *right;
+  ExprSqlNode *left = nullptr;
+  ExprSqlNode *right = nullptr;
 };
 
 
@@ -98,8 +104,25 @@ struct FuncExprSqlNode
 struct AggrExprSqlNode
 {
   bool is_star = false;
-  AggrFuncType type;
-  ExprSqlNode* expr;
+  AggrFuncType type = AggrFuncType::UNDEFINED;
+  ExprSqlNode* expr = nullptr;
+};
+
+/**
+ *  用于查询中的in条件，如 select ... where x in (1, 2, 3);
+ */
+struct ValueListExprSqlNode
+{
+  std::vector<Value> values;
+};
+
+/**
+ * 子查询
+ */
+struct SelectSqlNode;
+struct SubQueryExprSqlNode
+{
+  SelectSqlNode *sub_select;
 };
 
 /**
@@ -118,7 +141,13 @@ enum CompOp
   NOT_LIKE_OP,  ///< "not like"
   IS_NULL,   ///< "is null"
   IS_NOT_NULL,  ///< "is not null"
-  NO_OP
+  IN_OP, ///< 子查询 in
+  NOT_IN_OP,  ///< 子查询 not in
+  EXISTS_OP,  ///< 子查询 exists
+  NOT_EXISTS_OP,  ///< 子查询 not exists
+  AND_OP, /// 查询条件AND
+  OR_OP,  /// 查询条件OR
+  NO_OP ///< 非法的op
 };
 
 /**
@@ -147,7 +176,7 @@ enum CompOp
  */
 struct ConditionSqlNode
 {
-  CompOp          comp;            ///< comparison operator
+  CompOp          comp = NO_OP;            ///< comparison operator
   ExprSqlNode*    left;
   ExprSqlNode*    right;
 };
@@ -180,7 +209,8 @@ struct SelectSqlNode
   std::vector<std::string>        relation_names;     ///< 查询的表
   std::vector<std::string>        alias_names;     ///< 查询的表别名
   std::vector<ConditionSqlNode>   inner_join_conditions;   ///内连接的条件
-  std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+//  std::vector<ConditionSqlNode>   conditions;    ///< 查询条件，使用AND串联起来多个条件
+  ConditionSqlNode                condition;  ///< 查询条件，AND和OR组成的树
   std::vector<RelAttrSqlNode>     group_by_cols;     /// group by的列
   std::vector<ConditionSqlNode>   having_conditions;    ///< having条件
   std::vector<OrderBySqlNode>     order_by_cols;     /// order by 的列

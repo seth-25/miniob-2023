@@ -25,12 +25,13 @@ CreateTableSelectStmt::~CreateTableSelectStmt()
     select_stmt_ = nullptr;
   }
 }
-RC CreateTableSelectStmt::create(Db *db, const CreateTableSelectSqlNode &create_table, Stmt *&stmt)
+RC CreateTableSelectStmt::create(Db *db, Trx* trx, const CreateTableSelectSqlNode &create_table, Stmt *&stmt)
 {
   RC rc = RC::SUCCESS;
 
   Stmt *tmp_stmt = nullptr;
-  rc = SelectStmt::create(db,create_table.selection,tmp_stmt);
+  std::unordered_map<std::string, Table *> parent_table_map;
+  rc = SelectStmt::create(db, trx, create_table.selection, parent_table_map, tmp_stmt);
 
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot construct order by stmt");

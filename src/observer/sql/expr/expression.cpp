@@ -19,12 +19,13 @@ See the Mulan PSL v2 for more details. */
 #include "binary_expression.h"
 #include "function_expression.h"
 #include "aggregation_expression.h"
-#include <regex>
+#include "subquery_expression.h"
+#include "valuelist_expression.h"
 using namespace std;
 
 
 RC Expression::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr)
+    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr, CompOp comp, Db *db, Trx* trx)
 {
   RC rc = RC::SUCCESS;
   if (expr->type == ExprSqlNodeType::UNARY) {
@@ -42,6 +43,12 @@ RC Expression::create_expression(const ExprSqlNode *expr, const std::unordered_m
   }
   else if (expr->type == ExprSqlNodeType::AGGREGATION) {
     rc = AggrFuncExpr::create_expression(expr, table_map, tables, res_expr);
+  }
+  else if (expr->type == ExprSqlNodeType::SUBQUERY) {
+    return SubQueryExpr::create_expression(expr, table_map, tables, res_expr, comp, db, trx);
+  }
+  else if (expr->type == ExprSqlNodeType::VALUELIST) {
+    return ValueListExpr::create_expression(expr, table_map, tables, res_expr);
   }
   if (rc != RC::SUCCESS) {
     return rc;
@@ -207,31 +214,32 @@ RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 }
 
 
-//RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &fields)
-//{
-//  switch (expr->type()) {
-//    case ExprType::FIELD: {
-//      const FieldExpr* field_expr = (const FieldExpr *)(expr);
-//      const Field &field = field_expr->field();
-//      fields.emplace_back(field);
-//      break;
-//    }
-//    case ExprType::AGGRFUNC: {
-////       const AggrFuncExpr *aggrfunc_expr = (const AggrFuncExpr *)expr;
-////       get_field_from_exprs(aggrfunc_expr->field_expr, fields);
-//      break;
-//    }
-//    case ExprType::BINARY: {
-//      BinaryExpression* binary_expr = (BinaryExpression*) expr;
-//      get_field_from_exprs(binary_expr->left().get(), fields);
-//      get_field_from_exprs(binary_expr->right().get(), fields);
-//      break;
-//    }
-//    default:
-//      break;
-//  }
-//  return RC::SUCCESS;
-//}
+RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &fields)
+{
+  switch (expr->type()) {
+    case ExprType::FIELD: {
+      const FieldExpr* field_expr = (const FieldExpr *)(expr);
+      const Field &field = field_expr->field();
+      fields.emplace_back(field);
+      break;
+    }
+    case ExprType::AGGRFUNC: {
+      AggrFuncExpr *aggr_expr = (AggrFuncExpr *)expr;
+      fields.emplace_back(aggr_expr->field());
+      break;
+    }
+    case ExprType::BINARY: {
+      BinaryExpression* binary_expr = (BinaryExpression*) expr;
+      get_field_from_exprs(binary_expr->left().get(), fields);
+      get_field_from_exprs(binary_expr->right().get(), fields);
+      break;
+    }
+    default:
+      break;
+  }
+  return RC::SUCCESS;
+}
+
 RC FieldExpr::get_field_isnull_from_exprs(const Expression* expr, bool &nullable)
 {
   switch (expr->type()) {
@@ -269,6 +277,7 @@ std::string FieldExpr::to_string(bool with_table_name) const
   }
   return str;
 }
+
 RC FieldExpr::create_expression(const ExprSqlNode *expr, const unordered_map<std::string, Table *> &table_map,
     const vector<Table *> &tables, unique_ptr<Expression> &res_expr)
 {

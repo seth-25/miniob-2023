@@ -24,31 +24,21 @@ class Db;
 class Table;
 class FieldMeta;
 
-//struct FilterObj
-//{
-//  bool is_attr;
-//  Field field;
-//  Value value;
-//
-//  void init_attr(const Field &field_)
-//  {
-//    is_attr = true;
-//    this->field = field_;
-//  }
-//
-//  void init_value(const Value &value_)
-//  {
-//    is_attr = false;
-//    this->value = value_;
-//  }
-//};
-
 class FilterUnit 
 {
 public:
   FilterUnit() = default;
   ~FilterUnit()
-  {}
+  {
+    if (left_unit_) {
+      delete left_unit_;
+      left_unit_ = nullptr;
+    }
+    if (right_unit_) {
+      delete right_unit_;
+      right_unit_ = nullptr;
+    }
+  }
 
   void set_comp(CompOp comp) {
     comp_ = comp;
@@ -64,7 +54,6 @@ public:
   void set_right(std::unique_ptr<Expression>& expr) {
     right_ = std::move(expr);
   }
-
   std::unique_ptr<Expression>& left() {
     return left_;
   }
@@ -72,10 +61,47 @@ public:
     return right_;
   }
 
+  void set_left_unit(FilterUnit *unit)
+  {
+    assert(CompOp::AND_OP == comp_ || CompOp::OR_OP == comp_);
+    left_unit_ = unit;
+  }
+  void set_right_unit(FilterUnit *unit)
+  {
+    assert(CompOp::AND_OP == comp_ || CompOp::OR_OP == comp_);
+    right_unit_ = unit;
+  }
+  FilterUnit *left_unit() const
+  {
+    assert(CompOp::AND_OP == comp_ || CompOp::OR_OP == comp_);
+    return left_unit_;
+  }
+  FilterUnit *right_unit() const
+  {
+    assert(CompOp::AND_OP == comp_ || CompOp::OR_OP == comp_);
+    return right_unit_;
+  }
+
 private:
   CompOp comp_ = NO_OP;
   std::unique_ptr<Expression>  left_;
   std::unique_ptr<Expression>  right_;
+
+ /**
+ * 用AND或OR连接时，词法会递归创建unit树
+ * 比如a AND b OR c OR d AND e
+ * 需要使用下面的结构表示：
+ *              or
+ *           /     \
+ *        or        and
+ *       /  \      /  \
+ *     and   c    d    e
+ *    /  \
+ *   a    b
+ *
+ */
+  FilterUnit *left_unit_ = nullptr;
+  FilterUnit *right_unit_ = nullptr;
 };
 
 /**
@@ -95,14 +121,14 @@ public:
   }
 
 public:
-  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
 
-  static RC create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       const ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:
-  std::vector<FilterUnit *> filter_units_;  // 默认当前都是AND关系
+  std::vector<FilterUnit *> filter_units_;
 };
 RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field);

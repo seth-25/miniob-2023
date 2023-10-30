@@ -221,6 +221,7 @@ public:
   /**
    * @brief 根据spec的fieldExpr，获取某条record对应field的值
    * 目前只支持spec里存的Expression是fieldExpr
+   * 由AggrFuncExpr的get_value或FieldExpr的get_value调用
    */
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
@@ -430,7 +431,10 @@ class JoinedTuple : public Tuple
 {
 public:
   JoinedTuple()          = default;
+  JoinedTuple(Tuple *left, Tuple *right) : left_(left), right_(right) {};
+
   virtual ~JoinedTuple() = default;
+
 
   void set_left(Tuple *left) { left_ = left; }
   void set_right(Tuple *right) { right_ = right; }
@@ -440,7 +444,7 @@ public:
   RC cell_at(int index, Value &value) const override
   {
     const int left_cell_num = left_->cell_num();
-    if (index > 0 && index < left_cell_num) {
+    if (index >= 0 && index < left_cell_num) {
       return left_->cell_at(index, value);
     }
 
@@ -451,6 +455,9 @@ public:
     return RC::NOTFOUND;
   }
 
+  /**
+   * 由AggrFuncExpr的get_value或FieldExpr的get_value调用
+   */
   RC find_cell(const TupleCellSpec &spec, Value &value) const override
   {
     RC rc = left_->find_cell(spec, value);
@@ -481,6 +488,10 @@ private:
   Tuple *left_  = nullptr;
   Tuple *right_ = nullptr;
 };
+/**
+ * 在子查询中用于传父节点信息
+ */
+typedef JoinedTuple CompoundTuple;
 
 class GroupTuple : public Tuple
 {

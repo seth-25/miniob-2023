@@ -34,7 +34,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/calc_stmt.h"
 #include "update_stmt.h"
 
-RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
+RC Stmt::create_stmt(Db *db, Trx* trx, ParsedSqlNode &sql_node, Stmt *&stmt)
 {
   stmt = nullptr;
 
@@ -43,17 +43,18 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return InsertStmt::create(db, sql_node.insertion, stmt);
     }
     case SCF_DELETE: {
-      return DeleteStmt::create(db, sql_node.deletion, stmt);
+      return DeleteStmt::create(db, trx, sql_node.deletion, stmt);
     }
     case SCF_UPDATE: {
-      return UpdateStmt::create(db, sql_node.update, stmt);
+      return UpdateStmt::create(db, trx, sql_node.update, stmt);
     }
     case SCF_SELECT: {
-      return SelectStmt::create(db, sql_node.selection, stmt);
+      const std::unordered_map<std::string, Table *> parent_table_map;
+      return SelectStmt::create(db, trx, sql_node.selection, parent_table_map, stmt);
     }
 
     case SCF_EXPLAIN: {
-      return ExplainStmt::create(db, sql_node.explain, stmt);
+      return ExplainStmt::create(db, trx, sql_node.explain, stmt);
     }
 
     case SCF_CREATE_INDEX: {
@@ -64,7 +65,7 @@ RC Stmt::create_stmt(Db *db, ParsedSqlNode &sql_node, Stmt *&stmt)
       return CreateTableStmt::create(db, sql_node.create_table, stmt);
     }
     case SCF_CREATE_TABLE_SELECT: {
-      return CreateTableSelectStmt::create(db, sql_node.create_table_select, stmt);
+      return CreateTableSelectStmt::create(db, trx, sql_node.create_table_select, stmt);
     }
 
     case SCF_DROP_TABLE: {

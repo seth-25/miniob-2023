@@ -50,7 +50,7 @@ public:
     return fields_;
   }
 public:
-  static RC create(Db *db, const UpdateSqlNode &update_sql, Stmt *&stmt);
+  static RC create(Db *db, Trx* trx, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
   Table *table() const

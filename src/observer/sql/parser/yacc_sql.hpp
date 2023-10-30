@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.5.1.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +30,9 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
+
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_YACC_SQL_HPP_INCLUDED
 # define YY_YY_YACC_SQL_HPP_INCLUDED
@@ -81,53 +85,53 @@ extern int yydebug;
     FROM = 291,
     WHERE = 292,
     AND = 293,
-    SET = 294,
-    ON = 295,
-    LOAD = 296,
-    DATA = 297,
-    INFILE = 298,
-    EXPLAIN = 299,
-    NOT = 300,
-    LIKE = 301,
-    UNIQUE = 302,
-    ORDER = 303,
-    GROUP = 304,
-    BY = 305,
-    HAVING = 306,
-    EXISTS = 307,
-    IN = 308,
-    NULL_T = 309,
-    AGGR_MAX = 310,
-    AGGR_MIN = 311,
-    AGGR_COUNT = 312,
-    AGGR_AVG = 313,
-    AGGR_SUM = 314,
-    LENGTH = 315,
-    ROUND = 316,
-    DATE_FORMAT = 317,
-    AS = 318,
-    IS = 319,
-    EQ = 320,
-    LT = 321,
-    GT = 322,
-    LE = 323,
-    GE = 324,
-    NE = 325,
-    NUMBER = 326,
-    FLOAT = 327,
-    ID = 328,
-    SSS = 329,
-    DATE_STR = 330,
-    UMINUS = 331
+    OR = 294,
+    SET = 295,
+    ON = 296,
+    LOAD = 297,
+    DATA = 298,
+    INFILE = 299,
+    EXPLAIN = 300,
+    NOT = 301,
+    LIKE = 302,
+    UNIQUE = 303,
+    ORDER = 304,
+    GROUP = 305,
+    BY = 306,
+    HAVING = 307,
+    EXISTS = 308,
+    IN = 309,
+    NULL_T = 310,
+    AGGR_MAX = 311,
+    AGGR_MIN = 312,
+    AGGR_COUNT = 313,
+    AGGR_AVG = 314,
+    AGGR_SUM = 315,
+    LENGTH = 316,
+    ROUND = 317,
+    DATE_FORMAT = 318,
+    AS = 319,
+    IS = 320,
+    EQ = 321,
+    LT = 322,
+    GT = 323,
+    LE = 324,
+    GE = 325,
+    NE = 326,
+    NUMBER = 327,
+    FLOAT = 328,
+    ID = 329,
+    SSS = 330,
+    DATE_STR = 331,
+    UMINUS = 332
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
 union YYSTYPE
 {
-#line 129 "yacc_sql.y" /* yacc.c:1909  */
+#line 130 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -158,9 +162,9 @@ union YYSTYPE
   enum AggrFuncType                 aggr_func_type;
 
 
-#line 162 "yacc_sql.hpp" /* yacc.c:1909  */
-};
+#line 166 "yacc_sql.hpp"
 
+};
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

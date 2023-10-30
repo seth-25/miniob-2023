@@ -51,16 +51,6 @@ SelectStmt::~SelectStmt()
   project_name_.clear();
 }
 
-//static void wildcard_fields(Table *table, std::vector<Field> &field_metas)
-//{
-//  const TableMeta &table_meta = table->table_meta();
-//  const int field_num = table_meta.field_num();
-//  for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-//    field_metas.push_back(Field(table, table_meta.field(i)));
-//  }
-//}
-
-
 static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression>> &project_exprs)
 {
   const TableMeta &table_meta = table->table_meta();
@@ -71,7 +61,7 @@ static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression
 }
 
 static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression>> &project_exprs,
-                            std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)
+                            const std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)
 {  // select * form，投影项是所有表，需要找到这些表对应存在的别名，并设置
   auto it = alias_map.find(table);
   std::string table_alias_name = table->name();
@@ -94,8 +84,8 @@ static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression
 }
 
 RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, const SelectSqlNode &select_sql, Db *db,
-    std::vector<Table *> &tables, std::unordered_map<std::string, Table *> &table_map,
-    std::unordered_map<Table *, std::string> &alias_map)
+    const std::vector<Table *> &tables, const std::unordered_map<std::string, Table *> &table_map,
+    const std::unordered_map<Table *, std::string> &alias_map)
 {
   for (int i = static_cast<int>(select_sql.project_exprs.size()) - 1; i >= 0; i--) {
     const ExprSqlNode* expr = select_sql.project_exprs[i];
@@ -179,7 +169,7 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
   return RC::SUCCESS;
 }
 
-RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
+RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const std::unordered_map<std::string, Table *>& parent_table_map, Stmt *&stmt)
 {
   if (nullptr == db) {
     LOG_WARN("invalid argument. db is null");
@@ -231,20 +221,30 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     default_table = tables[0];
   }
 
+  std::unordered_map<std::string, Table *> subquery_table_map = table_map;
+  subquery_table_map.insert(parent_table_map.begin(), parent_table_map.end());  // 子查询可能有父表
+
   // 3. create filter statement in `where` statement，将where后面条件转化成filter_stmt
   std::vector<ConditionSqlNode> sum_conditions = select_sql.inner_join_conditions;
-  sum_conditions.insert(sum_conditions.end(), select_sql.conditions.begin(), select_sql.conditions.end());
-  FilterStmt *filter_stmt = nullptr;
-  rc = FilterStmt::create(db,
-      default_table,
-      &table_map,
-      sum_conditions.data(),
-      static_cast<int>(select_sql.conditions.size() + select_sql.inner_join_conditions.size()),
-      filter_stmt);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("cannot construct filter stmt");
-    return rc;
+//  sum_conditions.insert(sum_conditions.end(), select_sql.conditions.begin(), select_sql.conditions.end());
+  if (select_sql.condition.comp != NO_OP) { // 存在where条件
+    sum_conditions.emplace_back(select_sql.condition);
   }
+  FilterStmt *filter_stmt = nullptr;
+  if (!sum_conditions.empty()) {
+    rc = FilterStmt::create(db,
+        trx,
+        default_table,
+        &subquery_table_map,
+        sum_conditions.data(),
+        static_cast<int>(sum_conditions.size()),
+        filter_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct filter stmt");
+      return rc;
+    }
+  }
+
 
   // 4. 创建order by statement
   OrderByStmt *orderby_stmt = nullptr;
@@ -267,6 +267,7 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   FilterStmt* having_stmt = nullptr;
   if (!select_sql.having_conditions.empty()) {
     rc = FilterStmt::create(db,
+        trx,
         default_table,
         &table_map,
         select_sql.having_conditions.data(),
@@ -372,10 +373,11 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     delete node.left;  // todo 递归删除
     delete node.right;
   }
-  for (auto& node: select_sql.conditions) {
-    delete node.left;  // todo 递归删除
-    delete node.right;
+  if (select_sql.condition.comp != CompOp::NO_OP) {
+    delete select_sql.condition.left;  // todo 递归删除
+    delete select_sql.condition.right;
   }
+
 
   return RC::SUCCESS;
 }

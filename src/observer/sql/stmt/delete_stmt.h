@@ -45,7 +45,7 @@ public:
   }
 
 public:
-  static RC create(Db *db, const DeleteSqlNode &delete_sql, Stmt *&stmt);
+  static RC create(Db *db, Trx* trx, const DeleteSqlNode &delete_sql, Stmt *&stmt);
 
 private:
   Table *table_ = nullptr;

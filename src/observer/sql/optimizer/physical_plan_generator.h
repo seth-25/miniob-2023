@@ -60,4 +60,6 @@ private:
   RC create_plan(JoinLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(CalcLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
   RC create_plan(CreateselectLogicalOperator &logical_oper, std::unique_ptr<PhysicalOperator> &oper);
+  RC create_sub_query_plan(std::unique_ptr<Expression> &expr);
+  RC set_sub_query_phy_oper(std::unique_ptr<Expression> &expr);
 };

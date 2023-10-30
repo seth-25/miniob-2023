@@ -42,9 +42,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/log/log.h"
 #include "sql/expr/value_expression.h"
 #include "sql/expr/comparison_expression.h"
+#include "sql/expr/conjunction_expression.h"
 #include "sql/operator/table_empty_physical_operator.h"
 #include "sql/operator/groupby_logical_operator.h"
 #include "sql/operator/groupby_physical_operator.h"
+#include "sql/expr/subquery_expression.h"
 
 using namespace std;
 
@@ -181,6 +183,40 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
   return RC::SUCCESS;
 }
 
+RC PhysicalPlanGenerator::set_sub_query_phy_oper(unique_ptr<Expression>& expr) {
+  SubQueryExpr* sub_query_expr = (SubQueryExpr*) expr.get();
+  LogicalOperator& logical_oper = *sub_query_expr->get_log_oper();
+  unique_ptr<PhysicalOperator> sub_query_phy_oper(nullptr);
+  RC rc = create(logical_oper, sub_query_phy_oper);
+  if (rc != RC::SUCCESS) return rc;
+  sub_query_expr->set_phy_oper(std::move(sub_query_phy_oper));
+  return RC::SUCCESS;
+}
+
+// 构建子查询的物理计划
+RC PhysicalPlanGenerator::create_sub_query_plan(unique_ptr<Expression>& expr) {
+  RC rc;
+  if (expr->type() == ExprType::CONJUNCTION) {  // 不是树最底层，继续递归
+    ConjunctionExpr* conjunction_expr = (ConjunctionExpr*)expr.get();
+    for (auto& cmp_expr: conjunction_expr->children()) {
+      rc = create_sub_query_plan(cmp_expr);
+      if (rc != RC::SUCCESS)  return rc;
+    }
+  }
+  else {  // 最底层
+    ComparisonExpr* cmp_expr = (ComparisonExpr*) expr.get();
+    if (cmp_expr->left()->type() == ExprType::SUBSQUERY) {
+      rc = set_sub_query_phy_oper(cmp_expr->left());
+      if (rc != RC::SUCCESS)  return rc;
+    }
+    if (cmp_expr->right()->type() == ExprType::SUBSQUERY) {
+      rc = set_sub_query_phy_oper(cmp_expr->right());
+      if (rc != RC::SUCCESS)  return rc;
+    }
+    return rc;
+  }
+}
+
 RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper, unique_ptr<PhysicalOperator> &oper)
 {
   vector<unique_ptr<LogicalOperator>> &children_opers = pred_oper.children();
@@ -199,6 +235,7 @@ RC PhysicalPlanGenerator::create_plan(PredicateLogicalOperator &pred_oper, uniqu
   ASSERT(expressions.size() == 1, "predicate logical operator's children should be 1");
 
   unique_ptr<Expression> expression = std::move(expressions.front());
+  create_sub_query_plan(expression);
   oper = unique_ptr<PhysicalOperator>(new PredicatePhysicalOperator(std::move(expression)));
   oper->add_child(std::move(child_phy_oper));
   return rc;

@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 
 #include "common/rc.h"
+#include "sql/expr/expression.h"
+#include "sql/stmt/filter_stmt.h"
 
 class Stmt;
 class CalcStmt;
@@ -49,4 +51,8 @@ private:
   RC create_plan(UpdateStmt *update_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(ExplainStmt *explain_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
   RC create_plan(CreateTableSelectStmt *create_table_stmt, std::unique_ptr<LogicalOperator> &logical_operator);
+
+
+  RC set_sub_query_log_oper(std::unique_ptr<Expression>& expr);
+  RC create_sub_query_plan(FilterUnit *filter_unit, std::unique_ptr<Expression>& res_expr);
 };

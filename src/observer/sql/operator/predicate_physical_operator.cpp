@@ -47,7 +47,14 @@ RC PredicatePhysicalOperator::next()
     }
 
     Value value;
-    rc = expression_->get_value(*tuple, value);
+    if (nullptr == parent_tuple_) { // 不是子查询或子查询没有父表条件
+      rc = expression_->get_value(*tuple, value); // conjunction expression
+    }
+    else {
+      CompoundTuple compound_tuple(tuple, const_cast<Tuple *>(parent_tuple_));
+      rc = expression_->get_value(*(Tuple*)&compound_tuple, value); // conjunction expression
+    }
+
     if (rc != RC::SUCCESS) {
       return rc;
     }

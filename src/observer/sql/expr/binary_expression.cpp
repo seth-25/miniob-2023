@@ -10,13 +10,16 @@ AttrType BinaryExpression::value_type() const
   if (!right_) {
     return left_->value_type();
   }
-  if (left_->value_type() == AttrType::INTS && right_->value_type() == AttrType::INTS &&
+  const AttrType left_type = left_->value_type();
+  const AttrType right_type = right_->value_type();
+
+  if (left_type == AttrType::INTS && right_type == AttrType::INTS &&
       op_ != ExprOp::DIV_OP) {
     return AttrType::INTS;
   }
-  if (left_->value_type() == AttrType::DATES || left_->value_type() == AttrType::BOOLEANS || left_->value_type() == AttrType::UNDEFINED
-      || right_->value_type() == AttrType::DATES || right_->value_type() == AttrType::BOOLEANS || right_->value_type() == AttrType::UNDEFINED) {
-    LOG_WARN("没实现类型%s与类型%s的计算", left_->value_type(), right_->value_type());
+  if (left_type == AttrType::DATES || left_type == AttrType::BOOLEANS || left_type == AttrType::UNDEFINED
+      || right_type == AttrType::DATES || right_type == AttrType::BOOLEANS || right_type == AttrType::UNDEFINED) {
+    LOG_WARN("没实现类型%s与类型%s的计算", left_type, right_type);
     return AttrType::UNDEFINED;
   }
   return AttrType::FLOATS;

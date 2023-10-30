@@ -27,7 +27,7 @@ FilterStmt::~FilterStmt()
   filter_units_.clear();
 }
 
-RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC FilterStmt::create(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
@@ -36,7 +36,7 @@ RC FilterStmt::create(Db *db, Table *default_table, std::unordered_map<std::stri
   FilterStmt *tmp_stmt = new FilterStmt();
   for (int i = 0; i < condition_num; i++) { // and隔开的每个条件
     FilterUnit *filter_unit = nullptr;
-    rc = create_filter_unit(db, default_table, tables, conditions[i], filter_unit);
+    rc = create_filter_unit(db, trx, default_table, tables, conditions[i], filter_unit);
     if (rc != RC::SUCCESS) {
       delete tmp_stmt;
       LOG_WARN("failed to create filter unit. condition index=%d", i);
@@ -78,7 +78,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC FilterStmt::create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const ConditionSqlNode &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
@@ -89,21 +89,47 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
     return RC::INVALID_ARGUMENT;
   }
 
+  if (comp == AND_OP || comp == OR_OP) {
+    assert(condition.left->type == ExprSqlNodeType::CONDITION);
+    assert(condition.right->type == ExprSqlNodeType::CONDITION);
+    FilterUnit *left_unit = nullptr;
+    FilterUnit *right_unit = nullptr;
+    rc = create_filter_unit(db, trx, default_table, tables, *condition.left->condition_expr, left_unit);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("filter unit create left expression failed");
+      return rc;
+    }
+    rc = create_filter_unit(db, trx, default_table, tables, *condition.right->condition_expr, right_unit);
+    if (rc != RC::SUCCESS) {
+      LOG_ERROR("filter unit create left expression failed");
+      delete left_unit;
+      return rc;
+    }
+    filter_unit = new FilterUnit;
+    filter_unit->set_comp(comp);
+    filter_unit->set_left_unit(left_unit);
+    filter_unit->set_right_unit(right_unit);
+    return rc;
+  }
+
   filter_unit = new FilterUnit;
 
   std::unique_ptr<Expression> left;
   std::unique_ptr<Expression> right;
-  rc = Expression::create_expression(condition.left, *tables, std::vector<Table *>{default_table}, left);
-  // rc = create_expression(db, default_table, tables, condition.left, left);
+  assert(condition.left != nullptr && condition.right != nullptr);
+  rc = Expression::create_expression(condition.left, *tables, std::vector<Table *>{default_table}, left, comp, db, trx);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("filter unit create left expression failed");
     return rc;
   }
-  rc = Expression::create_expression(condition.right, *tables, std::vector<Table *>{default_table}, right);
+
+  rc = Expression::create_expression(condition.right, *tables, std::vector<Table *>{default_table}, right, comp, db, trx);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("filter unit create right expression failed");
     return rc;
   }
+
+
 
   filter_unit = new FilterUnit;
   filter_unit->set_comp(comp);

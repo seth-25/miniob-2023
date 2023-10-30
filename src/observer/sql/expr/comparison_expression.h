@@ -34,8 +34,13 @@ public:
   */
  RC compare_value(const Value &left, const Value &right, bool &value) const;
 
+
+private:
+  RC compare_in(const Value &left_value, const Tuple &tuple, bool &result) const;
+
 private:
  CompOp comp_;
  std::unique_ptr<Expression> left_;
  std::unique_ptr<Expression> right_;
+
 };

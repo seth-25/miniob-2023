@@ -92,6 +92,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         FROM
         WHERE
         AND
+        OR
         SET
         ON
         LOAD
@@ -220,10 +221,13 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 // 新加的表达式
 %type <expr>                unary_expr
 %type <expr>                expr
-%type <expr>                add_expr
-%type <expr>                mul_expr
 %type <expr>                func_expr
 %type <expr>                aggr_func_expr;
+%type <expr>                sub_select;
+%type <expr>                in_value_list;
+%type <expr>                select_where;
+%type <expr>                condition_and;
+%type <expr>                condition_or;
 %type <aggr_func_type>      aggr_func_type;
 %type <expr_list>           expr_list
 %type <expr_list>           select_attr
@@ -667,21 +671,6 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-/*
-    UPDATE ID SET ID EQ value where
-    {
-      $$ = new ParsedSqlNode(SCF_UPDATE);
-      $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
-      }
-      free($2);
-      free($4);
-    }
-    |*/
     UPDATE ID SET update_value update_value_list where
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
@@ -732,7 +721,7 @@ select_stmt:        /*  select 语句的语法解析树*/
         delete $2;
       }
     }
-    | SELECT select_attr FROM select_from where group_by having order_by
+    | SELECT select_attr FROM select_from select_where group_by having order_by
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -748,7 +737,7 @@ select_stmt:        /*  select 语句的语法解析树*/
       std::reverse($$->selection.relation_names.begin(), $$->selection.relation_names.end());
       std::reverse($$->selection.alias_names.begin(), $$->selection.alias_names.end());
       if ($5 != nullptr) {
-        $$->selection.conditions.swap(*$5);
+        $$->selection.condition = *($5->condition_expr);
         delete $5;
       }
       if ($6 != nullptr) {
@@ -765,6 +754,7 @@ select_stmt:        /*  select 语句的语法解析树*/
       }
     }
     ;
+
 calc_stmt:
     CALC expression_list
     {
@@ -930,6 +920,8 @@ expr: // 二元表达式
       $$ = expr;
     }
     | unary_expr { $$ = $1; }
+    | sub_select { $$ = $1; }
+    | in_value_list { $$ = $1; }
     ;
 
 
@@ -946,7 +938,6 @@ expr_list:
       }
 
       $$->emplace_back($2);
-      // delete $2;     在stmt阶段删除
     }
     | COMMA expr AS ID expr_list {  // 别名
       if ($5 != nullptr) {
@@ -1071,83 +1062,66 @@ aggr_func_type:
     }
     ;
 
-add_expr:   // 二元表达式 低优先级
-    mul_expr { $$ = $1; }
-    | add_expr '+' mul_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::ADD_OP;
-      binary->left = $1;
-      binary->right = $3;
+
+in_value_list:  // in后面接着多个value的表达式
+    LBRACE value value_list RBRACE
+    {
+      ValueListExprSqlNode* value_list_expr = new ValueListExprSqlNode;
+      if ($3 != nullptr) {
+        value_list_expr->values = *$3;
+        delete $3;
+      }
+      value_list_expr->values.emplace_back(*$2);
+      delete $2;
+      std::reverse(value_list_expr->values.begin(), value_list_expr->values.end());
 
       ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    | add_expr '-' mul_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::SUB_OP;
-      binary->left = $1;
-      binary->right = $3;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
+      expr->type = ExprSqlNodeType::VALUELIST;
+      expr->value_list_expr = value_list_expr;
       $$ = expr;
     }
     ;
 
+sub_select: // 子查询表达式
+    LBRACE SELECT select_attr FROM select_from select_where group_by having order_by RBRACE
+    {
+      SelectSqlNode* select_node = new SelectSqlNode;
+      if ($3 != nullptr) {
+        select_node->project_exprs.swap(*$3);
+        delete $3;
+      }
+      if ($5 != nullptr) {
+        select_node->relation_names.swap($5->relation_names);
+        select_node->alias_names.swap($5->alias_names);
+        select_node->inner_join_conditions.swap($5->conditions);
+        delete $5;
+      }
+      std::reverse(select_node->relation_names.begin(), select_node->relation_names.end());
+      std::reverse(select_node->alias_names.begin(), select_node->alias_names.end());
+      if ($6 != nullptr) {
+        select_node->condition = *($6->condition_expr);
+        delete $6;
+      }
+      if ($7 != nullptr) {
+        select_node->group_by_cols.swap(*$7);
+        delete $7;
+      }
+      if ($8 != nullptr) {
+        select_node->having_conditions.swap(*$8);
+        delete $8;
+      }
+      if ($9 != nullptr) {
+        select_node->order_by_cols.swap(*$9);
+        delete $9;
+      }
 
-mul_expr:   // 二元表达式 高优先级
-    unary_expr {
-      $$ = $1;
-    }
-    | '-' unary_expr {
-      Value left_val((int)-1);    // val = -1
-      UnaryExprSqlNode* left_unary = new UnaryExprSqlNode;
-      left_unary->is_attr = false;
-      left_unary->value = left_val;
-      ExprSqlNode* left_expr = new ExprSqlNode;
-      left_expr->type = ExprSqlNodeType::UNARY;
-      left_expr->unary_expr = left_unary;
+       SubQueryExprSqlNode* sub_query_expr = new SubQueryExprSqlNode;
+       sub_query_expr->sub_select = select_node;
 
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::MUL_OP;
-      binary->left = left_expr;
-      binary->right = $2;
-      binary->is_minus = true;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    | mul_expr '*' unary_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::MUL_OP;
-      binary->left = $1;
-      binary->right = $3;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
-    }
-    | mul_expr '/' unary_expr {
-      BinaryExprSqlNode* binary = new BinaryExprSqlNode;
-      binary->op = ExprOp::DIV_OP;
-      binary->left = $1;
-      binary->right = $3;
-
-      ExprSqlNode* expr = new ExprSqlNode;
-      expr->type = ExprSqlNodeType::BINARY;
-      expr->binary_expr = binary;
-
-      $$ = expr;
+       ExprSqlNode* expr = new ExprSqlNode;
+       expr->type = ExprSqlNodeType::SUBQUERY;
+       expr->sub_query_expr = sub_query_expr;
+       $$ = expr;
     }
     ;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1446,6 +1420,58 @@ order_by:
     }
     ;
 
+select_where:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | WHERE condition_or {
+      $$ = $2;
+    }
+    ;
+
+condition_or:
+     condition_and
+     {
+       $$ = $1;
+     }
+     | condition_or OR condition_and
+     {
+       ConditionSqlNode* con_expr = new ConditionSqlNode;
+       con_expr->comp = OR_OP;
+       con_expr->left = $1;
+       con_expr->right = $3;
+
+       ExprSqlNode* expr = new ExprSqlNode;
+       expr->type = ExprSqlNodeType::CONDITION;
+       expr->condition_expr = con_expr;
+       $$ = expr;
+     }
+
+condition_and:
+     condition
+     {
+       ExprSqlNode* expr = new ExprSqlNode;
+       expr->type = ExprSqlNodeType::CONDITION;
+       expr->condition_expr = $1;
+       $$ = expr;
+     }
+     | condition_and AND condition
+     {
+       ExprSqlNode* right_expr = new ExprSqlNode;
+       right_expr->type = ExprSqlNodeType::CONDITION;
+       right_expr->condition_expr = $3;
+
+       ConditionSqlNode* con_expr = new ConditionSqlNode;
+       con_expr->comp = AND_OP;
+       con_expr->left = $1;
+       con_expr->right = right_expr;
+
+       ExprSqlNode* expr = new ExprSqlNode;
+       expr->type = ExprSqlNodeType::CONDITION;
+       expr->condition_expr = con_expr;
+       $$ = expr;
+     }
 
 condition_list:
     /* empty */
@@ -1463,6 +1489,7 @@ condition_list:
       delete $1;
     }
     ;
+
 condition:
     expr comp_op expr
     {
@@ -1505,55 +1532,56 @@ condition:
 
       $$->right = expr;
     }
-    // todo IS NULL, IS NOT NULL
-    /*rel_attr comp_op value
+    | expr IN expr
     {
       $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      $$->left = $1;
+      $$->comp = IN_OP;
+      $$->right = $3;
     }
-    | value comp_op value 
+    | expr NOT IN expr
     {
       $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 0;
-      $$->right_value = *$3;
-      $$->comp = $2;
-
-      delete $1;
-      delete $3;
+      $$->left = $1;
+      $$->comp = NOT_IN_OP;
+      $$->right = $4;
     }
-    | rel_attr comp_op rel_attr
+    | EXISTS expr
     {
       $$ = new ConditionSqlNode;
-      $$->left_is_attr = 1;
-      $$->left_attr = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
+      $$->left = $2;
+      $$->comp = EXISTS_OP;
 
-      delete $1;
-      delete $3;
+      // &&->right = 1;
+      Value val(1);    // val = 1
+      UnaryExprSqlNode* unary = new UnaryExprSqlNode;
+      unary->value = val;
+      unary->is_attr = false;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::UNARY;
+      expr->unary_expr = unary;
+
+      $$->right = expr;
     }
-    | value comp_op rel_attr
+    | NOT EXISTS expr
     {
       $$ = new ConditionSqlNode;
-      $$->left_is_attr = 0;
-      $$->left_value = *$1;
-      $$->right_is_attr = 1;
-      $$->right_attr = *$3;
-      $$->comp = $2;
+      $$->left = $3;
+      $$->comp = NOT_EXISTS_OP;
 
-      delete $1;
-      delete $3;
-    }*/
+      // &&->right = 1;
+      Value val(1);    // val = 1
+      UnaryExprSqlNode* unary = new UnaryExprSqlNode;
+      unary->value = val;
+      unary->is_attr = false;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::UNARY;
+      expr->unary_expr = unary;
+
+      $$->right = expr;
+    }
     ;
 
 comp_op:
