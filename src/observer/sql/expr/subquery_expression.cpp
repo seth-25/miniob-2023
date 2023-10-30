@@ -77,10 +77,16 @@ RC SubQueryExpr::get_one_value(const Tuple &tuple, Value &value) const {
   return rc;
 }
 
+/**
+ * @return
+ * 子查询1行都没有：RECORD_EOF
+ * 子查询有且仅有1行：SUCCESS
+ * 子查询超过1行：RECORD_EXIST
+ */
 RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const {
   open_sub_query();
   RC rc = get_one_value(tuple, value);
-  if (RC::RECORD_EOF == rc) {
+  if (RC::RECORD_EOF == rc) { // 子查询没有结果
     value.set_null();
   }
   else if (RC::SUCCESS == rc) {
@@ -88,7 +94,7 @@ RC SubQueryExpr::get_value(const Tuple &tuple, Value &value) const {
     RC rc2 = get_one_value(tuple, tmp_value);  // 再获取一行
     if (RC::SUCCESS == rc2) {  // 子查询超过一行
       close_sub_query();
-      return RC::INTERNAL;
+      return RC::RECORD_EXIST;
     }
   }
   close_sub_query();

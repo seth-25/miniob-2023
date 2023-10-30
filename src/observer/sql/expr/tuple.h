@@ -201,7 +201,7 @@ public:
       return RC::INVALID_ARGUMENT;
     }
 
-    FieldExpr       *field_expr = speces_[index];
+    FieldExpr *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
     if (bitmap_.get_bit(index)) {
       cell.set_null();

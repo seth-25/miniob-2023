@@ -52,10 +52,7 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     }
     return rc;
   }
-  if (CompOp::EXISTS_OP == comp_ || CompOp::NOT_EXISTS_OP == comp_) {
-    result = (CompOp::NOT_EXISTS_OP == comp_) ? left.is_null() : !left.is_null();
-    return rc;
-  }
+
   int cmp_result = left.compare(right);
   switch (comp_) {
     case EQUAL_TO: {
@@ -171,8 +168,16 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
 {
   RC rc = RC::SUCCESS;
 
-  // 1. 计算左边的value
   Value left_value;
+  if (comp_ == CompOp::EXISTS_OP || comp_ == CompOp::NOT_EXISTS_OP) { // exists的子查询可以是多行，也可以是0行
+    rc = left_->get_value(tuple, left_value);
+    if (rc == RC::SUCCESS || rc == RC::RECORD_EXIST || rc == RC::RECORD_EOF) {
+      value.set_boolean( (CompOp::NOT_EXISTS_OP == comp_) ? left_value.is_null() : !left_value.is_null() );
+    }
+    return RC::SUCCESS;
+  }
+
+  // 1. 计算左边的value
   rc = left_->get_value(tuple, left_value);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of left expression. rc=%s", strrc(rc));
