@@ -714,7 +714,7 @@ update_value_list:
     }
 
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr {  // function 可能出现
+    SELECT select_attr SEMICOLON {  // function 可能出现，加上;防止读取select_attr后的非法输入
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
         $$->selection.project_exprs.swap(*$2);
@@ -929,6 +929,27 @@ expr_list:
     /* empty */
     {
       $$ = nullptr;
+    }
+    | COMMA ID DOT '*' expr_list {
+      if ($5 != nullptr) {
+       $$ = $5;
+      } else {
+        $$ = new std::vector<ExprSqlNode *>;
+      }
+
+      RelAttrSqlNode attr;
+      attr.relation_name  = $2;
+      attr.attribute_name = "*";
+
+      UnaryExprSqlNode* unary = new UnaryExprSqlNode;
+      unary->is_attr = true;
+      unary->attr = attr;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::UNARY;
+      expr->unary_expr = unary;
+
+      $$->emplace_back(expr);
     }
     | COMMA expr expr_list {
       if ($3 != nullptr) {
@@ -1158,7 +1179,25 @@ select_attr:
       $$ = new std::vector<ExprSqlNode*>;
       $$->emplace_back(expr);
     }
-    // todo ID DOT '*' attr_list {}
+    | ID DOT '*' expr_list {
+      RelAttrSqlNode attr;
+      attr.relation_name  = $1;
+      attr.attribute_name = "*";
+
+      UnaryExprSqlNode* unary = new UnaryExprSqlNode;
+      unary->is_attr = true;
+      unary->attr = attr;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::UNARY;
+      expr->unary_expr = unary;
+      if ($4 != nullptr) {
+         $$ = $4;
+      } else {
+        $$ = new std::vector<ExprSqlNode*>;
+      }
+      $$->emplace_back(expr);
+    }
     | expr expr_list {
       if ($2 != nullptr) {
         $$ = $2;

@@ -93,13 +93,13 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
       LOG_ERROR("表达式转化错误！！！");
       return RC::SQL_SYNTAX;
     }
-
+    bool with_table_name = (tables.size() > 1);
     if (expr->type == ExprSqlNodeType::UNARY && expr->unary_expr->is_attr) {  // 表达式是一元表达式，且是属性，执行原本的代码
       const RelAttrSqlNode &relation_attr = expr->unary_expr->attr; // 属性，relation_name.attribute_name
 
       if (common::is_blank(relation_attr.relation_name.c_str()) &&    // select * from t;
           0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
-        bool with_table_name = (tables.size() > 1);
+
         for (Table *table : tables) {
           wildcard_fields(table, project_expres, alias_map, with_table_name);
         }
@@ -107,15 +107,16 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
       else if (!common::is_blank(relation_attr.relation_name.c_str())) {  // select t.* from t; 或者 select t.id from t;
         const char *table_name = relation_attr.relation_name.c_str();
         const char *field_name = relation_attr.attribute_name.c_str();
-        if (0 == strcmp(table_name, "*")) { // select *.attr from t;
-          if (0 != strcmp(field_name, "*")) {
+        if (0 == strcmp(table_name, "*")) {
+          if (0 != strcmp(field_name, "*")) { // select *.attr from t;
             LOG_WARN("invalid field name while table is *. attr=%s", field_name);
             return RC::SCHEMA_FIELD_MISSING;
           }
-          for (Table *table : tables) {
-            wildcard_fields(table, project_expres);
+          for (Table *table : tables) { // select *.* from t;
+            wildcard_fields(table, project_expres, alias_map, with_table_name);
           }
-        } else {
+        }
+        else {
           auto iter = table_map.find(table_name);
           if (iter == table_map.end()) {
             LOG_WARN("no such table in from list: %s", table_name);
@@ -124,21 +125,24 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
 
           Table *table = iter->second;
           if (0 == strcmp(field_name, "*")) {       // select t.* from t;
-            wildcard_fields(table, project_expres);
-          } else {                                  // select t.id from t;
+            wildcard_fields(table, project_expres, alias_map, with_table_name);
+          }
+          else {                                  // select t.id from t;
             const FieldMeta *field_meta = table->table_meta().field(field_name);
             if (nullptr == field_meta) {
               LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
               return RC::SCHEMA_FIELD_MISSING;
             }
             FieldExpr* field_expr = new FieldExpr(table, field_meta);
-            std::string table_alias_name; // 表的别名
-            if (tables.size() > 1) {
-              table_alias_name = std::string(table->name()) + '.' + std::string(field_meta->name());
-            } else {
-              table_alias_name = std::string(field_meta->name());
+            std::string alias_name = expr->alias_name; // 投影列的别名
+            if (alias_name.empty()) {
+              if (tables.size() > 1) {
+                alias_name = std::string(table->name()) + '.' + std::string(field_meta->name());
+              } else {
+                alias_name = std::string(field_meta->name());
+              }
             }
-            field_expr->set_alias(table_alias_name);
+            field_expr->set_alias(alias_name);
             project_expres.emplace_back(field_expr);
           }
         }
