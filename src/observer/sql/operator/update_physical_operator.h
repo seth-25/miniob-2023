@@ -34,5 +34,5 @@ private:
   std::vector<std::unique_ptr<Expression>> exprs_;
   std::vector<const FieldMeta *> fields_;
   std::vector<Value> values_;
-  bool sub_query_return_one_row = true;
+  int sub_query_return_row = 0; // 0 子查询没查到，1子查询有且仅有1条，2子查询查到多条数据
 };
