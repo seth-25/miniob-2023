@@ -67,6 +67,7 @@ struct PageHeader
   int32_t record_size;          ///< 每条记录占用实际空间大小(可能对齐)
   int32_t record_capacity;      ///< 最大记录个数
   int32_t first_record_offset;  ///< 第一条记录的偏移量
+  int32_t is_update_page;
 };
 
 /**
@@ -151,7 +152,7 @@ public:
    * @param page_num    当前处理哪个页面
    * @param record_size 每个记录的大小
    */
-  RC init_empty_page(DiskBufferPool &buffer_pool, PageNum page_num, int record_size);
+  RC init_empty_page(DiskBufferPool &buffer_pool, PageNum page_num, int record_size, int is_update_page = 0);
 
   /**
    * @brief 对一个新的text页面做初始化，初始化关于该页面记录信息的页头PageHeader
@@ -180,6 +181,12 @@ public:
    * @return
    */
   bool isTextPage();
+
+  /**
+   * 是否是存update的页面
+   * @return
+   */
+  bool isUpdatePage();
 
   /**
    * @brief 操作结束后做的清理工作，比如释放页面、解锁
@@ -211,6 +218,8 @@ public:
    */
   RC delete_record(const RID *rid);
 
+
+  RC get_last_record(Record *rec, RID *rid);
   /**
    * @brief 更新指定的记录
    *
@@ -313,6 +322,7 @@ public:
   RC insert_record(const char *data, int record_size, RID *rid, TableMeta* table_meta = nullptr);
 
   RC update_record(const Record *record, const vector<const FieldMeta*>& fields);
+  RC update_record_with_history(Record *record, int record_size,const FieldMeta * fields, RID* rid);
 
    /**
    * @brief 数据库恢复时，在指定文件指定位置插入数据
@@ -419,6 +429,7 @@ private:
 
   BufferPoolIterator bp_iterator_;                 ///< 遍历buffer pool的所有页面
   ConditionFilter   *condition_filter_ = nullptr;  ///< 过滤record
+  RecordPageHandler  update_page_handler_;         ///<
   RecordPageHandler  record_page_handler_;         ///< 处理文件某页面的记录
   RecordPageIterator record_page_iterator_;        ///< 遍历某个页面上的所有record
   Record             next_record_;                 ///< 获取的记录放在这里缓存起来

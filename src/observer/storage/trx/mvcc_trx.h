@@ -90,9 +90,12 @@ public:
 
   int32_t id() const override { return trx_id_; }
 
+  int trx_get_update_pagenum(Table *table, Record & record) const;
+
 private:
   RC commit_with_trx_id(int32_t commit_id);
   void trx_fields(Table *table, Field &begin_xid_field, Field &end_xid_field) const;
+  void trx_fields_and_history(Table *table, Field &begin_xid_field, Field &end_xid_field, Field &trx_history_field) const;
 
 private:
   static const int32_t MAX_TRX_ID = std::numeric_limits<int32_t>::max();

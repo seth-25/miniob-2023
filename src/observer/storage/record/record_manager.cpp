@@ -17,6 +17,8 @@ See the Mulan PSL v2 for more details. */
 #include "storage/common/condition_filter.h"
 #include "storage/trx/trx.h"
 #include "event/sql_debug.h"
+#include "storage/trx/mvcc_trx.h"
+#include "storage/field/field.h"
 
 using namespace common;
 
@@ -76,7 +78,7 @@ RC RecordPageIterator::next(Record &record)
   return record.rid().slot_num != -1 ? RC::SUCCESS : RC::RECORD_EOF;
 }
 bool RecordPageIterator::is_valid() const {
-  return record_page_handler_ != nullptr && !record_page_handler_->isTextPage();
+  return record_page_handler_ != nullptr && !record_page_handler_->isTextPage() && !record_page_handler_->isUpdatePage();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -143,7 +145,7 @@ RC RecordPageHandler::recover_init(DiskBufferPool &buffer_pool, PageNum page_num
   return ret;
 }
 
-RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, PageNum page_num, int record_size)
+RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, PageNum page_num, int record_size, int is_update_page)
 {
   RC ret = init(buffer_pool, page_num, false /*readonly*/);
   if (ret != RC::SUCCESS) {
@@ -151,6 +153,7 @@ RC RecordPageHandler::init_empty_page(DiskBufferPool &buffer_pool, PageNum page_
     return ret;
   }
 
+  page_header_->is_update_page      = is_update_page;
   page_header_->record_num          = 0;
   page_header_->record_real_size    = record_size;
   page_header_->record_size         = align8(record_size);
@@ -261,6 +264,22 @@ RC RecordPageHandler::insert_record(const char *data, RID *rid)
   // LOG_TRACE("Insert record. rid page_num=%d, slot num=%d", get_page_num(), index);
   return RC::SUCCESS;
 }
+RC RecordPageHandler::get_last_record(Record *rec, RID *rid)
+{
+
+  if (page_header_->record_num == 0)
+  {
+    return RC::RECORD_EOF;
+  }
+  if (rid) {
+    rid->page_num = get_page_num();
+    rid->slot_num = page_header_->record_num - 1;
+  }
+  get_record(rid, rec);
+  // LOG_TRACE("Insert record. rid page_num=%d, slot num=%d", get_page_num(), index);
+  return RC::SUCCESS;
+}
+
 
 RC RecordPageHandler::recover_insert_record(const char *data, const RID &rid)
 {
@@ -378,6 +397,7 @@ PageNum RecordPageHandler::get_page_num() const
 
 bool RecordPageHandler::is_full() const { return page_header_->record_num >= page_header_->record_capacity; }
 bool RecordPageHandler::isTextPage() { return page_header_->record_capacity == 1; }
+bool RecordPageHandler::isUpdatePage() { return page_header_->is_update_page == 1; }
 PageNum RecordPageHandler::get_text_next_page() { return page_header_->record_size; }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -729,6 +749,89 @@ RC RecordFileHandler::update_record(const Record *record, const vector<const Fie
   }
   return rc;
 }
+RC RecordFileHandler::update_record_with_history(Record *record, int record_size,const FieldMeta * fields, RID* rid)
+{
+  RC rc = RC::SUCCESS;
+
+  RecordPageHandler page_handler;
+  if ((rc = page_handler.init(*disk_buffer_pool_, record->rid().page_num, false /*readonly*/)) != RC::SUCCESS) {
+    LOG_ERROR("Failed to init record page handler.page number=%d. rc=%s", record->rid().page_num, strrc(rc));
+    return rc;
+  }
+
+
+  Record old_record;
+  page_handler.get_record(&record->rid(), &old_record);
+  Field begin_field;
+  Field end_field;
+  Field trx_page_field;
+  begin_field.set_field(&fields[0]);
+  end_field.set_field(&fields[1]);
+  trx_page_field.set_field(&fields[2]);
+
+  auto update_page_num = trx_page_field.get_int(old_record);
+  RecordPageHandler update_history_page_handler;
+  if (update_page_num == -1)
+  {
+      Frame *frame = nullptr;
+      if ((rc = disk_buffer_pool_->allocate_page(&frame)) != RC::SUCCESS) {
+        LOG_ERROR("Failed to allocate page while inserting text record. ret:%d", rc);
+        return rc;
+      }
+      update_page_num = frame->page_num();
+
+      rc = update_history_page_handler.init_empty_page(
+          *disk_buffer_pool_, update_page_num, record_size, 1);
+      if (rc != RC::SUCCESS) {
+        frame->unpin();
+        LOG_ERROR("Failed to init empty text page. ret:%d", rc);
+        return rc;
+      }
+      frame->unpin();
+      trx_page_field.set_int(*record, update_page_num);
+  }else
+  {
+      if ((rc = update_history_page_handler.init(*disk_buffer_pool_, update_page_num, false /*readonly*/)) != RC::SUCCESS) {
+        LOG_ERROR("Failed to init record page handler.page number=%d. rc=%s", record->rid().page_num, strrc(rc));
+        return rc;
+      }
+  }
+  int trx_id = -begin_field.get_int(*record);
+  end_field.set_int(old_record, -trx_id);
+
+  Record last_record_in_update;
+
+  RC rc2 = update_history_page_handler.get_last_record(&last_record_in_update, &last_record_in_update.rid());
+
+  if ((rc2 != RC::SUCCESS) || (end_field.get_int(last_record_in_update) != -trx_id)) {
+      update_history_page_handler.insert_record(old_record.data(), &old_record.rid());
+      rid->page_num = old_record.rid().page_num;
+      rid->slot_num = old_record.rid().slot_num;
+  }else{
+      rid->page_num = last_record_in_update.rid().page_num;
+      rid->slot_num = last_record_in_update.rid().slot_num;
+  }
+  update_history_page_handler.cleanup();
+
+
+
+  rc = page_handler.update_record(record);
+  // todo 考虑加锁
+  // 📢 这里注意要清理掉资源，否则会与insert_record中的加锁顺序冲突而可能出现死锁
+  // delete record的加锁逻辑是拿到页面锁，删除指定记录，然后加上和释放record manager锁
+  // insert record是加上 record manager锁，然后拿到指定页面锁再释放record manager锁
+  page_handler.cleanup();
+  if (OB_SUCC(rc)) {
+    // 因为这里已经释放了页面锁，并发时，其它线程可能又把该页面填满了，那就不应该再放入 free_pages_
+    // 中。但是这里可以不关心，因为在查找空闲页面时，会自动过滤掉已经满的页面
+    lock_.lock();
+    free_pages_.insert(record->rid().page_num);
+    LOG_TRACE("add free page %d to free page list", record->rid().page_num);
+    lock_.unlock();
+  }
+
+  return rc;
+}
 
 RC RecordFileHandler::recover_update_record(const char *data, int record_size, const RID &rid)
 {
@@ -841,7 +944,7 @@ RC RecordFileScanner::fetch_next_record()
     }
 
     // 该页为text
-    if (record_page_handler_.isTextPage()) continue;
+    if (record_page_handler_.isTextPage() || record_page_handler_.isUpdatePage()) continue;
 
     record_page_iterator_.init(record_page_handler_);
     rc = fetch_next_record_in_page();
@@ -864,6 +967,7 @@ RC RecordFileScanner::fetch_next_record()
  */
 RC RecordFileScanner::fetch_next_record_in_page()
 {
+  update_page_handler_.cleanup();
   RC rc = RC::SUCCESS;
   while (record_page_iterator_.has_next()) {
     rc = record_page_iterator_.next(next_record_);
@@ -888,6 +992,32 @@ RC RecordFileScanner::fetch_next_record_in_page()
     if (rc == RC::RECORD_INVISIBLE) {
       // 可以参考MvccTrx，表示当前记录不可见
       // 这种模式仅在 readonly 事务下是有效的
+      int update_page_num = ((MvccTrx *)trx_)->trx_get_update_pagenum(table_, next_record_);
+      if (update_page_num != -1) {
+        RC rc2 = update_page_handler_.init(*disk_buffer_pool_, update_page_num, readonly_);
+        RecordPageIterator update_page_iterator;
+        update_page_iterator.init(update_page_handler_);
+        Record record;
+        while (update_page_iterator.has_next()) {
+          rc2 = update_page_iterator.next(record);
+          if (rc2 != RC::SUCCESS) {
+            const auto page_num = update_page_handler_.get_page_num();
+            LOG_TRACE("failed to get next record from page. page_num=%d, rc=%s", page_num, strrc(rc));
+            return rc2;
+          }
+          rc2 = trx_->visit_record(table_, record, readonly_);
+          if (rc2 == RC::SUCCESS)
+          {
+              next_record_.set_rid(record.rid().page_num, record.rid().slot_num);
+              next_record_.set_data(record.data(), record.len());
+          }
+        }
+      }
+      rc = trx_->visit_record(table_, next_record_, readonly_);
+      if (rc == RC::SUCCESS)
+      {
+        return rc;
+      }
       continue;
     }
 
@@ -910,6 +1040,7 @@ RC RecordFileScanner::close_scan()
   }
 
   record_page_handler_.cleanup();
+  update_page_handler_.cleanup();
 
   return RC::SUCCESS;
 }

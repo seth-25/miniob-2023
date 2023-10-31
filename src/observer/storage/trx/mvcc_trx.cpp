@@ -35,7 +35,8 @@ RC MvccTrxKit::init()
 {
   fields_ = vector<FieldMeta>{
     FieldMeta(0, "__trx_xid_begin", AttrType::INTS, 0/*attr_offset*/, 4/*attr_len*/, false, false/*visible*/),
-    FieldMeta(1, "__trx_xid_end",   AttrType::INTS, 4/*attr_offset*/, 4/*attr_len*/, false, false/*visible*/)
+    FieldMeta(1, "__trx_xid_end",   AttrType::INTS, 4/*attr_offset*/, 4/*attr_len*/, false, false/*visible*/),
+    FieldMeta(2, "__trx_history_page_num",   AttrType::INTS, 8/*attr_offset*/, 4/*attr_len*/, false, false/*visible*/)
   };
 
   LOG_INFO("init mvcc trx kit done.");
@@ -136,10 +137,12 @@ RC MvccTrx::insert_record(Table *table, Record &record)
 {
   Field begin_field;
   Field end_field;
-  trx_fields(table, begin_field, end_field);
+  Field history_field;
+  trx_fields_and_history(table, begin_field, end_field, history_field);
 
   begin_field.set_int(record, -trx_id_);
   end_field.set_int(record, trx_kit_.max_trx_id());
+  history_field.set_int(record, -1);
 
   RC rc = table->insert_record(record);
   if (rc != RC::SUCCESS) {
@@ -174,13 +177,17 @@ RC MvccTrx::delete_record(Table * table, Record &record)
     // 当前不是多版本数据中的最新记录，不需要删除
     return RC::SUCCESS;
   }
-  
   end_field.set_int(record, -trx_id_);
   RC rc = log_manager_->append_log(CLogType::DELETE, trx_id_, table->table_id(), record.rid(), 0, 0, nullptr);
   ASSERT(rc == RC::SUCCESS, "failed to append delete record log. trx id=%d, table id=%d, rid=%s, record len=%d, rc=%s",
       trx_id_, table->table_id(), record.rid().to_string().c_str(), record.len(), strrc(rc));
 
-  operations_.insert(Operation(Operation::Type::DELETE, table, record.rid()));
+  pair<OperationSet::iterator, bool> ret = operations_.insert(Operation(Operation::Type::DELETE, table, record.rid()));
+  if (!ret.second) {
+    rc = RC::INTERNAL;
+    LOG_WARN("failed to insert operation(delete) into operation set: duplicate");
+    return rc;
+  }
   int32_t tmp_delete_id = -trx_id_;
   auto record_updater = [this, &end_field, tmp_delete_id](Record &record) {
     (void)this;
@@ -202,9 +209,12 @@ RC MvccTrx::delete_record(Table * table, Record &record)
 
 RC MvccTrx::update_record(Table *table, Record &old_record, Record &new_record, const vector<const FieldMeta*>& fields) {
   //delete
+
+  RC rc = RC::SUCCESS;
   Field begin_field;
   Field end_field;
-  trx_fields(table, begin_field, end_field);
+  Field history_field;
+  trx_fields_and_history(table, begin_field, end_field, history_field);
 
   [[maybe_unused]] int32_t end_xid = end_field.get_int(old_record);
   /// 在删除之前，第一次获取record时，就已经对record做了对应的检查，并且保证不会有其它的事务来访问这条数据
@@ -215,45 +225,19 @@ RC MvccTrx::update_record(Table *table, Record &old_record, Record &new_record, 
     return RC::SUCCESS;
   }
   end_field.set_int(old_record, -trx_id_);
-  RC rc = log_manager_->append_log(CLogType::DELETE, trx_id_, table->table_id(), old_record.rid(), 0, 0, nullptr);
-  ASSERT(rc == RC::SUCCESS, "failed to append delete record log. trx id=%d, table id=%d, rid=%s, record len=%d, rc=%s",
-      trx_id_, table->table_id(), record.rid().to_string().c_str(), record.len(), strrc(rc));
-  operations_.insert(Operation(Operation::Type::DELETE, table, old_record.rid()));
-
-  int32_t tmp_delete_id = -trx_id_;
-  auto record_updater = [this, &end_field, tmp_delete_id](Record &record) {
-    (void)this;
-    ASSERT(end_field.get_int(record) == trx_kit_.max_trx_id(),
-        "got an invalid record while delete. end xid=%d, this trx id=%d",
-        end_xid_field.get_int(record), trx_id_);
-
-    end_field.set_int(record, tmp_delete_id);
-  };
-  rc = table->visit_record(old_record.rid(), false/*readonly*/, record_updater);
-  if (rc != RC::SUCCESS)
-  {
-    LOG_WARN("failed to delte record into im tmp. rc=%s", strrc(rc));
-    return rc;
-  }
-
-  //insert
-  trx_fields(table, begin_field, end_field);
 
   begin_field.set_int(new_record, -trx_id_);
   end_field.set_int(new_record, trx_kit_.max_trx_id());
+  const std::pair<const FieldMeta *, int> trx_fields =  table->table_meta().trx_fields();
 
-  rc = table->insert_record(new_record);
-  if (rc != RC::SUCCESS) {
-    LOG_WARN("failed to insert record into table. rc=%s", strrc(rc));
-    return rc;
+  rc = table->update_record_with_history(old_record, new_record, trx_fields.first);
+  if (rc != RC::SUCCESS)
+  {
+    LOG_WARN("failed to update record with history");
   }
 
-  rc = log_manager_->append_log(CLogType::INSERT, trx_id_, table->table_id(), new_record.rid(), new_record.len(), 0/*offset*/, new_record.data());
-  ASSERT(rc == RC::SUCCESS, "failed to append insert record log. trx id=%d, table id=%d, rid=%s, record len=%d, rc=%s",
-      trx_id_, table->table_id(), record.rid().to_string().c_str(), record.len(), strrc(rc));
-
   pair<OperationSet::iterator, bool> ret =
-      operations_.insert(Operation(Operation::Type::INSERT, table, new_record.rid()));
+      operations_.insert(Operation(Operation::Type::UPDATE, table, new_record.rid(), old_record.rid()));
   if (!ret.second) {
     rc = RC::INTERNAL;
     LOG_WARN("failed to insert operation(insertion) into operation set: duplicate");
@@ -292,6 +276,7 @@ RC MvccTrx::visit_record(Table *table, Record &record, bool readonly)
       rc = (-end_xid != trx_id_) ? RC::LOCKED_CONCURRENCY_CONFLICT : RC::RECORD_INVISIBLE;
     }
   }
+
   return rc;
 }
 
@@ -312,6 +297,34 @@ void MvccTrx::trx_fields(Table *table, Field &begin_xid_field, Field &end_xid_fi
   begin_xid_field.set_field(&trx_fields.first[0]);
   end_xid_field.set_table(table);
   end_xid_field.set_field(&trx_fields.first[1]);
+}
+
+int MvccTrx::trx_get_update_pagenum(Table *table, Record & record) const
+{
+  const TableMeta &table_meta = table->table_meta();
+  const std::pair<const FieldMeta *, int> trx_fields = table_meta.trx_fields();
+  ASSERT(trx_fields.second >= 2, "invalid trx fields number. %d", trx_fields.second);
+
+  Field trx_history_field;
+  trx_history_field.set_table(table);
+  trx_history_field.set_field(&trx_fields.first[2]);
+  return trx_history_field.get_int(record);
+
+}
+
+
+void MvccTrx::trx_fields_and_history(Table *table, Field &begin_xid_field, Field &end_xid_field, Field &trx_history_field) const
+{
+  const TableMeta &table_meta = table->table_meta();
+  const std::pair<const FieldMeta *, int> trx_fields = table_meta.trx_fields();
+  ASSERT(trx_fields.second >= 2, "invalid trx fields number. %d", trx_fields.second);
+
+  begin_xid_field.set_table(table);
+  begin_xid_field.set_field(&trx_fields.first[0]);
+  end_xid_field.set_table(table);
+  end_xid_field.set_field(&trx_fields.first[1]);
+  trx_history_field.set_table(table);
+  trx_history_field.set_field(&trx_fields.first[2]);
 }
 
 RC MvccTrx::start_if_need()
@@ -382,7 +395,41 @@ RC MvccTrx::commit_with_trx_id(int32_t commit_xid)
         ASSERT(rc == RC::SUCCESS, "failed to get record while committing. rid=%s, rc=%s",
                rid.to_string().c_str(), strrc(rc));
       } break;
+      case Operation::Type::UPDATE: {
+        Table *table = operation.table();
+        RID rid(operation.page_num(), operation.slot_num());
+        RID old_rid(operation.old_page_num(), operation.old_slot_num());
+        Field begin_xid_field, end_xid_field;
+        trx_fields(table, begin_xid_field, end_xid_field);
 
+        auto record_updater = [ this, &begin_xid_field, commit_xid](Record &record) {
+          LOG_DEBUG("before commit insert record. trx id=%d, begin xid=%d, commit xid=%d, lbt=%s",
+                    trx_id_, begin_xid_field.get_int(record), commit_xid, lbt());
+          ASSERT(begin_xid_field.get_int(record) == -this->trx_id_,
+              "got an invalid record while committing. begin xid=%d, this trx id=%d",
+              begin_xid_field.get_int(record), trx_id_);
+
+          begin_xid_field.set_int(record, commit_xid);
+        };
+
+        rc = operation.table()->visit_record(rid, false/*readonly*/, record_updater);
+        ASSERT(rc == RC::SUCCESS, "failed to get record while committing. rid=%s, rc=%s",
+            rid.to_string().c_str(), strrc(rc));
+
+        auto old_record_updater = [this, &end_xid_field, commit_xid](Record &record) {
+          (void)this;
+          ASSERT(end_xid_field.get_int(record) == -trx_id_,
+              "got an invalid record while committing. end xid=%d, this trx id=%d",
+              end_xid_field.get_int(record), trx_id_);
+
+          end_xid_field.set_int(record, commit_xid);
+        };
+
+        rc = operation.table()->visit_record(old_rid, false/*readonly*/, old_record_updater);
+        ASSERT(rc == RC::SUCCESS, "failed to get record while committing. rid=%s, rc=%s",
+            oldrid.to_string().c_str(), strrc(rc));
+
+      }break;
       default: {
         ASSERT(false, "unsupported operation. type=%d", static_cast<int>(operation.type()));
       }

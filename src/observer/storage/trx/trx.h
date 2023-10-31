@@ -62,12 +62,22 @@ public:
         page_num_(rid.page_num), 
         slot_num_(rid.slot_num)
   {}
+  Operation(Type type, Table *table, const RID &rid, const RID &old_rid)
+      : type_(type),
+        table_(table),
+        page_num_(rid.page_num),
+        slot_num_(rid.slot_num),
+        old_page_num_(old_rid.page_num),
+        old_slot_num_(old_rid.slot_num)
+  {}
 
   Type    type() const { return type_; }
   int32_t table_id() const { return table_->table_id(); }
   Table * table() const { return table_; }
   PageNum page_num() const { return page_num_; }
   SlotNum slot_num() const { return slot_num_; }
+  PageNum old_page_num() const { return old_page_num_; }
+  SlotNum old_slot_num() const { return old_slot_num_; }
 
 private:
   ///< 操作的哪张表。这里直接使用表其实并不准确，因为表中的索引也可能有日志
@@ -76,6 +86,9 @@ private:
   Table * table_ = nullptr;
   PageNum page_num_; // TODO use RID instead of page num and slot num
   SlotNum slot_num_;
+
+  PageNum old_page_num_ = -1;
+  SlotNum old_slot_num_ = -1;
 };
 
 class OperationHasher 
@@ -93,7 +106,8 @@ public:
   bool operator()(const Operation &op1, const Operation &op2) const
   {
     return op1.table_id() == op2.table_id() &&
-        op1.page_num() == op2.page_num() && op1.slot_num() == op2.slot_num();
+        op1.page_num() == op2.page_num() && op1.slot_num() == op2.slot_num() && op1.old_slot_num() ==
+        op2.old_slot_num() && op1.old_page_num() == op2.old_page_num() ;
   }
 };
 
