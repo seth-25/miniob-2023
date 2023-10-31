@@ -37,24 +37,9 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     }
     values_.emplace_back(value);
   }
-  // 检查类型是否合法
-  for (int i = 0; i < fields_.size(); i ++ ) {
-    const AttrType field_type = fields_[i]->type();
-    const AttrType value_type = values_[i].attr_type();
-    if (AttrType::NULLS == value_type) {
-      if (!fields_[i]->nullable()) {
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-      }
-      continue;
-    }
-    if (field_type != value_type && !common::type_cast_check(value_type, field_type) &&
-        !TextHelper::isInsertText(field_type, value_type)) {
-      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-    }
-  }
-
   return RC::SUCCESS;
 }
+
 
 RC UpdatePhysicalOperator::next()
 {
@@ -68,6 +53,26 @@ RC UpdatePhysicalOperator::next()
     if (sub_query_return_more_than_one_row) {  // 子查询超过一行，update的where存在数据，应该返回fail
       return RC::INTERNAL;
     }
+
+    if (!has_check_type) {
+      has_check_type = true;
+      // 检查类型是否合法
+      for (int i = 0; i < fields_.size(); i ++ ) {
+        const AttrType field_type = fields_[i]->type();
+        const AttrType value_type = values_[i].attr_type();
+        if (AttrType::NULLS == value_type) {
+          if (!fields_[i]->nullable()) {
+            return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+          }
+          continue;
+        }
+        if (field_type != value_type && !common::type_cast_check(value_type, field_type) &&
+            !TextHelper::isInsertText(field_type, value_type)) {
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
+      }
+    }
+
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
       LOG_WARN("failed to get current record: %s", strrc(rc));

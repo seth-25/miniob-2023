@@ -35,4 +35,5 @@ private:
   std::vector<const FieldMeta *> fields_;
   std::vector<Value> values_;
   bool sub_query_return_more_than_one_row = false;
+  bool has_check_type = false;
 };
