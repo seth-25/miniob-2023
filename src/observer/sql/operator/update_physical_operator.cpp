@@ -41,6 +41,7 @@ RC UpdatePhysicalOperator::open(Trx *trx)
       if (!fields_[i]->nullable()) {
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;
       }
+      continue;
     }
     if (field_type != value_type && !common::type_cast_check(value_type, field_type) &&
         !TextHelper::isInsertText(field_type, value_type)) {
