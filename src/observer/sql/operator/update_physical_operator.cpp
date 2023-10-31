@@ -20,19 +20,16 @@ RC UpdatePhysicalOperator::open(Trx *trx)
   trx_ = trx;
 
   // 将表达式转化成value
-  for (auto& expr: exprs_) {
+  for (int i = 0; i < exprs_.size(); i ++ ) {
+    auto& expr = exprs_[i];
     Value value;
     EmptyTuple empty_tuple;
     rc = expr->get_value(empty_tuple, value);
-    if (rc == RC::SUCCESS) {
-      sub_query_return_row = 1;
-    }
     if (rc == RC::RECORD_EOF) { // 子查询没查到，但此时如果update的where不存在数据，应该返回success；如果update的字段可以为null，设为null
-      sub_query_return_row = 0;
       rc = RC::SUCCESS;
     }
     if (rc == RC::RECORD_EXIST) { // 子查询没查到，但此时如果update的where不存在数据，应该返回success；存在数据则返回fail
-      sub_query_return_row = 2;
+      sub_query_return_more_than_one_row = true;
       rc = RC::SUCCESS;
     }
     if (rc != RC::SUCCESS) {
@@ -68,7 +65,7 @@ RC UpdatePhysicalOperator::next()
 
   PhysicalOperator *child = children_[0].get();
   while (RC::SUCCESS == (rc = child->next())) {
-    if (sub_query_return_row == 2) {  // 子查询超过一行，update的where存在数据，应该返回fail
+    if (sub_query_return_more_than_one_row) {  // 子查询超过一行，update的where存在数据，应该返回fail
       return RC::INTERNAL;
     }
     Tuple *tuple = child->current_tuple();
