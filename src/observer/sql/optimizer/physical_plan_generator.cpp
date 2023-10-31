@@ -161,7 +161,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
     }
   }
 
-  if (index != nullptr) {
+  if (index != nullptr && table->table_meta().sys_field_num() != 3) {
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
 
     const Value &value = value_expr->get_value();

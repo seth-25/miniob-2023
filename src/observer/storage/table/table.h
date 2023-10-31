@@ -80,9 +80,11 @@ public:
    * @param record[in/out] 传入的数据包含具体的数据，插入成功会通过此字段返回RID
    */
   RC insert_record(Record &record);
+  RC insert_record_with_history(Record &record);
   RC delete_record(const Record &record);
   RC make_record_from_old_record(std::vector<const FieldMeta*>& fields, std::vector<Value>& values, Record& old_record, Record &new_record);
   RC update_record(const Record &old_record, Record &new_record, const std::vector<const FieldMeta*>& fields);
+  RC update_record_with_history(Record &old_record, Record &new_record, const FieldMeta * fields);
   RC visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor);
   RC get_record(const RID &rid, Record &record);
 
