@@ -251,6 +251,16 @@ RC Table::insert_record(Record &record)
   }
   return rc;
 }
+RC Table::insert_record_with_history(Record &record)
+{
+  RC rc = RC::SUCCESS;
+  rc    = record_handler_->insert_record(record.data(), table_meta_.record_size(), &record.rid(), &table_meta_);
+  if (rc != RC::SUCCESS) {
+    LOG_ERROR("Insert record failed. table name=%s, rc=%s", table_meta_.name(), strrc(rc));
+    return rc;
+  }
+  return rc;
+}
 
 RC Table::visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor)
 {
