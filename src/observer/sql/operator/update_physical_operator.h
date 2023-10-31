@@ -34,4 +34,5 @@ private:
   std::vector<std::unique_ptr<Expression>> exprs_;
   std::vector<const FieldMeta *> fields_;
   std::vector<Value> values_;
+  bool sub_query_return_one_row = true;
 };

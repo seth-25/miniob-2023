@@ -24,11 +24,16 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     Value value;
     EmptyTuple empty_tuple;
     rc = expr->get_value(empty_tuple, value);
+    if (rc == RC::RECORD_EOF || rc == RC::RECORD_EXIST) { // 子查询超过一行或者没查到，但此时如果update的where不存在数据，应该返回success
+      sub_query_return_one_row = false;
+      rc = RC::SUCCESS;
+    }
     if (rc != RC::SUCCESS) {
       return rc;
     }
     values_.emplace_back(value);
   }
+  // 检查类型是否合法
   for (int i = 0; i < fields_.size(); i ++ ) {
     const AttrType field_type = fields_[i]->type();
     const AttrType value_type = values_[i].attr_type();
@@ -37,7 +42,6 @@ RC UpdatePhysicalOperator::open(Trx *trx)
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;
       }
     }
-
     if (field_type != value_type && !common::type_cast_check(value_type, field_type) &&
         !TextHelper::isInsertText(field_type, value_type)) {
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
@@ -56,6 +60,9 @@ RC UpdatePhysicalOperator::next()
 
   PhysicalOperator *child = children_[0].get();
   while (RC::SUCCESS == (rc = child->next())) {
+    if (!sub_query_return_one_row) {  // 子查询超过一行或者没查到，update的where存在数据，应该返回fail
+      return RC::INTERNAL;
+    }
     Tuple *tuple = child->current_tuple();
     if (nullptr == tuple) {
       LOG_WARN("failed to get current record: %s", strrc(rc));
