@@ -593,7 +593,7 @@ RC Table::make_record_from_old_record(
 
   for (size_t i = 0; i < fields.size(); i++) {
     const FieldMeta *field = fields[i];
-    const Value      value = values[i];
+    const Value value = values[i];
     if (field->type() == TEXTS) {
       auto &text_record = *(TextRecord*)(old_record.data() + field->offset());
       while (text_mems.size() != text_record.text_id) {

@@ -352,7 +352,6 @@ RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique
 
 RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique_ptr<PhysicalOperator> &oper)
 {
-  // todo
   vector<unique_ptr<LogicalOperator>> &child_opers = update_oper.children();
 
   unique_ptr<PhysicalOperator> child_physical_oper;
@@ -368,8 +367,13 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
   }
 
   std::vector<const FieldMeta *> &fields = update_oper.fields();
-  std::vector<Value> values = update_oper.values();
-  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(), std::move(values), std::move(fields)));
+  std::vector<unique_ptr<Expression>>& exprs = update_oper.exprs();
+  for (auto& expr: exprs) {
+    if (expr->type() == ExprType::SUBSQUERY) {
+      set_sub_query_phy_oper(expr);
+    }
+  }
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(), std::move(exprs), std::move(fields)));
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));

@@ -3,6 +3,7 @@
 #include "storage/record/record.h"
 #include "storage/table/table.h"
 #include "storage/trx/trx.h"
+#include "common/lang/typecast.h"
 
 RC UpdatePhysicalOperator::open(Trx *trx)
 {
@@ -16,8 +17,32 @@ RC UpdatePhysicalOperator::open(Trx *trx)
     LOG_WARN("failed to open child operator: %s", strrc(rc));
     return rc;
   }
-
   trx_ = trx;
+
+  // 将表达式转化成value
+  for (auto& expr: exprs_) {
+    Value value;
+    EmptyTuple empty_tuple;
+    rc = expr->get_value(empty_tuple, value);
+    if (rc != RC::SUCCESS) {
+      return rc;
+    }
+    values_.emplace_back(value);
+  }
+  for (int i = 0; i < fields_.size(); i ++ ) {
+    const AttrType field_type = fields_[i]->type();
+    const AttrType value_type = values_[i].attr_type();
+    if (AttrType::NULLS == value_type) {
+      if (!fields_[i]->nullable()) {
+        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      }
+    }
+
+    if (field_type != value_type && !common::type_cast_check(value_type, field_type) &&
+        !TextHelper::isInsertText(field_type, value_type)) {
+      return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+    }
+  }
 
   return RC::SUCCESS;
 }
@@ -28,11 +53,6 @@ RC UpdatePhysicalOperator::next()
   if (children_.empty()) {
     return RC::RECORD_EOF;
   }
-
-  // todo 支持复杂update
-  vector<const FieldMeta*> fields(fields_); // 存需要更新的fields，和values一一对应
-
-
 
   PhysicalOperator *child = children_[0].get();
   while (RC::SUCCESS == (rc = child->next())) {
@@ -47,12 +67,12 @@ RC UpdatePhysicalOperator::next()
 
     // 将old_record的值更新成新的值
     Record new_record;
-    rc = table_->make_record_from_old_record(fields, values_, old_record, new_record);
+    rc = table_->make_record_from_old_record(fields_, values_, old_record, new_record);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to make update record: %s", strrc(rc));
       return rc;
     }
-    rc = trx_->update_record(table_, old_record, new_record, fields); //todo
+    rc = trx_->update_record(table_, old_record, new_record, fields_); //todo
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to update record: %s", strrc(rc));
       return rc;

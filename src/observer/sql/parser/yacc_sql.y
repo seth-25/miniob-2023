@@ -691,11 +691,25 @@ update_stmt:      /*  update 语句的语法解析树*/
 
 update_value:
     ID EQ value {
+      UnaryExprSqlNode* unary = new UnaryExprSqlNode;
+      unary->is_attr = false;
+      unary->value = *$3;
+      delete $3;
+
+      ExprSqlNode* expr = new ExprSqlNode;
+      expr->type = ExprSqlNodeType::UNARY;
+      expr->unary_expr = unary;
+
       $$ = new UpdateValueNode;
       $$->attribute_name = $1;
-      $$->value = *$3;
+      $$->expr = expr;
       free($1);
-      delete($3);
+    }
+    | ID EQ sub_select {
+      $$ = new UpdateValueNode;
+      $$->attribute_name = $1;
+      $$->expr = $3;
+      free($1);
     }
 
 update_value_list:

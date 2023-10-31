@@ -366,6 +366,7 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const s
 
 
   // todo 回收select_sql的各项表达式
+  // todo SubQueryExpr需要delete SelectSqlNode
   for (auto& node: select_sql.project_exprs) {
     delete node;  // todo 递归删除
   }

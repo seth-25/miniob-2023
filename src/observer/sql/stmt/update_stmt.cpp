@@ -20,13 +20,15 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "common/log/log.h"
 #include "common/lang/typecast.h"
+#include "sql/expr/value_expression.h"
+#include "sql/expr/subquery_expression.h"
 
 // UpdateStmt::UpdateStmt(Table *table, Value *values, int value_amount)
 //    : table_(table), values_(values), value_amount_(value_amount)
 //{}
-UpdateStmt::UpdateStmt(Table *table, std::vector<Value>& values,
+UpdateStmt::UpdateStmt(Table *table, std::vector<std::unique_ptr<Expression>>& exprs,
     std::vector<const FieldMeta *> &fields, FilterStmt *filter_stmt)
-    : table_(table), values_(std::move(values)), fields_(fields), filter_stmt_(filter_stmt)
+    : table_(table), exprs_(std::move(exprs)), fields_(fields), filter_stmt_(filter_stmt)
 {}
 
 UpdateStmt::~UpdateStmt()
@@ -52,15 +54,16 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
 
-  std::vector<const FieldMeta *> fields;
-  std::vector<Value> values;
-//  const Value *value = nullptr;
+  vector<const FieldMeta *> fields;
+//  std::vector<Value> values;
+  vector<unique_ptr<Expression>> exprs;
+  //  const Value *value = nullptr;
 
-  // todo 支持多值update修改
   for (size_t i = 0; i < update.update_values.size(); i ++ )
   {
     bool field_exist = false;
     const char *attr_name = update.update_values[i].attribute_name.c_str();
+    const ExprSqlNode* expr_node = update.update_values[i].expr;
     if (nullptr == attr_name) {
       LOG_WARN("invalid argument. attribute_name=%p", attr_name);
       return RC::INVALID_ARGUMENT;
@@ -70,35 +73,62 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
     const TableMeta &table_meta = table->table_meta();
     const int sys_field_num = table_meta.sys_field_num();
     const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
+
     // 找到属性对应字段，sys_field_num到field_num之间是用户创建的field
     for (int j = sys_field_num; j < field_num; j ++ ) {
       const FieldMeta *field_meta = table_meta.field(j);
       const char *field_name = field_meta->name();
-      if (strcmp(field_name, attr_name) != 0) continue;
+      if (strcmp(field_name, attr_name) != 0) continue; // 检查update set的字段是否存在
       field_exist = true;
-      Value value = update.update_values[i].value;
-      values.emplace_back(value);
 
-      // 检查类型
-      const AttrType field_type = field_meta->type();
-      const AttrType value_type = value.attr_type();
-      if (AttrType::NULLS == value_type) {
-        if (!field_meta->nullable()) {
-          LOG_WARN("field type mismatch. can not be null. table=%s, field=%s, field type=%d, value_type=%d",
-              table_name,
-              field_meta->name(),
-              field_type,
-              value_type);
-          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+      unique_ptr<Expression> expr;
+      const std::unordered_map<std::string, Table *> table_map;
+      const std::vector<Table *> tables;
+      if (ExprSqlNodeType::UNARY == expr_node->type) {
+        const UnaryExprSqlNode *unary_expr_node = expr_node->unary_expr;
+        if (unary_expr_node->is_attr) {
+          return RC::SQL_SYNTAX;
         }
-        fields.emplace_back(field_meta);
-        continue;
+        RC rc = ValueExpr::create_expression(expr_node, table_map, tables, expr);
+        if (RC::SUCCESS != rc) {
+          LOG_ERROR("UpdateStmt Create ValueExpr Failed. RC = %d:%s", rc, strrc(rc));
+          return rc;
+        }
+      } else if (ExprSqlNodeType::SUBQUERY == expr_node->type) {
+        // will check projects num
+        RC rc = SubQueryExpr::create_expression(expr_node, table_map, tables, expr, CompOp::EQUAL_TO, db, trx);
+        if (RC::SUCCESS != rc) {
+          LOG_ERROR("UpdateStmt Create SubQueryExpression Failed. RC = %d:%s", rc, strrc(rc));
+          return rc;
+        }
+      } else {
+        return RC::SQL_SYNTAX;
       }
-      if (field_type != value_type && !common::type_cast_check(value_type, field_type) && !TextHelper::isInsertText(field_type, value_type)) {
-        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
-        table_name, field_meta->name(), field_type, value_type);
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-      }
+
+      assert(expr != nullptr);
+      exprs.emplace_back(std::move(expr));
+
+
+//      // 检查类型
+//      const AttrType field_type = field_meta->type();
+//      const AttrType value_type = value.attr_type();
+//      if (AttrType::NULLS == value_type) {
+//        if (!field_meta->nullable()) {
+//          LOG_WARN("field type mismatch. can not be null. table=%s, field=%s, field type=%d, value_type=%d",
+//              table_name,
+//              field_meta->name(),
+//              field_type,
+//              value_type);
+//          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+//        }
+//        fields.emplace_back(field_meta);
+//        continue;
+//      }
+//      if (field_type != value_type && !common::type_cast_check(value_type, field_type) && !TextHelper::isInsertText(field_type, value_type)) {
+//        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
+//        table_name, field_meta->name(), field_type, value_type);
+//        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+//      }
 
       fields.emplace_back(field_meta);
     }
@@ -108,6 +138,8 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
       return RC::SCHEMA_FIELD_NOT_EXIST;
     }
   }
+
+  assert(fields.size() == exprs.size());
 
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
@@ -122,6 +154,6 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
 
 
   // everything alright
-  stmt = new UpdateStmt(table, values, fields, filter_stmt);
+  stmt = new UpdateStmt(table, exprs, fields, filter_stmt);
   return RC::SUCCESS;
 }

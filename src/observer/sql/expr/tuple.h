@@ -441,6 +441,9 @@ public:
 
   int cell_num() const override { return left_->cell_num() + right_->cell_num(); }
 
+  /**
+   * subQueryExpr获取第一列时调用
+   */
   RC cell_at(int index, Value &value) const override
   {
     const int left_cell_num = left_->cell_num();

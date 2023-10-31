@@ -343,15 +343,21 @@ RC LogicalPlanGenerator::create_plan(
   std::vector<Field> fields;
   for (int i = table->table_meta().sys_field_num(); i < table->table_meta().field_num(); i++) {
     const FieldMeta *field_meta = table->table_meta().field(i);
-    fields.push_back(Field(table, field_meta));
+    fields.emplace_back(table, field_meta);
   }
   unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, fields, false/*readonly*/));
 
   unique_ptr<LogicalOperator> predicate_oper;
   create_plan(filter_stmt, predicate_oper);
 
+  for (unique_ptr<Expression>& expr: update_stmt->exprs()) {
+    if (expr->type() == ExprType::SUBSQUERY) {
+      set_sub_query_log_oper(expr);
+    }
+  }
+
   UpdateLogicalOperator *update_operator = new UpdateLogicalOperator(
-      update_stmt->table(), std::move(update_stmt->values()), std::move(update_stmt->fields()));
+      update_stmt->table(), std::move(update_stmt->exprs()), std::move(update_stmt->fields()));
   if (predicate_oper) {
     predicate_oper->add_child(std::move(table_get_oper));
     update_operator->add_child(std::move(predicate_oper));

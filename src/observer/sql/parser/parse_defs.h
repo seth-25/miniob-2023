@@ -259,8 +259,11 @@ struct DeleteSqlNode
 
 struct UpdateValueNode
 {
-  std::string attribute_name;  ///< 更新的字段，仅支持一个字段，todo 支持多值后删除
-  Value       value;           ///< 更新的值，仅支持一个字段，todo 支持多值后删除
+//  bool is_sub_query = false;
+  std::string attribute_name;  ///< 更新的字段
+//  Value       value;           ///< 更新的值
+  ExprSqlNode* expr = nullptr; ///< 更新的值，通过子查询表达式得到
+
 };
 /**
  * @brief 描述一个update语句
@@ -269,8 +272,6 @@ struct UpdateValueNode
 struct UpdateSqlNode
 {
   std::string                   relation_name;         ///< Relation to update
-//  std::string                   attribute_name;        ///< 更新的字段，仅支持一个字段，todo 支持多值后删除
-//  Value                         value;                 ///< 更新的值，仅支持一个字段，todo 支持多值后删除
   std::vector<UpdateValueNode>  update_values;
   std::vector<ConditionSqlNode> conditions;
 };
