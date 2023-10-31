@@ -579,11 +579,40 @@ RC Table::delete_record(const Record &record)
   rc = record_handler_->delete_record(&record.rid(), &table_meta_);
   return rc;
 }
-
+bool Table::record_field_is_null(const char *record, int idx) const
+{
+  const FieldMeta *field = table_meta_.field(idx);
+  if (!field->nullable()) {
+    return false;
+  }
+  const FieldMeta *null_field = table_meta_.null_bitmap_field();
+  common::Bitmap bitmap(const_cast<char *>(record) + null_field->offset(), null_field->len());
+  return bitmap.get_bit(idx);
+}
 RC Table::make_record_from_old_record(
     vector<const FieldMeta *> &fields, vector<Value> &values, Record &old_record, Record &new_record)
 {
   RC rc = RC::SUCCESS;
+  bool duplicate = true;
+  for (size_t i = 0; i < fields.size(); i++) {
+    if (fields[i]->nullable()) {
+      if (record_field_is_null(old_record.data(), fields[i]->id())) {
+        if (AttrType::NULLS == values[i].attr_type())
+          continue;
+        else
+          duplicate = false;
+      } else {
+        duplicate = false;
+      }
+    } else {
+      duplicate = false;
+    }
+  }
+  if (duplicate) {
+    // remove this record;
+    return RC::RECORD_DUPLICATE_KEY;
+  }
+
 
   int record_size = table_meta_.record_size();
 
@@ -623,7 +652,6 @@ RC Table::make_record_from_old_record(
 
 RC Table::update_record(const Record &old_record, Record &new_record, const vector<const FieldMeta*>& fields)
 {
-
   RC rc = RC::SUCCESS;
   rc    = delete_entry_of_indexes(old_record.data(), old_record.rid(), false);
   if (rc != RC::SUCCESS) {

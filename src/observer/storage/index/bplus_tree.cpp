@@ -1172,7 +1172,7 @@ RC BplusTreeHandler::insert_entry_into_leaf_node(LatchMemo &latch_memo, Frame *f
 {
   LeafIndexNodeHandler leaf_node(file_header_, frame);
   bool exists = false; // 该数据是否已经存在指定的叶子节点中了
-  int insert_position = leaf_node.lookup(key_comparator_, key, &exists, false);
+  int insert_position = leaf_node.lookup(key_comparator_, key, &exists, true);
   if (exists) {
     LOG_TRACE("entry exists");
     return RC::RECORD_DUPLICATE_KEY;

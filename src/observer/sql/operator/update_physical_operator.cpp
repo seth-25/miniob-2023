@@ -86,6 +86,11 @@ RC UpdatePhysicalOperator::next()
     Record new_record;
     rc = table_->make_record_from_old_record(fields_, values_, old_record, new_record);
     if (rc != RC::SUCCESS) {
+      if (rc == RC::RECORD_DUPLICATE_KEY)
+      {
+        rc = RC::SUCCESS;
+        continue;
+      }
       LOG_WARN("failed to make update record: %s", strrc(rc));
       return rc;
     }

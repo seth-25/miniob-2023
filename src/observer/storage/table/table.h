@@ -112,6 +112,7 @@ private:
 
 private:
   RC init_record_handler(const char *base_dir);
+  bool record_field_is_null(const char *record, int idx) const;
 
 private:
   /**
