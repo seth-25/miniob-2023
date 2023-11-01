@@ -13,8 +13,9 @@ RC SubQueryExpr::init() {
   return RC::SUCCESS;
 }
 
-RC SubQueryExpr::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr, CompOp comp, Db *db, Trx* trx)
+RC SubQueryExpr::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+    const std::unordered_map<std::string, Table *> &table_map, CompOp comp, Db *db,
+    Trx *trx)
 {
   assert(expr->type == ExprSqlNodeType::SUBQUERY);
   Stmt *select_stmt = nullptr;

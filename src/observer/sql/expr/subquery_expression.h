@@ -40,8 +40,8 @@ public:
     top_phy_oper_ = std::move(sub_query_top_phy_oper);
   }
 
-  static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-      const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr, CompOp comp, Db *db, Trx* trx);
+  static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+      const std::unordered_map<std::string, Table *> &table_map, CompOp comp, Db *db, Trx *trx);
 
   RC open_sub_query() const;
 

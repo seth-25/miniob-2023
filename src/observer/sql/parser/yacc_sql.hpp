@@ -1,8 +1,9 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.5.1.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015, 2018-2020 Free Software Foundation,
+   Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +30,9 @@
 
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
+
+/* Undocumented macros, especially those whose name start with YY_,
+   are private implementation details.  Do not rely on them.  */
 
 #ifndef YY_YY_YACC_SQL_HPP_INCLUDED
 # define YY_YY_YACC_SQL_HPP_INCLUDED
@@ -106,29 +110,29 @@ extern int yydebug;
     LENGTH = 316,
     ROUND = 317,
     DATE_FORMAT = 318,
-    AS = 319,
-    IS = 320,
-    EQ = 321,
-    LT = 322,
-    GT = 323,
-    LE = 324,
-    GE = 325,
-    NE = 326,
-    NUMBER = 327,
-    FLOAT = 328,
-    ID = 329,
-    SSS = 330,
-    DATE_STR = 331,
-    UMINUS = 332
+    VIEW = 319,
+    AS = 320,
+    IS = 321,
+    EQ = 322,
+    LT = 323,
+    GT = 324,
+    LE = 325,
+    GE = 326,
+    NE = 327,
+    NUMBER = 328,
+    FLOAT = 329,
+    ID = 330,
+    SSS = 331,
+    DATE_STR = 332,
+    UMINUS = 333
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
 union YYSTYPE
 {
-#line 130 "yacc_sql.y" /* yacc.c:1909  */
+#line 131 "yacc_sql.y"
 
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
@@ -159,9 +163,9 @@ union YYSTYPE
   enum AggrFuncType                 aggr_func_type;
 
 
-#line 163 "yacc_sql.hpp" /* yacc.c:1909  */
-};
+#line 167 "yacc_sql.hpp"
 
+};
 typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

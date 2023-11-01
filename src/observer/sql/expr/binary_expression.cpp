@@ -135,18 +135,18 @@ RC BinaryExpression::try_get_value(Value &value) const
   return rc;
 }
 
-RC BinaryExpression::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr)
+RC BinaryExpression::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
 {
   assert(expr->type == ExprSqlNodeType::BINARY);
   bool with_brace = expr->with_brace;
   std::unique_ptr<Expression> left_expr;
   std::unique_ptr<Expression> right_expr;
-  RC rc = Expression::create_expression(expr->binary_expr->left, table_map, tables, left_expr);
+  RC rc = Expression::create_expression(expr->binary_expr->left, left_expr, table_map, default_table);
   if (rc != RC::SUCCESS) {
     return rc;
   }
-  rc = Expression::create_expression(expr->binary_expr->right, table_map, tables, right_expr);
+  rc = Expression::create_expression(expr->binary_expr->right, right_expr, table_map, default_table);
   if (rc != RC::SUCCESS) {
     return rc;
   }
@@ -174,3 +174,4 @@ const char BinaryExpression::get_op_char() const
   }
   return '?';
 }
+

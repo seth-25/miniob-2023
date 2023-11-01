@@ -143,6 +143,7 @@ EXISTS                                  RETURN_TOKEN(EXISTS);
 IN                                      RETURN_TOKEN(IN);
 NULL                                    RETURN_TOKEN(NULL_T);
 NULLABLE                                RETURN_TOKEN(NULL_T);
+VIEW                                    RETURN_TOKEN(VIEW);
 {ID}                                    yylval->string=strdup(yytext); RETURN_TOKEN(ID);
 "("                                     RETURN_TOKEN(LBRACE);
 ")"                                     RETURN_TOKEN(RBRACE);

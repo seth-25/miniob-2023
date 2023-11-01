@@ -31,8 +31,9 @@ public:
   std::unique_ptr<Expression> &left() { return left_; }
   std::unique_ptr<Expression> &right() { return right_; }
 
-  static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-      const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
+  static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+      const std::unordered_map<std::string, Table *> &table_map, const Table *default_table);
+
 private:
   RC calc_func_length_value(const Tuple &tuple, Value &value) const;
   RC calc_func_round_value(const Tuple &tuple, Value &value) const;

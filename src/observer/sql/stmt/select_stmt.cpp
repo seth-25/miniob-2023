@@ -51,15 +51,6 @@ SelectStmt::~SelectStmt()
   project_name_.clear();
 }
 
-static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression>> &project_exprs)
-{
-  const TableMeta &table_meta = table->table_meta();
-  const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
-  for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-    project_exprs.emplace_back(new FieldExpr(table, table_meta.field(i)));
-  }
-}
-
 static void wildcard_fields(Table *table, std::vector<std::unique_ptr<Expression>> &project_exprs,
                             const std::unordered_map<Table *, std::string>& alias_map, bool with_table_name)
 {  // select * form，投影项是所有表，需要找到这些表对应存在的别名，并设置
@@ -117,7 +108,7 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
           }
         }
         else {
-          auto iter = table_map.find(table_name);
+          auto iter = table_map.find(table_name); // table_map包括别名的表，此处table_name可能是表别名
           if (iter == table_map.end()) {
             LOG_WARN("no such table in from list: %s", table_name);
             return RC::SCHEMA_FIELD_MISSING;
@@ -137,7 +128,7 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
             std::string alias_name = expr->alias_name; // 投影列的别名
             if (alias_name.empty()) {
               if (tables.size() > 1) {
-                alias_name = std::string(table->name()) + '.' + std::string(field_meta->name());
+                alias_name = std::string(table_name) + '.' + std::string(field_meta->name());
               } else {
                 alias_name = std::string(field_meta->name());
               }
@@ -159,12 +150,20 @@ RC create_query_field(std::vector<std::unique_ptr<Expression>> &project_expres, 
           LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), relation_attr.attribute_name.c_str());
           return RC::SCHEMA_FIELD_MISSING;
         }
-        project_expres.emplace_back(new FieldExpr(table, field_meta));
+        FieldExpr* field_expr = new FieldExpr(table, field_meta);
+        if (!expr->alias_name.empty()) {
+          field_expr->set_alias(expr->alias_name);
+        }
+        project_expres.emplace_back(field_expr);
       }
     }
     else {  // select 复杂表达式 from t;
       std::unique_ptr<Expression> project_expr;
-      RC rc = Expression::create_expression(expr, table_map, tables, project_expr);
+      Table *default_table = nullptr;
+      if (tables.size() == 1) {
+        default_table = tables[0];
+      }
+      RC rc = Expression::create_expression(expr, project_expr, table_map, default_table);
       if (rc != RC::SUCCESS) { return rc; }
       assert(project_expr != nullptr);
       project_expres.emplace_back(std::move(project_expr));
@@ -195,8 +194,18 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const s
 
     Table *table = db->find_table(table_name);
     if (nullptr == table) {
-      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-      return RC::SCHEMA_TABLE_NOT_EXIST;
+      auto view_it = view_map.find(table_name);
+      if (view_it != view_map.end()) {  // select xxx from view
+        // todo
+//        SelectSqlNode &view_select = view_it->second;
+//        std::unordered_map<std::string, Table *> empty_table_map;
+//        Stmt* view_select_stmt;
+//        create(db, trx, view_select, empty_table_map, view_select_stmt);
+      }
+      else {
+        LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+        return RC::SCHEMA_TABLE_NOT_EXIST;
+      }
     }
 
     tables.push_back(table);
@@ -210,6 +219,12 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const s
       alias_map.insert(std::pair<Table *, std::string>(table, alias_name));
     }
   }
+  Table *default_table = nullptr;
+  if (tables.size() == 1) {
+    default_table = tables[0];
+  }
+  std::unordered_map<std::string, Table *> subquery_table_map = table_map;
+  subquery_table_map.insert(parent_table_map.begin(), parent_table_map.end());  // 子查询可能有父表
 
 
   // 2. collect query fields in `select` statement，将投影列转换成表达式
@@ -220,13 +235,6 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const s
   }
   LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), project_exprs.size());
 
-  Table *default_table = nullptr;
-  if (tables.size() == 1) {
-    default_table = tables[0];
-  }
-
-  std::unordered_map<std::string, Table *> subquery_table_map = table_map;
-  subquery_table_map.insert(parent_table_map.begin(), parent_table_map.end());  // 子查询可能有父表
 
   // 3. create filter statement in `where` statement，将where后面条件转化成filter_stmt
   std::vector<ConditionSqlNode> sum_conditions = select_sql.inner_join_conditions;
@@ -289,24 +297,24 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const s
   std::vector<std::unique_ptr<Expression>> aggr_exprs;
   int num_project_field = 0, num_project_aggr = 0;  // 用于记录哪些是投影的表达式，哪些是having的表达式
   for (auto& project_expr: select_sql.project_exprs) {  // 从投影中获取aggr
-    rc = Expression::get_aggr_exprs(project_expr, table_map, tables, aggr_exprs);
+    rc = Expression::get_aggr_exprs(project_expr, aggr_exprs, table_map, default_table);
     if (rc != RC::SUCCESS) { return rc; }
   }
   for (auto& project_expr: project_exprs) {  // 从投影中获取field，filed可能有*，用处理后的project_exprs获取
-    rc = Expression::get_field_exprs(project_expr, table_map, tables, field_exprs);
+    rc = Expression::get_field_exprs(project_expr, field_exprs);
     if (rc != RC::SUCCESS) { return rc; }
   }
   num_project_field = (int)field_exprs.size();
   num_project_aggr = (int)aggr_exprs.size();
   if (!select_sql.having_conditions.empty()) {
     for (auto& condition: select_sql.having_conditions) { // 从having条件中中获取field和aggr
-      rc = Expression::get_field_exprs(condition.left, table_map, tables, field_exprs);
+      rc = Expression::get_field_exprs(condition.left, field_exprs, table_map, default_table);
       if (rc != RC::SUCCESS) { return rc; }
-      rc = Expression::get_field_exprs(condition.right, table_map, tables, field_exprs);
+      rc = Expression::get_field_exprs(condition.right, field_exprs, table_map, default_table);
       if (rc != RC::SUCCESS) { return rc; }
-      rc = Expression::get_aggr_exprs(condition.left, table_map, tables, aggr_exprs);
+      rc = Expression::get_aggr_exprs(condition.left, aggr_exprs, table_map, default_table);
       if (rc != RC::SUCCESS) { return rc; }
-      rc = Expression::get_aggr_exprs(condition.right, table_map, tables, aggr_exprs);
+      rc = Expression::get_aggr_exprs(condition.right, aggr_exprs, table_map, default_table);
       if (rc != RC::SUCCESS) { return rc; }
     }
   }

@@ -73,4 +73,6 @@ private:
 
   std::vector<std::unique_ptr<Expression>> project_exprs_;  // 投影列的表达式
   std::vector<std::string> project_name_; // 投影列的名字
+
+  bool is_view = false;
 };

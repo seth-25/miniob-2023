@@ -117,6 +117,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         LENGTH
         ROUND
         DATE_FORMAT
+        VIEW
         AS
         IS
         EQ
@@ -199,6 +200,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <sql_node>            delete_stmt
 %type <sql_node>            create_table_stmt
 %type <sql_node>            create_table_select_stmt
+%type <sql_node>            create_view_stmt
 %type <sql_node>            drop_table_stmt
 %type <sql_node>            show_tables_stmt
 %type <sql_node>            show_index_stmt
@@ -256,6 +258,7 @@ command_wrapper:
   | delete_stmt
   | create_table_stmt
   | create_table_select_stmt
+  | create_view_stmt
   | drop_table_stmt
   | show_tables_stmt
   | show_index_stmt
@@ -1683,6 +1686,19 @@ set_variable_stmt:
 opt_semicolon: /*empty*/
     | SEMICOLON
     ;
+
+create_view_stmt:
+    CREATE VIEW ID AS select_stmt
+    {
+        $$ = new ParsedSqlNode(SCF_CREATE_VIEW);
+        CreateViewSqlNode &create_view = $$->create_view;
+        create_view.relation_name = $3;
+        free($3);
+
+        create_view.selection = $5->selection;
+        delete $5;
+    }
+
 %%
 //_____________________________________________________________________
 extern void scan_string(const char *str, yyscan_t scanner);

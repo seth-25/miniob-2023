@@ -2,8 +2,8 @@
 #include "tuple_cell.h"
 #include "tuple.h"
 
-RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr)
+RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
 {
   assert(ExprSqlNodeType::AGGREGATION == expr->type);
   bool with_brace = expr->with_brace;
@@ -12,20 +12,22 @@ RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, const std::unordered
     // count(*) count(1) count(Value)
     assert(AggrFuncType::AGGR_COUNT == aggr_expr_node->type);
     std::unique_ptr<Expression> value_exp = nullptr;  // *或1用value表达式
-    RC rc = Expression::create_expression(aggr_expr_node->expr, table_map, tables, value_exp);
+    RC rc = Expression::create_expression(aggr_expr_node->expr, value_exp, table_map, default_table);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("AggrFuncExpr Create Param Expression Failed. RC = %d:%s", rc, strrc(rc));
       return rc;
     }
     assert(ExprType::VALUE == value_exp->type());
-    std::unique_ptr<Expression> field_expr(new FieldExpr(tables[0], tables[0]->table_meta().field(0))); // todo 可能需要修改field是哪列
+    Table * table = table_map.begin()->second;
+    std::unique_ptr<Expression> field_expr(
+        new FieldExpr(table, table->table_meta().field(0)));  // todo 可能需要修改count的field是哪列
     std::unique_ptr<AggrFuncExpr> aggr_func_expr(new AggrFuncExpr(
         AggrFuncType::AGGR_COUNT, std::move(field_expr), std::move(value_exp), with_brace));
     res_expr = std::move(aggr_func_expr);
     return RC::SUCCESS;
   }
   std::unique_ptr<Expression> param = nullptr;
-  RC rc = Expression::create_expression(aggr_expr_node->expr, table_map, tables, param);
+  RC rc = Expression::create_expression(aggr_expr_node->expr, param, table_map, default_table);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("AggrFuncExpr Create Param Expression Failed. RC = %d:%s", rc, strrc(rc));
     return rc;

@@ -78,7 +78,7 @@ RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::str
   return RC::SUCCESS;
 }
 
-RC FilterStmt::create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC FilterStmt::create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *table_map,
     const ConditionSqlNode &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
@@ -94,12 +94,12 @@ RC FilterStmt::create_filter_unit(Db *db, Trx* trx, Table *default_table, std::u
     assert(condition.right->type == ExprSqlNodeType::CONDITION);
     FilterUnit *left_unit = nullptr;
     FilterUnit *right_unit = nullptr;
-    rc = create_filter_unit(db, trx, default_table, tables, *condition.left->condition_expr, left_unit);
+    rc = create_filter_unit(db, trx, default_table, table_map, *condition.left->condition_expr, left_unit);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("filter unit create left expression failed");
       return rc;
     }
-    rc = create_filter_unit(db, trx, default_table, tables, *condition.right->condition_expr, right_unit);
+    rc = create_filter_unit(db, trx, default_table, table_map, *condition.right->condition_expr, right_unit);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("filter unit create left expression failed");
       delete left_unit;
@@ -117,13 +117,13 @@ RC FilterStmt::create_filter_unit(Db *db, Trx* trx, Table *default_table, std::u
   std::unique_ptr<Expression> left;
   std::unique_ptr<Expression> right;
   assert(condition.left != nullptr && condition.right != nullptr);
-  rc = Expression::create_expression(condition.left, *tables, std::vector<Table *>{default_table}, left, comp, db, trx);
+  rc = Expression::create_expression(condition.left, left, *table_map, default_table, comp, db, trx);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("filter unit create left expression failed");
     return rc;
   }
 
-  rc = Expression::create_expression(condition.right, *tables, std::vector<Table *>{default_table}, right, comp, db, trx);
+  rc = Expression::create_expression(condition.right, right, *table_map, default_table, comp, db, trx);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("filter unit create right expression failed");
     return rc;

@@ -104,19 +104,19 @@ public:
    * 解析select投影和filter条件的复杂表达式
    * @return res_expr
    */
-  static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-      const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr, CompOp comp = NO_OP, Db *db = nullptr, Trx* trx = nullptr);
+  static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+      const std::unordered_map<std::string, Table *> &table_map, const Table *default_table,
+      CompOp comp = NO_OP, Db *db = nullptr, Trx *trx = nullptr);
   /**
    * 解析select投影和having里的表达式，提取出field和aggregation
    * @return
    */
-  static RC get_field_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-      const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &field_exprs);
-  static RC get_field_exprs(const std::unique_ptr<Expression>& expr, const std::unordered_map<std::string, Table *> &table_map,
-      const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &field_exprs);
-  static RC get_aggr_exprs(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-      const std::vector<Table *> &tables, std::vector<std::unique_ptr<Expression>> &aggr_exprs);
-
+  static RC get_field_exprs(const ExprSqlNode *expr, std::vector<std::unique_ptr<Expression>> &field_exprs,
+      const std::unordered_map<std::string, Table *> &table_map, const Table * default_table);
+  static RC get_field_exprs(
+      const std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &field_exprs);
+  static RC get_aggr_exprs(const ExprSqlNode *expr, std::vector<std::unique_ptr<Expression>> &aggr_exprs,
+      const std::unordered_map<std::string, Table *> &table_map, const Table *default_table);
 
   /**
    * 解析select投影表达式，设置列名
@@ -174,9 +174,8 @@ public:
 
   std::string to_string(bool with_table_name) const;
 
-  static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-      const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
-
+  static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+      const std::unordered_map<std::string, Table *> &table_map, const Table *default_table);
 
   bool with_aggr() const
   {

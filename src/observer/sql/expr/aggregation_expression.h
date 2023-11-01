@@ -42,10 +42,10 @@ public:
 
  std::string get_func_name() const;
 
- static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-                               const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
+ static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+     const std::unordered_map<std::string, Table *> &table_map, const Table * default_table);
 
-private:
+ private:
   AggrFuncType aggr_type_;
   std::unique_ptr<Expression> field_expr_;
   std::unique_ptr<Expression> value_expr_;

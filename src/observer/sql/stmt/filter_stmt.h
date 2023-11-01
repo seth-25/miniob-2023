@@ -124,7 +124,7 @@ public:
   static RC create(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
       const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
 
-  static RC create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *table_map,
       const ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:

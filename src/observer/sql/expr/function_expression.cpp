@@ -238,8 +238,8 @@ RC FuncExpression::get_value(const Tuple &tuple, Value &value) const
   return rc;
 }
 
-RC FuncExpression::create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-    const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr)
+RC FuncExpression::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
+    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
 {
   RC rc = RC::SUCCESS;
   std::unique_ptr<Expression> left = nullptr;
@@ -247,7 +247,7 @@ RC FuncExpression::create_expression(const ExprSqlNode *expr, const std::unorder
   FuncExprSqlNode* func_expr_node = expr->func_expr;
   switch (func_expr_node->type) {
     case FuncType::FUNC_LENGTH: {
-      rc = Expression::create_expression(func_expr_node->exprs[0], table_map, tables, left);
+      rc = Expression::create_expression(func_expr_node->exprs[0], left, table_map, default_table);
       if (rc != RC::SUCCESS) {
         LOG_ERROR("FuncExpression LENGTH Create Param[0] Failed. RC = %d:%s", rc, strrc(rc));
         return rc;
@@ -255,13 +255,13 @@ RC FuncExpression::create_expression(const ExprSqlNode *expr, const std::unorder
       break;
     }
     case FuncType::FUNC_ROUND: {
-      rc = Expression::create_expression(func_expr_node->exprs[0], table_map, tables, left);
+      rc = Expression::create_expression(func_expr_node->exprs[0], left, table_map, default_table);
       if (rc != RC::SUCCESS) {
         LOG_ERROR("FuncExpression ROUND Create Param[0] Failed. RC = %d:%s", rc, strrc(rc));
         return rc;
       }
       if (func_expr_node->exprs.size() == 2) {
-        rc = Expression::create_expression(func_expr_node->exprs[1], table_map, tables, right);
+        rc = Expression::create_expression(func_expr_node->exprs[1], right, table_map, default_table);
         if (rc != RC::SUCCESS) {
           LOG_ERROR("FuncExpression ROUND Create Param[1] Failed. RC = %d:%s", rc, strrc(rc));
           return rc;
@@ -270,12 +270,12 @@ RC FuncExpression::create_expression(const ExprSqlNode *expr, const std::unorder
       break;
     }
     case FuncType::FUNC_DATE_FORMAT: {
-      rc = Expression::create_expression(func_expr_node->exprs[0], table_map, tables, left);
+      rc = Expression::create_expression(func_expr_node->exprs[0], left, table_map, default_table);
       if (rc != RC::SUCCESS) {
         LOG_ERROR("FuncExpression DATE_FORMAT Create Param[0] Failed. RC = %d:%s", rc, strrc(rc));
         return rc;
       }
-      rc = Expression::create_expression(func_expr_node->exprs[1], table_map, tables, right);
+      rc = Expression::create_expression(func_expr_node->exprs[1], right, table_map, default_table);
       if (rc != RC::SUCCESS) {
         LOG_ERROR("FuncExpression DATE_FORMAT Create Param[1] Failed. RC = %d:%s", rc, strrc(rc));
         return rc;

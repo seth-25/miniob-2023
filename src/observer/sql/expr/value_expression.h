@@ -30,9 +30,8 @@ public:
 
  std::string to_string() const;
 
- static RC create_expression(const ExprSqlNode *expr, const std::unordered_map<std::string, Table *> &table_map,
-     const std::vector<Table *> &tables, std::unique_ptr<Expression> &res_expr);
+ static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr);
 
-private:
+ private:
  Value value_;
 };

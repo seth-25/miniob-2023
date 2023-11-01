@@ -83,20 +83,19 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
 
       unique_ptr<Expression> expr;
       const std::unordered_map<std::string, Table *> table_map;
-      const std::vector<Table *> tables;
       if (ExprSqlNodeType::UNARY == expr_node->type) {
         const UnaryExprSqlNode *unary_expr_node = expr_node->unary_expr;
         if (unary_expr_node->is_attr) {
           return RC::SQL_SYNTAX;
         }
-        RC rc = ValueExpr::create_expression(expr_node, table_map, tables, expr);
+        RC rc = ValueExpr::create_expression(expr_node, expr);
         if (RC::SUCCESS != rc) {
           LOG_ERROR("UpdateStmt Create ValueExpr Failed. RC = %d:%s", rc, strrc(rc));
           return rc;
         }
       } else if (ExprSqlNodeType::SUBQUERY == expr_node->type) {
         // will check projects num
-        RC rc = SubQueryExpr::create_expression(expr_node, table_map, tables, expr, CompOp::EQUAL_TO, db, trx);
+        RC rc = SubQueryExpr::create_expression(expr_node, expr, table_map, CompOp::EQUAL_TO, db, trx);
         if (RC::SUCCESS != rc) {
           LOG_ERROR("UpdateStmt Create SubQueryExpression Failed. RC = %d:%s", rc, strrc(rc));
           return rc;
