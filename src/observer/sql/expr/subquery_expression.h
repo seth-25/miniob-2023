@@ -41,7 +41,7 @@ public:
   }
 
   static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-      const std::unordered_map<std::string, Table *> &table_map, CompOp comp, Db *db, Trx *trx);
+      const std::unordered_map<std::string, TableUnit*> &table_map, CompOp comp, Db *db, Trx *trx);
 
   RC open_sub_query() const;
 

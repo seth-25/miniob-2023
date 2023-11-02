@@ -28,7 +28,7 @@ OrderByStmt::~OrderByStmt()
   orderby_units_.clear();
 }
 
-RC OrderByStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC OrderByStmt::create(Db *db, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *tables,
     const OrderBySqlNode *orderbys, int orderby_num, OrderByStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
@@ -53,7 +53,7 @@ RC OrderByStmt::create(Db *db, Table *default_table, std::unordered_map<std::str
 // 获取对应的表和字段
 
 
-RC OrderByStmt::create_orderby_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC OrderByStmt::create_orderby_unit(Db *db, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *tables,
     const OrderBySqlNode &orderby, OrderByUnit *&orderby_unit)
 {
 
@@ -61,17 +61,20 @@ RC OrderByStmt::create_orderby_unit(Db *db, Table *default_table, std::unordered
 
   bool sort_type = orderby.is_asc;
 
-  Expression *expr = nullptr;
-  Table *table = nullptr;
-  const FieldMeta *field = nullptr;
-  rc = get_table_and_field(db, default_table, tables, orderby.attribute, table, field);
+//  Expression *expr = nullptr;
+//  Table *table = nullptr;
+//  const FieldMeta *field = nullptr;
+//  rc = get_table_and_field(db, default_table, tables, orderby.attribute, table, field);
+//  expr = new FieldExpr(table, field);
+
+  FieldExpr* field_expr;
+  rc = gen_field_expr(default_table, tables, orderby.attribute, field_expr);
   if (rc != RC::SUCCESS) {
     LOG_WARN("cannot find attr");
     return rc;
   }
-  expr = new FieldExpr(table, field);
   orderby_unit = new OrderByUnit;
   orderby_unit->set_sort_type(sort_type);
-  orderby_unit->set_expr(expr);
+  orderby_unit->set_expr((Expression*) field_expr);
   return rc;
 }

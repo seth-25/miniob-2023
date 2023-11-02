@@ -30,7 +30,7 @@ RC CreateTableSelectStmt::create(Db *db, Trx* trx, const CreateTableSelectSqlNod
   RC rc = RC::SUCCESS;
 
   Stmt *tmp_stmt = nullptr;
-  std::unordered_map<std::string, Table *> parent_table_map;
+  std::unordered_map<std::string, TableUnit*> parent_table_map;
   rc = SelectStmt::create(db, trx, create_table.selection, parent_table_map, tmp_stmt);
 
   if (rc != RC::SUCCESS) {

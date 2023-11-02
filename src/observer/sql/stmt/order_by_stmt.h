@@ -77,10 +77,10 @@ public:
   }
 
 public:
-  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create(Db *db, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *tables,
       const OrderBySqlNode *orderbys, int orderby_num, OrderByStmt *&stmt);
 
-  static RC create_orderby_unit(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create_orderby_unit(Db *db, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *tables,
       const OrderBySqlNode &orderby, OrderByUnit *&orderby_unit);
 
 private:

@@ -50,7 +50,7 @@ RC Stmt::create_stmt(Db *db, Trx* trx, ParsedSqlNode &sql_node, Stmt *&stmt)
       return UpdateStmt::create(db, trx, sql_node.update, stmt);
     }
     case SCF_SELECT: {
-      const std::unordered_map<std::string, Table *> parent_table_map;
+      const std::unordered_map<std::string, TableUnit*> parent_table_map;
       return SelectStmt::create(db, trx, sql_node.selection, parent_table_map, stmt);
     }
 

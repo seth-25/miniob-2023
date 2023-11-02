@@ -136,7 +136,7 @@ RC BinaryExpression::try_get_value(Value &value) const
 }
 
 RC BinaryExpression::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
+    const std::unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table)
 {
   assert(expr->type == ExprSqlNodeType::BINARY);
   bool with_brace = expr->with_brace;

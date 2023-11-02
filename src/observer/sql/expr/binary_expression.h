@@ -38,7 +38,7 @@ public:
   std::unique_ptr<Expression> &right() { return right_; }
 
   static RC  create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-       const std::unordered_map<std::string, Table *> &table_map, const Table* default_table);
+       const std::unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table);
   bool is_minus() const { return is_minus_; }
   const char get_op_char() const;
 private:

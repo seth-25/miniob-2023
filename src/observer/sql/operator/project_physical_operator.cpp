@@ -54,7 +54,7 @@ Tuple *ProjectPhysicalOperator::current_tuple()
   return &tuple_;
 }
 
-void ProjectPhysicalOperator::add_projection(std::unique_ptr<Expression>& expr) {
+void ProjectPhysicalOperator::add_projection(std::shared_ptr<Expression>& expr) {
   TupleCellSpec *spec = new TupleCellSpec(std::move(expr));
   tuple_.add_cell_spec(spec);
 }

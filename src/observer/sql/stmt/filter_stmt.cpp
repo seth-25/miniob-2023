@@ -27,7 +27,7 @@ FilterStmt::~FilterStmt()
   filter_units_.clear();
 }
 
-RC FilterStmt::create(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+RC FilterStmt::create(Db *db, Trx* trx, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *tables,
     const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt)
 {
   RC rc = RC::SUCCESS;
@@ -49,36 +49,8 @@ RC FilterStmt::create(Db *db, Trx* trx, Table *default_table, std::unordered_map
   return rc;
 }
 
-// 获取对应的表和字段
-RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
-    const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
-{
-  if (common::is_blank(attr.relation_name.c_str())) {
-    table = default_table;  // select * from t where id=1，未指定id的表名，设定id为t表
-  } else if (nullptr != tables) {
-    auto iter = tables->find(attr.relation_name);
-    if (iter != tables->end()) {
-      table = iter->second;
-    }
-  } else {
-    table = db->find_table(attr.relation_name.c_str());
-  }
-  if (nullptr == table) {
-    LOG_WARN("No such table: attr.relation_name: %s", attr.relation_name.c_str());
-    return RC::SCHEMA_TABLE_NOT_EXIST;
-  }
 
-  field = table->table_meta().field(attr.attribute_name.c_str());
-  if (nullptr == field) {
-    LOG_WARN("no such field in table: table %s, field %s", table->name(), attr.attribute_name.c_str());
-    table = nullptr;
-    return RC::SCHEMA_FIELD_NOT_EXIST;
-  }
-
-  return RC::SUCCESS;
-}
-
-RC FilterStmt::create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *table_map,
+RC FilterStmt::create_filter_unit(Db *db, Trx* trx, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *table_map,
     const ConditionSqlNode &condition, FilterUnit *&filter_unit)
 {
   RC rc = RC::SUCCESS;
@@ -138,4 +110,75 @@ RC FilterStmt::create_filter_unit(Db *db, Trx* trx, Table *default_table, std::u
 
   // 检查两个类型是否能够比较
   return rc;
+}
+
+
+// 获取对应的表和字段
+RC get_table_and_field(Db *db, Table* default_table, std::unordered_map<std::string, Table*> *tables,
+    const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field)
+{
+  if (common::is_blank(attr.relation_name.c_str())) {
+    table = default_table;  // select * from t where id=1，未指定id的表名，设定id为t表
+  } else if (nullptr != tables) {
+    auto iter = tables->find(attr.relation_name);
+    if (iter != tables->end()) {
+      table = iter->second;
+    }
+  } else {
+    table = db->find_table(attr.relation_name.c_str());
+  }
+  if (nullptr == table) {
+    LOG_WARN("No such table: attr.relation_name: %s", attr.relation_name.c_str());
+    return RC::SCHEMA_TABLE_NOT_EXIST;
+  }
+
+  field = table->table_meta().field(attr.attribute_name.c_str());
+  if (nullptr == field) {
+    LOG_WARN("no such field in table: table %s, field %s", table->name(), attr.attribute_name.c_str());
+    table = nullptr;
+    return RC::SCHEMA_FIELD_NOT_EXIST;
+  }
+
+  return RC::SUCCESS;
+}
+
+RC gen_field_expr(TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *table_map, const RelAttrSqlNode &attr, FieldExpr*& field_expr) {
+  TableUnit* table_unit;
+  if (common::is_blank(attr.relation_name.c_str())) {
+    table_unit = default_table;  // select * from t where id=1，未指定id的表名，设定id为t表
+  }
+  else {
+    auto iter = table_map->find(attr.relation_name);
+    if (iter != table_map->end()) {
+      table_unit = iter->second;
+    }
+    else {
+      LOG_WARN("No such table: attr.relation_name: %s", attr.relation_name.c_str());
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+  }
+
+  if (table_unit->is_table())
+  {
+    const Table *table = table_unit->table();
+    const FieldMeta *field_meta = table->table_meta().field(attr.attribute_name.c_str());
+    if (nullptr == field_meta)
+    {
+      LOG_WARN("no such field. field=%s.%s",  table->name(), attr.attribute_name.c_str());
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    field_expr = new FieldExpr(table, field_meta);
+  }
+  else
+  {
+    SelectStmt* view_stmt = table_unit->view_stmt();
+    shared_ptr<Expression> view_expr;
+    RC rc = Expression::find_expr(view_stmt->project_expres(), view_expr, attr.attribute_name.c_str(), false);
+    if (rc != RC::SUCCESS) {
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    field_expr = new FieldExpr(view_expr);
+  }
+  assert(field_expr != nullptr);
+  return RC::SUCCESS;
 }

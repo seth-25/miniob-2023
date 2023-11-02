@@ -24,7 +24,7 @@ See the Mulan PSL v2 for more details. */
 using namespace std;
 
 RC Expression::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table, CompOp comp, Db *db,
+    const std::unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table, CompOp comp, Db *db,
     Trx *trx)
 {
   RC rc = RC::SUCCESS;
@@ -61,7 +61,7 @@ RC Expression::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expres
 
 // 获取所有不在aggr内的field
 RC Expression::get_field_exprs(const ExprSqlNode *expr, std::vector<std::unique_ptr<Expression>> &field_exprs,
-    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
+    const std::unordered_map<std::string, TableUnit *> &table_map, const TableUnit *default_table)
 {
   RC rc = RC::SUCCESS;
   if (expr->type == ExprSqlNodeType::UNARY) {
@@ -81,20 +81,19 @@ RC Expression::get_field_exprs(const ExprSqlNode *expr, std::vector<std::unique_
 }
 
 // 获取所有不在aggr内的field
-RC Expression::get_field_exprs(const unique_ptr<Expression> &expr,
-    std::vector<std::unique_ptr<Expression>> &field_exprs)
+RC Expression::get_field_exprs_from_project(const Expression* expr, std::vector<std::unique_ptr<Expression>> &field_exprs)
 {
   RC rc = RC::SUCCESS;
   if (expr->type() == ExprType::FIELD) {
-    FieldExpr* field_expr = (FieldExpr*) expr.get();
+    FieldExpr* field_expr = (FieldExpr*) expr;
     std::unique_ptr<Expression> field_expr_copy(new FieldExpr(field_expr->field()));
     field_exprs.emplace_back(std::move(field_expr_copy));
   }
   else if (expr->type() == ExprType::BINARY) {
-    BinaryExpression* binary_expr = (BinaryExpression*) expr.get();
-    rc = get_field_exprs(binary_expr->left(), field_exprs);
+    BinaryExpression* binary_expr = (BinaryExpression*) expr;
+    rc = get_field_exprs_from_project(binary_expr->left().get(), field_exprs);
     if (rc != RC::SUCCESS) { return rc; }
-    rc = get_field_exprs(binary_expr->right(), field_exprs);
+    rc = get_field_exprs_from_project(binary_expr->right().get(), field_exprs);
     if (rc != RC::SUCCESS) { return rc; }
   }
   return rc;
@@ -102,7 +101,7 @@ RC Expression::get_field_exprs(const unique_ptr<Expression> &expr,
 
 // 获取所有AggrFuncExpr
 RC Expression::get_aggr_exprs(const ExprSqlNode *expr, std::vector<std::unique_ptr<Expression>> &aggr_exprs,
-    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
+    const std::unordered_map<std::string, TableUnit *> &table_map, const TableUnit *default_table)
 {
   RC rc = RC::SUCCESS;
   if (expr->type == ExprSqlNodeType::AGGREGATION) {
@@ -185,27 +184,40 @@ void Expression::gen_project_name(const Expression *expr, bool with_table_name, 
     } break;
     case ExprType::AGGRFUNC : {
       AggrFuncExpr *aggr_expr = (AggrFuncExpr *)expr;
-      result_name += aggr_expr->get_func_name();
-      result_name += '(';
-      if (aggr_expr->is_param_value()) {
-        gen_project_name(aggr_expr->value_expr().get(), with_table_name, result_name);
-      } else {
-        const Field &field = aggr_expr->field();
-        if (with_table_name) {
-          result_name += std::string(field.table_name()) + '.' + std::string(field.field_name());
-        } else {
-          result_name += std::string(field.field_name());
-        }
-      }
-      result_name += ')';
-      break;
-    }
+      result_name += aggr_expr->to_string(with_table_name);
+    } break;
     default:
       break;
   }
   if (expr->with_brace()) {
     result_name += ')';
   }
+}
+RC Expression::find_expr(vector<std::shared_ptr<Expression>> &exprs, shared_ptr<Expression> &res_expr, const std::string& find_expr_name, bool with_table_name)
+{
+  for (auto&expr : exprs) {
+    string expr_name;
+    if (!expr->get_alias().empty()) {
+      expr_name = expr->get_alias();
+    }
+    else {
+      if (expr->type() == ExprType::VALUE) {
+        expr_name = ((ValueExpr *)expr.get())->to_string();
+      }
+      else if (expr->type() == ExprType::FIELD) {
+        expr_name = ((FieldExpr *)expr.get())->to_string(with_table_name);
+      }
+      else if (expr->type() == ExprType::AGGRFUNC) {
+        expr_name = ((AggrFuncExpr *)expr.get())->to_string(with_table_name);
+      }
+      else return RC::UNIMPLENMENT;  // 其他表达式类型，没别名的话暂不支持view查询
+    }
+    if (find_expr_name == expr_name) {
+      res_expr = expr;
+      return RC::SUCCESS;
+    }
+  }
+  return RC::NOTFOUND;
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -272,15 +284,96 @@ RC FieldExpr::get_field_isnull_from_exprs(const Expression* expr, bool &nullable
 std::string FieldExpr::to_string(bool with_table_name) const
 {
   std::string str;
-  const Field &field = field_;
-  if (with_table_name) {
-    str += std::string(field.table_name()) + '.' + std::string(field.field_name());
-  } else {
-    str += std::string(field.field_name());
+  if (is_table) {
+    const Field &field = field_;
+    if (with_table_name) {
+      str += std::string(field.table_name()) + '.' + std::string(field.field_name());
+    } else {
+      str += std::string(field.field_name());
+    }
   }
+  else {
+    Expression::gen_project_name(view_expr_.get(), with_table_name, str);
+  }
+
   return str;
 }
 
+
+RC FieldExpr::create_expression(const ExprSqlNode *expr, unique_ptr<Expression> &res_expr,
+    const unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table)
+{
+  assert(expr->type == ExprSqlNodeType::UNARY);
+  bool with_brace = expr->with_brace;
+  UnaryExprSqlNode *unary_expr = expr->unary_expr;
+  assert(unary_expr->is_attr == true);
+
+  const char *table_name = unary_expr->attr.relation_name.c_str();
+  const char *field_name = unary_expr->attr.attribute_name.c_str();
+  if (common::is_blank(table_name)) {   // select id from t  id没有对应表名
+    if (default_table == nullptr) { // 多表的情况
+      LOG_WARN("invalid. I do not know the attr's table. attr=%s", field_name);
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    if (default_table->is_table()) {
+      const Table* table = default_table->table();
+      const FieldMeta *field_meta = table->table_meta().field(field_name);
+      if (nullptr == field_meta) {
+        LOG_WARN("no such field. field=%s.%s", table->name(), field_name);
+        return RC::SCHEMA_FIELD_MISSING;
+      }
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(table, field_meta, with_brace));
+      res_expr = std::move(field_expr);
+    }
+    else {
+      SelectStmt* view_stmt = default_table->view_stmt();
+      shared_ptr<Expression> view_expr;
+      RC rc = Expression::find_expr(view_stmt->project_expres(), view_expr, field_name, false);
+      if (rc != RC::SUCCESS) {
+        return RC::SCHEMA_FIELD_MISSING;
+      }
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(view_expr));
+      res_expr = std::move(field_expr);
+    }
+  }
+  else {  // 存在表名t， select t.id from t
+    auto iter = table_map.find(table_name); // table_name 可能是 view
+    if (iter == table_map.end()) {
+      LOG_WARN("no such table in from list: %s", table_name);
+      return RC::SCHEMA_FIELD_MISSING;
+    }
+    TableUnit* table_unit = iter->second;
+    if (table_unit->is_table()) {
+      const Table *table = table_unit->table();
+      const FieldMeta *field_meta = table->table_meta().field(field_name);
+      if (nullptr == field_meta) {  // 表达式里的field不支持select t.* from t;
+        LOG_WARN("no such field. field=%s.%s", table->name(), field_name);
+        return RC::SCHEMA_FIELD_MISSING;
+      }
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(table, field_meta, with_brace));
+      if (std::string(table_name) != std::string(table->name())) {  // 表存在别名
+        if (default_table == nullptr) { // 多表的情况
+          field_expr->set_alias(std::string(table_name) + "." + std::string(field_name));
+        }
+      }
+      res_expr = std::move(field_expr);
+    }
+    else {
+      SelectStmt* view_stmt = table_unit->view_stmt();
+      shared_ptr<Expression> view_expr;
+      RC rc = Expression::find_expr(view_stmt->project_expres(), view_expr, field_name, false);
+      if (rc != RC::SUCCESS) {
+        return RC::SCHEMA_FIELD_MISSING;
+      }
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(view_expr));
+      res_expr = std::move(field_expr);
+    }
+  }
+
+  return RC::SUCCESS;
+}
+
+/*
 RC FieldExpr::create_expression(const ExprSqlNode *expr, unique_ptr<Expression> &res_expr,
     const unordered_map<std::string, Table *> &table_map, const Table *default_table)
 {
@@ -327,5 +420,5 @@ RC FieldExpr::create_expression(const ExprSqlNode *expr, unique_ptr<Expression> 
   }
 
   return RC::SUCCESS;
-}
+}*/
 

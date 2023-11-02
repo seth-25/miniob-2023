@@ -38,7 +38,7 @@ public:
   int num_project_aggr() const {
     return num_project_aggr_;
   }
-  static RC create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create(Db *db, TableUnit *default_table, std::unordered_map<std::string, TableUnit *> *tables,
       const std::vector<RelAttrSqlNode> &group_by_cols, std::vector<std::unique_ptr<Expression>> &aggr_exprs,
       std::vector<std::unique_ptr<Expression>> &field_exprs, int num_project_aggr, int num_project_field, GroupByStmt *&stmt);
 

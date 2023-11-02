@@ -20,13 +20,14 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
-#include "group_by_stmt.h"
 
 class FieldMeta;
 class FilterStmt;
 class OrderByStmt;
 class Db;
 class Table;
+class TableUnit;
+class GroupByStmt;
 
 /**
  * @brief 表示select语句
@@ -44,12 +45,12 @@ public:
   }
 
 public:
-  static RC create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const std::unordered_map<std::string, Table *> &parent_table_map, Stmt *&stmt);
+  static RC create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const std::unordered_map<std::string, TableUnit*> &parent_table_map, Stmt *&stmt);
 
 public:
-  const std::vector<Table *> &tables() const { return tables_; }
+  const std::vector<TableUnit*> &tables() const { return tables_; }
 
-  std::vector<std::unique_ptr<Expression>> &project_expres() { return project_exprs_; }
+  std::vector<std::shared_ptr<Expression>> &project_expres() { return project_exprs_; }
 
   std::vector<std::string> &project_name() { return project_name_; }
 
@@ -63,16 +64,55 @@ public:
 
   OrderByStmt *order_by_for_group_stmt() const { return order_by_for_group_stmt_; }
 
+  static RC init_view(const string &table_name, Db *db, Trx *trx, SelectStmt *view_stmt);
+
 private:
-  std::vector<Table *> tables_;
+  std::vector<TableUnit*> tables_;
   FilterStmt *filter_stmt_ = nullptr; // where
   OrderByStmt *order_by_stmt_ = nullptr;  // order by
   GroupByStmt *group_by_stmt_ = nullptr;  // group by
   FilterStmt *having_stmt_ = nullptr; // having
   OrderByStmt *order_by_for_group_stmt_ = nullptr;
 
-  std::vector<std::unique_ptr<Expression>> project_exprs_;  // 投影列的表达式
+  std::vector<std::shared_ptr<Expression>> project_exprs_;  // 投影列的表达式
   std::vector<std::string> project_name_; // 投影列的名字
 
-  bool is_view = false;
+};
+
+
+class TableUnit
+{
+public:
+  TableUnit(Table* table) {
+    table_ = table;
+  }
+  TableUnit(SelectStmt* stmt, std::string view_name) {
+    view_stmt_ = stmt;
+    view_name_ = view_name;
+  }
+
+  const bool is_table() const { return is_table_; }
+
+  Table* table() const
+  {
+    assert(is_table());
+    return table_;
+  }
+
+  SelectStmt* view_stmt() const
+  {
+    assert(!is_table());
+    return view_stmt_;
+  }
+  std::string view_name() const
+  {
+    assert(!is_table());
+    return view_name_;
+  }
+
+private:
+  bool is_table_ = true;    // 是表还是view
+  Table* table_;
+  SelectStmt* view_stmt_ = nullptr;
+  std::string view_name_;
 };

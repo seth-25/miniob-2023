@@ -121,14 +121,19 @@ public:
   }
 
 public:
-  static RC create(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+  static RC create(Db *db, Trx* trx, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *tables,
       const ConditionSqlNode *conditions, int condition_num, FilterStmt *&stmt);
 
-  static RC create_filter_unit(Db *db, Trx* trx, Table *default_table, std::unordered_map<std::string, Table *> *table_map,
+  static RC create_filter_unit(Db *db, Trx* trx, TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *table_map,
       const ConditionSqlNode &condition, FilterUnit *&filter_unit);
 
 private:
   std::vector<FilterUnit *> filter_units_;
 };
+
+
+
 RC get_table_and_field(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
     const RelAttrSqlNode &attr, Table *&table, const FieldMeta *&field);
+
+RC gen_field_expr(TableUnit* default_table, std::unordered_map<std::string, TableUnit*> *table_map, const RelAttrSqlNode &attr, FieldExpr*& expr);

@@ -47,17 +47,32 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
     return RC::INVALID_ARGUMENT;
   }
 
+//  // check whether the table exists
+//  Table *table = db->find_table(table_name);
+//  if (nullptr == table) {
+//    LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+//    return RC::SCHEMA_TABLE_NOT_EXIST;
+//  }
+  TableUnit* table_unit = nullptr;
   // check whether the table exists
   Table *table = db->find_table(table_name);
   if (nullptr == table) {
-    LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-    return RC::SCHEMA_TABLE_NOT_EXIST;
+    SelectStmt* view_stmt = nullptr;
+    if (RC::SUCCESS == SelectStmt::init_view(table_name, db, trx, view_stmt)) {  // 判断是否是view, 如果是则初始化view的条件
+      table_unit = new TableUnit(view_stmt, table_name);
+    }
+    else {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+  }
+  else {
+    table_unit = new TableUnit(table);
   }
 
+
   vector<const FieldMeta *> fields;
-//  std::vector<Value> values;
   vector<unique_ptr<Expression>> exprs;
-  //  const Value *value = nullptr;
 
   for (size_t i = 0; i < update.update_values.size(); i ++ )
   {
@@ -69,67 +84,49 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
       return RC::INVALID_ARGUMENT;
     }
 
+    if (table_unit->is_table()) {
+      const TableMeta &table_meta = table->table_meta();
+      const int sys_field_num = table_meta.sys_field_num();
+      const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
 
-    const TableMeta &table_meta = table->table_meta();
-    const int sys_field_num = table_meta.sys_field_num();
-    const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
+      // 找到属性对应字段，sys_field_num到field_num之间是用户创建的field
+      for (int j = sys_field_num; j < field_num; j ++ ) {
+        const FieldMeta *field_meta = table_meta.field(j);
+        const char *field_name = field_meta->name();
+        if (strcmp(field_name, attr_name) != 0) continue; // 检查update set的字段是否存在
+        field_exist = true;
 
-    // 找到属性对应字段，sys_field_num到field_num之间是用户创建的field
-    for (int j = sys_field_num; j < field_num; j ++ ) {
-      const FieldMeta *field_meta = table_meta.field(j);
-      const char *field_name = field_meta->name();
-      if (strcmp(field_name, attr_name) != 0) continue; // 检查update set的字段是否存在
-      field_exist = true;
-
-      unique_ptr<Expression> expr;
-      const std::unordered_map<std::string, Table *> table_map;
-      if (ExprSqlNodeType::UNARY == expr_node->type) {
-        const UnaryExprSqlNode *unary_expr_node = expr_node->unary_expr;
-        if (unary_expr_node->is_attr) {
+        unique_ptr<Expression> expr;
+        const std::unordered_map<std::string, TableUnit *> table_map;
+        if (ExprSqlNodeType::UNARY == expr_node->type) {
+          const UnaryExprSqlNode *unary_expr_node = expr_node->unary_expr;
+          if (unary_expr_node->is_attr) {
+            return RC::SQL_SYNTAX;
+          }
+          RC rc = ValueExpr::create_expression(expr_node, expr);
+          if (RC::SUCCESS != rc) {
+            LOG_ERROR("UpdateStmt Create ValueExpr Failed. RC = %d:%s", rc, strrc(rc));
+            return rc;
+          }
+        } else if (ExprSqlNodeType::SUBQUERY == expr_node->type) {
+          // will check projects num
+          RC rc = SubQueryExpr::create_expression(expr_node, expr, table_map, CompOp::EQUAL_TO, db, trx);
+          if (RC::SUCCESS != rc) {
+            LOG_ERROR("UpdateStmt Create SubQueryExpression Failed. RC = %d:%s", rc, strrc(rc));
+            return rc;
+          }
+        } else {
           return RC::SQL_SYNTAX;
         }
-        RC rc = ValueExpr::create_expression(expr_node, expr);
-        if (RC::SUCCESS != rc) {
-          LOG_ERROR("UpdateStmt Create ValueExpr Failed. RC = %d:%s", rc, strrc(rc));
-          return rc;
-        }
-      } else if (ExprSqlNodeType::SUBQUERY == expr_node->type) {
-        // will check projects num
-        RC rc = SubQueryExpr::create_expression(expr_node, expr, table_map, CompOp::EQUAL_TO, db, trx);
-        if (RC::SUCCESS != rc) {
-          LOG_ERROR("UpdateStmt Create SubQueryExpression Failed. RC = %d:%s", rc, strrc(rc));
-          return rc;
-        }
-      } else {
-        return RC::SQL_SYNTAX;
+
+        assert(expr != nullptr);
+        exprs.emplace_back(std::move(expr));
+
+        fields.emplace_back(field_meta);
       }
-
-      assert(expr != nullptr);
-      exprs.emplace_back(std::move(expr));
-
-
-//      // 检查类型
-//      const AttrType field_type = field_meta->type();
-//      const AttrType value_type = value.attr_type();
-//      if (AttrType::NULLS == value_type) {
-//        if (!field_meta->nullable()) {
-//          LOG_WARN("field type mismatch. can not be null. table=%s, field=%s, field type=%d, value_type=%d",
-//              table_name,
-//              field_meta->name(),
-//              field_type,
-//              value_type);
-//          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-//        }
-//        fields.emplace_back(field_meta);
-//        continue;
-//      }
-//      if (field_type != value_type && !common::type_cast_check(value_type, field_type) && !TextHelper::isInsertText(field_type, value_type)) {
-//        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
-//        table_name, field_meta->name(), field_type, value_type);
-//        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-//      }
-
-      fields.emplace_back(field_meta);
+    }
+    else {
+      // todo view的情况
     }
 
     if (!field_exist) {
@@ -140,12 +137,12 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
 
   assert(fields.size() == exprs.size());
 
-  std::unordered_map<std::string, Table *> table_map;
-  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+  std::unordered_map<std::string, TableUnit *> table_map;
+  table_map.insert(std::pair<std::string, TableUnit *>(std::string(table_name), table_unit));
 
   FilterStmt *filter_stmt = nullptr;
   RC rc = FilterStmt::create(
-      db, trx, table, &table_map, update.conditions.data(), static_cast<int>(update.conditions.size()), filter_stmt);
+      db, trx, table_unit, &table_map, update.conditions.data(), static_cast<int>(update.conditions.size()), filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
     return rc;

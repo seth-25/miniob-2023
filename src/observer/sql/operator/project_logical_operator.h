@@ -29,8 +29,8 @@ See the Mulan PSL v2 for more details. */
 class ProjectLogicalOperator : public LogicalOperator 
 {
 public:
-  ProjectLogicalOperator(std::vector<std::unique_ptr<Expression>> &&project_expres) {
-      expressions_ = std::move(project_expres);
+  ProjectLogicalOperator(std::vector<std::shared_ptr<Expression>> &&project_expres) {
+      project_expres_ = std::move(project_expres);
   }
   virtual ~ProjectLogicalOperator() = default;
 
@@ -38,4 +38,10 @@ public:
   {
     return LogicalOperatorType::PROJECTION;
   }
+  std::vector<std::shared_ptr<Expression>> &project_expres()
+  {
+    return project_expres_;
+  }
+private:
+  std::vector<std::shared_ptr<Expression>> project_expres_;
 };

@@ -37,19 +37,31 @@ RC DeleteStmt::create(Db *db, Trx* trx, const DeleteSqlNode &delete_sql, Stmt *&
     return RC::INVALID_ARGUMENT;
   }
 
+
+  TableUnit* table_unit = nullptr;
   // check whether the table exists
   Table *table = db->find_table(table_name);
   if (nullptr == table) {
-    LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-    return RC::SCHEMA_TABLE_NOT_EXIST;
+    SelectStmt* view_stmt = nullptr;
+    if (RC::SUCCESS == SelectStmt::init_view(table_name, db, trx, view_stmt)) {  // 判断是否是view, 如果是则初始化view的条件
+      table_unit = new TableUnit(view_stmt, table_name);
+    }
+    else {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+  }
+  else {
+    table_unit = new TableUnit(table);
   }
 
-  std::unordered_map<std::string, Table *> table_map;
-  table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
+  std::unordered_map<std::string, TableUnit*> table_map;
+  table_map.insert(std::pair<std::string, TableUnit*>(std::string(table_name), table_unit));
 
   FilterStmt *filter_stmt = nullptr;
   RC rc = FilterStmt::create(
-      db, trx, table, &table_map, delete_sql.conditions.data(), static_cast<int>(delete_sql.conditions.size()), filter_stmt);
+      db, trx, table_unit, &table_map, delete_sql.conditions.data(), static_cast<int>(delete_sql.conditions.size()), filter_stmt);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
     return rc;

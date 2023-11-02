@@ -239,7 +239,7 @@ RC FuncExpression::get_value(const Tuple &tuple, Value &value) const
 }
 
 RC FuncExpression::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
+    const std::unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table)
 {
   RC rc = RC::SUCCESS;
   std::unique_ptr<Expression> left = nullptr;

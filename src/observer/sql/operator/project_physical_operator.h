@@ -29,7 +29,7 @@ public:
   virtual ~ProjectPhysicalOperator() = default;
 
 //  void add_projection(const Table *table, const FieldMeta *field);
-  void add_projection(std::unique_ptr<Expression>& expr);
+  void add_projection(std::shared_ptr<Expression>& expr);
 
   PhysicalOperatorType type() const override
   {

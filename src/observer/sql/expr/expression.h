@@ -22,6 +22,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include "common/log/log.h"
 #include "storage/db/db.h"
+#include "sql/stmt/select_stmt.h"
 
 class Tuple;
 
@@ -105,18 +106,23 @@ public:
    * @return res_expr
    */
   static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-      const std::unordered_map<std::string, Table *> &table_map, const Table *default_table,
+      const std::unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table,
       CompOp comp = NO_OP, Db *db = nullptr, Trx *trx = nullptr);
   /**
    * 解析select投影和having里的表达式，提取出field和aggregation
    * @return
    */
   static RC get_field_exprs(const ExprSqlNode *expr, std::vector<std::unique_ptr<Expression>> &field_exprs,
-      const std::unordered_map<std::string, Table *> &table_map, const Table * default_table);
-  static RC get_field_exprs(
-      const std::unique_ptr<Expression> &expr, std::vector<std::unique_ptr<Expression>> &field_exprs);
+      const std::unordered_map<std::string, TableUnit *> &table_map, const TableUnit * default_table);
+  static RC get_field_exprs_from_project(const Expression* expr, std::vector<std::unique_ptr<Expression>> &field_exprs);
   static RC get_aggr_exprs(const ExprSqlNode *expr, std::vector<std::unique_ptr<Expression>> &aggr_exprs,
-      const std::unordered_map<std::string, Table *> &table_map, const Table *default_table);
+      const std::unordered_map<std::string, TableUnit *> &table_map, const TableUnit *default_table);
+
+  /**
+   * 从表达式列表中找到名字一样的表达式
+   * @return
+   */
+  static RC find_expr(std::vector<std::shared_ptr<Expression>>& exprs, std::shared_ptr<Expression>& res_expr, const std::string& find_expr_name, bool with_table_name);
 
   /**
    * 解析select投影表达式，设置列名
@@ -148,34 +154,62 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {}
+  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {
+    is_table = true;
+  }
   FieldExpr(const Table *table, const FieldMeta *field, bool with_brace) : field_(table, field) {
+    is_table = true;
     if (with_brace) {
       set_with_brace();
     }
   }
-  FieldExpr(const Field &field) : field_(field)
-  {}
+  FieldExpr(const Field &field) : field_(field) {
+    is_table = true;
+  }
+  FieldExpr(std::shared_ptr<Expression>& view_expr) {
+    is_table = false;
+    view_expr_ = view_expr;
+    view_expr_value_type_ = view_expr_->value_type();
+  }
 
   virtual ~FieldExpr() = default;
 
   ExprType type() const override { return ExprType::FIELD; }
-  AttrType value_type() const override { return field_.attr_type(); }
+  AttrType value_type() const override {
+    if (is_table) {
+      return field_.attr_type();
+    }
+    else {
+      return view_expr_value_type_;
+    }
+  }
 
-  Field &field() { return field_; }
+  Field &field() {
+    assert(is_table);
+    return field_;
+  }
 
-  const Field &field() const { return field_; }
+  const Field &field() const {
+    assert(is_table);
+    return field_;
+  }
 
-  const char *table_name() const { return field_.table_name(); }
+  const char *table_name() const {
+    assert(is_table);
+    return field_.table_name();
+  }
 
-  const char *field_name() const { return field_.field_name(); }
+  const char *field_name() const {
+    assert(is_table);
+    return field_.field_name();
+  }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
 
   std::string to_string(bool with_table_name) const;
 
   static RC create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-      const std::unordered_map<std::string, Table *> &table_map, const Table *default_table);
+      const std::unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table);
 
   bool with_aggr() const
   {
@@ -204,7 +238,9 @@ public:
   static RC get_field_isnull_from_exprs(const Expression* expr, bool &nullable);
 
 private:
+  bool is_table = false; // true使用field，false使view_expr
   Field field_;
-
+  std::shared_ptr<Expression> view_expr_;  // view的某列投影的表达式
+  AttrType                    view_expr_value_type_;
   AggrFuncType aggr_type_ = AggrFuncType::UNDEFINED; // 用于AggrFunc的get_value(group tuple的)
 };

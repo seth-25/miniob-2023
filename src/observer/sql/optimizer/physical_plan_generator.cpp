@@ -304,7 +304,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
 
 
   ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
-  for (std::unique_ptr<Expression> &expr: project_oper.expressions()) {
+  for (std::shared_ptr<Expression> &expr: project_oper.project_expres()) {
     project_operator->add_projection(expr);
   }
   if (child_phy_oper) {

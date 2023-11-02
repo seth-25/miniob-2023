@@ -6,7 +6,7 @@ RC GroupTuple::do_aggregate_empty() {
   assert(aggr_exprs_.size() == aggr_all_null_.size());
   assert(aggr_exprs_.size() == aggr_counts_.size());
   assert(field_results_.size() == field_exprs_.size());
-  if (num_project_field_ > 0) {  // 投影列存在普通field的时候不需要返回答案，只有聚集函数的时候才需要
+  if (num_project_field_ > 0) {  // 查询结果为空时，投影列存在普通field的时候不需要返回答案，投影列只含聚集函数的时候才需要
     return RC::RECORD_EOF;
   }
   for (size_t i = 0; i < aggr_exprs_.size(); i ++ ) {

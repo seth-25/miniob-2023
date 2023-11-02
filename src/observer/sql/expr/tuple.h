@@ -281,6 +281,7 @@ private:
   std::vector<FieldExpr *> speces_;
 };
 
+
 /**
  * @brief 从一行数据中，选择部分字段组成的元组，也就是投影操作
  *
@@ -327,7 +328,10 @@ public:
    * 调用子tuple的find_cell，子tuple一般是row tuple或join tuple
    * ProjectTuple是最顶层，目前没有能直接调ProjectTuple的find_cell的地方
    */
-  RC find_cell(const TupleCellSpec &spec, Value &cell) const override { return tuple_->find_cell(spec, cell); }
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override {
+    // todo 如果spec在speces_里,spec get value
+    return tuple_->find_cell(spec, cell);
+  }
 
   void get_record(CompoundRecord &record) const override { tuple_->get_record(record); }
 

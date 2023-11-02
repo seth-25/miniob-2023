@@ -3,7 +3,8 @@
 #include "sql/stmt/filter_stmt.h"
 
 
-RC GroupByStmt::create(Db *db, Table *default_table, std::unordered_map<std::string, Table *> *tables,
+
+RC GroupByStmt::create(Db *db, TableUnit *default_table, std::unordered_map<std::string, TableUnit *> *tables,
     const std::vector<RelAttrSqlNode> &group_by_cols, std::vector<std::unique_ptr<Expression>> &aggr_exprs,
     std::vector<std::unique_ptr<Expression>> &field_exprs, int num_project_aggr, int num_project_field, GroupByStmt *&stmt)
 {
@@ -12,10 +13,16 @@ RC GroupByStmt::create(Db *db, Table *default_table, std::unordered_map<std::str
   stmt->aggr_exprs_ = std::move(aggr_exprs);
   stmt->field_exprs_ = std::move(field_exprs);
   for (auto & group_by_col : group_by_cols) {
-    Table *table = nullptr;
-    const FieldMeta *field = nullptr;
-    rc = get_table_and_field(db, default_table, tables, group_by_col, table, field);
-    std::unique_ptr<FieldExpr> expr(new FieldExpr(table, field));
+//    Table *table = nullptr;
+//    const FieldMeta *field = nullptr;
+//    rc = get_table_and_field(db, default_table, tables, group_by_col, table, field);
+//    std::unique_ptr<FieldExpr> expr(new FieldExpr(table, field));
+    FieldExpr* field_expr = nullptr;
+    rc = gen_field_expr(default_table, tables, group_by_col, field_expr);
+    if (rc != RC::SUCCESS) {
+      return RC::SQL_SYNTAX;
+    }
+    std::unique_ptr<FieldExpr> expr(field_expr);
     stmt->group_by_field_exprs_.emplace_back(std::move(expr));
   }
   stmt->num_project_aggr_ = num_project_aggr;

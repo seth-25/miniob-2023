@@ -28,7 +28,7 @@ public:
       alias_ = alias;
     }
   };
-  TupleCellSpec(std::unique_ptr<Expression> &&expression): expression_(std::move(expression)) {};
+  TupleCellSpec(std::shared_ptr<Expression> &&expression): expression_(std::move(expression)) {};
 
   const char *alias() const
   {
@@ -40,5 +40,5 @@ public:
 
 private:
   std::string alias_;
-  std::unique_ptr<Expression> expression_;
+  std::shared_ptr<Expression> expression_;
 };

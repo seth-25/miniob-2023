@@ -12,11 +12,13 @@ SUCCESS
 INSERT INTO insert_table VALUES (4,'N4',1,1),(1,1,1);
 FAILURE
 INSERT INTO insert_table VALUES (4,'N4',1,1),(1,1,1,1);
-FAILURE
+SUCCESS
 
 3. SELECT
 SELECT * FROM insert_table;
 1 | N1 | 1 | 1
 2 | N2 | 1 | 1
 3 | N3 | 2 | 1
+4 | N4 | 1 | 1
+1 | 1 | 1 | 1
 ID | T_NAME | COL1 | COL2

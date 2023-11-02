@@ -1,9 +1,12 @@
 #include "aggregation_expression.h"
+
+#include <memory>
 #include "tuple_cell.h"
 #include "tuple.h"
+#include "value_expression.h"
 
 RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expression> &res_expr,
-    const std::unordered_map<std::string, Table *> &table_map, const Table *default_table)
+    const std::unordered_map<std::string, TableUnit*> &table_map, const TableUnit* default_table)
 {
   assert(ExprSqlNodeType::AGGREGATION == expr->type);
   bool with_brace = expr->with_brace;
@@ -18,9 +21,18 @@ RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expr
       return rc;
     }
     assert(ExprType::VALUE == value_exp->type());
-    Table * table = table_map.begin()->second;
-    std::unique_ptr<Expression> field_expr(
-        new FieldExpr(table, table->table_meta().field(0)));  // todo 可能需要修改count的field是哪列
+    TableUnit* table_unit = table_map.begin()->second;
+    std::unique_ptr<Expression> field_expr;
+    if (table_unit->is_table()) {
+      const Table* table = table_unit->table();
+      field_expr = std::make_unique<FieldExpr>(table, table->table_meta().field(0));  // todo 可能需要修改count的field是哪列
+    }
+    else {
+      SelectStmt* view_stmt = table_unit->view_stmt();
+      std::shared_ptr<Expression> view_expr = view_stmt->project_expres()[0];
+      field_expr = std::make_unique<FieldExpr>(view_expr);
+    }
+
     std::unique_ptr<AggrFuncExpr> aggr_func_expr(new AggrFuncExpr(
         AggrFuncType::AGGR_COUNT, std::move(field_expr), std::move(value_exp), with_brace));
     res_expr = std::move(aggr_func_expr);
@@ -55,6 +67,19 @@ std::string AggrFuncExpr::get_func_name() const
       break;
   }
   return "unknown_aggr_fun";
+}
+
+std::string AggrFuncExpr::to_string(bool with_table_name) {
+  std::string result_name;
+  result_name += get_func_name();
+  result_name += '(';
+  if (is_param_value()) {
+    result_name += ((ValueExpr*) value_expr_.get())->to_string();
+  } else {
+    result_name += ((FieldExpr*)field_expr().get())->to_string(with_table_name);
+  }
+  result_name += ')';
+  return result_name;
 }
 
 

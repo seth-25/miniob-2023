@@ -104,19 +104,28 @@ RC LogicalPlanGenerator::create_plan(
 
   // 1. table_scan_oper
   unique_ptr<LogicalOperator> table_oper(nullptr);
-  const std::vector<Table *> &tables = select_stmt->tables();
-  std::vector<std::unique_ptr<Expression>> &project_expres = select_stmt->project_expres();
-  for (Table *table : tables) {
-    std::vector<Field> fields;
-    unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, true/*readonly*/));
-    if (table_oper == nullptr) {
-      table_oper = std::move(table_get_oper);
-    } else {
-      JoinLogicalOperator *join_oper = new JoinLogicalOperator;
-      join_oper->add_child(std::move(table_oper));
-      join_oper->add_child(std::move(table_get_oper));
-      table_oper = unique_ptr<LogicalOperator>(join_oper);
+//  const std::vector<Table *> &tables = select_stmt->tables();
+  const std::vector<TableUnit *> &tables = select_stmt->tables();
+
+  std::vector<std::shared_ptr<Expression>> &project_expres = select_stmt->project_expres();
+  for (TableUnit *table_unit : tables) {
+    if (table_unit->is_table()) {
+      Table* table = table_unit->table();
+      std::vector<Field> fields;
+      unique_ptr<LogicalOperator> table_get_oper(new TableGetLogicalOperator(table, true/*readonly*/));
+      if (table_oper == nullptr) {
+        table_oper = std::move(table_get_oper);
+      } else {
+        JoinLogicalOperator *join_oper = new JoinLogicalOperator;
+        join_oper->add_child(std::move(table_oper));
+        join_oper->add_child(std::move(table_get_oper));
+        table_oper = unique_ptr<LogicalOperator>(join_oper);
+      }
     }
+    else {
+      // todo 添加view的select 投影算子
+    }
+
   }
 
   // 2. predicate_oper
