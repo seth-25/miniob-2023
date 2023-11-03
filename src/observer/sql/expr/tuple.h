@@ -326,11 +326,25 @@ public:
 
   /**
    * 调用子tuple的find_cell，子tuple一般是row tuple或join tuple
-   * ProjectTuple是最顶层，目前没有能直接调ProjectTuple的find_cell的地方
+   * 只有查询view时才可能调用，由aggr_expr和field_expr的get_value调用
    */
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override {
-    // todo 如果spec在speces_里,spec get value
-    return tuple_->find_cell(spec, cell);
+    assert(spec.expression()->type() == ExprType::FIELD);
+    FieldExpr* spec_field_expr = (FieldExpr*)spec.expression();
+    assert(spec_field_expr->is_table() == false);
+//    string spec_expr_name = spec_field_expr->to_string(false); // view的field_name，不需要加上view的名字
+    for (TupleCellSpec* project_spec: speces_) {
+//      string expr_name;
+//      FieldExpr::gen_project_name(project_spec->expression(), true, expr_name); // 和创建view的select的投影列比较，这个投影列需要加上select的表名
+      if (spec_field_expr->view_expr().get() == project_spec->expression()) {
+        return project_spec->expression()->get_value(*tuple_, cell);
+      }
+//      if (spec_expr_name == expr_name) {
+//        return project_spec->expression()->get_value(*tuple_, cell);
+//      }
+
+    }
+    return RC::NOTFOUND;
   }
 
   void get_record(CompoundRecord &record) const override { tuple_->get_record(record); }

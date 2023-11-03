@@ -121,7 +121,8 @@ RC GroupTuple::find_cell(const TupleCellSpec &spec, Value &value) const
   if (field_expr->with_aggr()) {
     for (size_t i = 0; i < aggr_exprs_.size(); ++i) {
       AggrFuncExpr *aggr_expr = (AggrFuncExpr *)(aggr_exprs_[i].get());
-      if (field_expr->field().equal(aggr_expr->field()) && aggr_expr->aggr_type() == field_expr->get_aggr_type()) {
+//      if (field_expr->field().equal(aggr_expr->field()) && aggr_expr->aggr_type() == field_expr->get_aggr_type()) {
+      if (field_expr->equal((FieldExpr*)aggr_expr->field_expr().get()) && aggr_expr->aggr_type() == field_expr->get_aggr_type()) {
         value = aggr_results_[i];
         LOG_INFO("Field is found in aggr_exprs");
         return RC::SUCCESS;
@@ -130,7 +131,7 @@ RC GroupTuple::find_cell(const TupleCellSpec &spec, Value &value) const
   }
   for (size_t i = 0; i < field_exprs_.size(); ++i) {  // 所有需要group by的field
     FieldExpr *expr = (FieldExpr *)field_exprs_[i].get();
-    if (field_expr->field().equal(expr->field())) {
+    if (field_expr->equal(expr)) {
       value = field_results_[i];
       LOG_INFO("Field is found in field_exprs");
       return RC::SUCCESS;

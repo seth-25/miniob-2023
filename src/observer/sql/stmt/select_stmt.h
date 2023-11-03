@@ -64,7 +64,7 @@ public:
 
   OrderByStmt *order_by_for_group_stmt() const { return order_by_for_group_stmt_; }
 
-  static RC init_view(const string &table_name, Db *db, Trx *trx, SelectStmt *view_stmt);
+  static RC init_view(const string &table_name, Db *db, Trx *trx, SelectStmt *&view_stmt);
 
 private:
   std::vector<TableUnit*> tables_;
@@ -84,9 +84,11 @@ class TableUnit
 {
 public:
   TableUnit(Table* table) {
+    is_table_ = true;
     table_ = table;
   }
   TableUnit(SelectStmt* stmt, std::string view_name) {
+    is_table_ = false;
     view_stmt_ = stmt;
     view_name_ = view_name;
   }

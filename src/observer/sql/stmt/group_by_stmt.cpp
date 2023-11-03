@@ -37,7 +37,8 @@ RC GroupByStmt::create(Db *db, TableUnit *default_table, std::unordered_map<std:
       bool in_group_by = false;
       std::vector<std::unique_ptr<FieldExpr>>&group_by_field_exprs = stmt->group_by_field_exprs_;
       for (auto& group_by_field_expr : group_by_field_exprs) {
-        if (group_by_field_expr->field().equal( ((FieldExpr*)field_expr.get())->field() )) {
+        if (group_by_field_expr->equal(  (FieldExpr*)field_expr.get() )){
+//        if (group_by_field_expr->field().equal( ((FieldExpr*)field_expr.get())->field() )) {
           in_group_by = true;
           break;
         }

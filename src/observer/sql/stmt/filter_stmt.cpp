@@ -177,7 +177,7 @@ RC gen_field_expr(TableUnit* default_table, std::unordered_map<std::string, Tabl
     if (rc != RC::SUCCESS) {
       return RC::SCHEMA_FIELD_MISSING;
     }
-    field_expr = new FieldExpr(view_expr);
+    field_expr = new FieldExpr(view_expr, table_unit->view_name());
   }
   assert(field_expr != nullptr);
   return RC::SUCCESS;

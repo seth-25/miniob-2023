@@ -84,10 +84,18 @@ RC Expression::get_field_exprs(const ExprSqlNode *expr, std::vector<std::unique_
 RC Expression::get_field_exprs_from_project(const Expression* expr, std::vector<std::unique_ptr<Expression>> &field_exprs)
 {
   RC rc = RC::SUCCESS;
-  if (expr->type() == ExprType::FIELD) {
+  if (expr->type() == ExprType::FIELD) {  // todo unique改share，不再copy
     FieldExpr* field_expr = (FieldExpr*) expr;
-    std::unique_ptr<Expression> field_expr_copy(new FieldExpr(field_expr->field()));
-    field_exprs.emplace_back(std::move(field_expr_copy));
+    if (field_expr->is_table()) {
+      std::unique_ptr<Expression> field_expr_copy(new FieldExpr(field_expr->field()));
+      field_exprs.emplace_back(std::move(field_expr_copy));
+    }
+    else {
+      std::shared_ptr<Expression> view_expr = field_expr->view_expr();
+      string view_name = field_expr->table_name();
+      std::unique_ptr<Expression> field_expr_copy(new FieldExpr(view_expr, view_name));
+      field_exprs.emplace_back(std::move(field_expr_copy));
+    }
   }
   else if (expr->type() == ExprType::BINARY) {
     BinaryExpression* binary_expr = (BinaryExpression*) expr;
@@ -224,29 +232,34 @@ RC Expression::find_expr(vector<std::shared_ptr<Expression>> &exprs, shared_ptr<
 
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
-  unique_ptr<FieldExpr> field_expr_copy = make_unique<FieldExpr>(field_);
-  return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value);
+  if (is_table()) {
+    unique_ptr<FieldExpr> field_expr_copy = make_unique<FieldExpr>(field_);
+    return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value); // row tuple
+  }
+  else {
+    std::unique_ptr<FieldExpr> field_expr_copy = std::make_unique<FieldExpr>(view_expr_, view_name_);
+    return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value); // project tuple
+  }
 }
 
-
-RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &fields)
+RC FieldExpr::get_field_expr_from_exprs(const Expression* expr, std::vector<FieldExpr*> &field_exprs)
 {
   switch (expr->type()) {
     case ExprType::FIELD: {
-      const FieldExpr* field_expr = (const FieldExpr *)(expr);
-      const Field &field = field_expr->field();
-      fields.emplace_back(field);
+      FieldExpr* field_expr = (FieldExpr *)(expr);
+      field_exprs.emplace_back(field_expr);
       break;
     }
     case ExprType::AGGRFUNC: {
       AggrFuncExpr *aggr_expr = (AggrFuncExpr *)expr;
-      fields.emplace_back(aggr_expr->field());
+      FieldExpr* field_expr = (FieldExpr *)(aggr_expr->field_expr().get());
+      field_exprs.emplace_back(field_expr);
       break;
     }
     case ExprType::BINARY: {
       BinaryExpression* binary_expr = (BinaryExpression*) expr;
-      get_field_from_exprs(binary_expr->left().get(), fields);
-      get_field_from_exprs(binary_expr->right().get(), fields);
+      get_field_expr_from_exprs(binary_expr->left().get(), field_exprs);
+      get_field_expr_from_exprs(binary_expr->right().get(), field_exprs);
       break;
     }
     default:
@@ -254,12 +267,40 @@ RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &f
   }
   return RC::SUCCESS;
 }
+//RC FieldExpr::get_field_from_exprs(const Expression* expr, std::vector<Field> &fields)
+//{
+//  switch (expr->type()) {
+//    case ExprType::FIELD: {
+//      const FieldExpr* field_expr = (const FieldExpr *)(expr);
+//      const Field &field = field_expr->field();
+//      fields.emplace_back(field);
+//      break;
+//    }
+//    case ExprType::AGGRFUNC: {
+//      AggrFuncExpr *aggr_expr = (AggrFuncExpr *)expr;
+//      fields.emplace_back(aggr_expr->field());
+//      break;
+//    }
+//    case ExprType::BINARY: {
+//      BinaryExpression* binary_expr = (BinaryExpression*) expr;
+//      get_field_from_exprs(binary_expr->left().get(), fields);
+//      get_field_from_exprs(binary_expr->right().get(), fields);
+//      break;
+//    }
+//    default:
+//      break;
+//  }
+//  return RC::SUCCESS;
+//}
 
 RC FieldExpr::get_field_isnull_from_exprs(const Expression* expr, bool &nullable)
 {
   switch (expr->type()) {
     case ExprType::FIELD: {
       const FieldExpr* field_expr = (const FieldExpr *)(expr);
+      if (!field_expr->is_table()) {  // 不支持查询view的字段是否是null
+        return RC::UNIMPLENMENT;
+      }
       nullable &= field_expr->field().meta()->nullable();
       break;
     }
@@ -284,7 +325,7 @@ RC FieldExpr::get_field_isnull_from_exprs(const Expression* expr, bool &nullable
 std::string FieldExpr::to_string(bool with_table_name) const
 {
   std::string str;
-  if (is_table) {
+  if (is_table_) {
     const Field &field = field_;
     if (with_table_name) {
       str += std::string(field.table_name()) + '.' + std::string(field.field_name());
@@ -293,7 +334,11 @@ std::string FieldExpr::to_string(bool with_table_name) const
     }
   }
   else {
-    Expression::gen_project_name(view_expr_.get(), with_table_name, str);
+    if (with_table_name) {
+      str += std::string(view_name_) + '.' + std::string(view_field_name_);
+    } else {
+      str += std::string(view_field_name_);
+    }
   }
 
   return str;
@@ -332,7 +377,7 @@ RC FieldExpr::create_expression(const ExprSqlNode *expr, unique_ptr<Expression> 
       if (rc != RC::SUCCESS) {
         return RC::SCHEMA_FIELD_MISSING;
       }
-      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(view_expr));
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(view_expr, default_table->view_name()));
       res_expr = std::move(field_expr);
     }
   }
@@ -365,7 +410,7 @@ RC FieldExpr::create_expression(const ExprSqlNode *expr, unique_ptr<Expression> 
       if (rc != RC::SUCCESS) {
         return RC::SCHEMA_FIELD_MISSING;
       }
-      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(view_expr));
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(view_expr, table_unit->view_name()));
       res_expr = std::move(field_expr);
     }
   }

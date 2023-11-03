@@ -324,8 +324,6 @@ struct CreateViewSqlNode
   std::string                  relation_name;         ///< Relation name
   SelectSqlNode                selection;               ///<查询语句
 };
-#include <unordered_map>
-static std::unordered_map<std::string, SelectSqlNode> view_map; // todo 存磁盘
 
 /**
  * @brief 描述一个drop table语句

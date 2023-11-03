@@ -124,3 +124,6 @@ RC Stmt::create_stmt(Db *db, Trx* trx, ParsedSqlNode &sql_node, Stmt *&stmt)
   }
   return RC::UNIMPLENMENT;
 }
+
+ViewMapHelper* ViewMapHelper::instance = new ViewMapHelper();
+

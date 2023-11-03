@@ -3,7 +3,7 @@
 
 RC CreateViewStmt::create(const CreateViewSqlNode &create_view, Stmt *&stmt)
 {
-  if (view_map.find(create_view.relation_name) != view_map.end()) {
+  if (ViewMapHelper::get_instance()->get().find(create_view.relation_name) != ViewMapHelper::get_instance()->get().end()) {
     return RC::SCHEMA_TABLE_EXIST;
   }
   stmt = new CreateViewStmt(create_view.relation_name, create_view.selection);
@@ -12,5 +12,5 @@ RC CreateViewStmt::create(const CreateViewSqlNode &create_view, Stmt *&stmt)
 }
 
 CreateViewStmt::CreateViewStmt(const string &view_name, const SelectSqlNode &select) {
-  view_map[view_name] = select; // todo 存磁盘
+  ViewMapHelper::get_instance()->get()[view_name] = select; // todo 存磁盘
 }

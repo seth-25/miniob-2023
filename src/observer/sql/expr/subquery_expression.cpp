@@ -1,15 +1,15 @@
 #include "subquery_expression.h"
 
 RC SubQueryExpr::init() {
-  std::vector<Field> fields;
   if (stmt_->project_expres().size() != 1) { // 子查询投影列只能是1列
     return RC::SQL_SYNTAX;
   }
-  FieldExpr::get_field_from_exprs(stmt_->project_expres().front().get(), fields);
-  if (fields.size() != 1) { // 子查询投影列只能是1列
+  std::vector<FieldExpr*> field_exprs;
+  FieldExpr::get_field_expr_from_exprs(stmt_->project_expres().front().get(), field_exprs);
+  if (field_exprs.size() != 1) { // 子查询投影列只能是1列
     return RC::SQL_SYNTAX;
   }
-  attr_type_ = fields[0].attr_type();
+  attr_type_ = field_exprs[0]->value_type();
   return RC::SUCCESS;
 }
 

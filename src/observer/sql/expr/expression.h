@@ -154,21 +154,21 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) {
-    is_table = true;
+  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) { is_table_ = true;
   }
   FieldExpr(const Table *table, const FieldMeta *field, bool with_brace) : field_(table, field) {
-    is_table = true;
+    is_table_ = true;
     if (with_brace) {
       set_with_brace();
     }
   }
-  FieldExpr(const Field &field) : field_(field) {
-    is_table = true;
+  FieldExpr(const Field &field) : field_(field) { is_table_ = true;
   }
-  FieldExpr(std::shared_ptr<Expression>& view_expr) {
-    is_table = false;
-    view_expr_ = view_expr;
+  FieldExpr(std::shared_ptr<Expression> view_expr, std::string view_name) {
+    is_table_ = false;
+    view_expr_ = std::move(view_expr);
+    view_name_ = std::move(view_name);
+    gen_project_name(view_expr_.get(), false, view_field_name_);  // 不需要加上view的名字
     view_expr_value_type_ = view_expr_->value_type();
   }
 
@@ -176,7 +176,7 @@ public:
 
   ExprType type() const override { return ExprType::FIELD; }
   AttrType value_type() const override {
-    if (is_table) {
+    if (is_table_) {
       return field_.attr_type();
     }
     else {
@@ -185,23 +185,31 @@ public:
   }
 
   Field &field() {
-    assert(is_table);
+    assert(is_table_);
     return field_;
   }
 
   const Field &field() const {
-    assert(is_table);
+    assert(is_table_);
     return field_;
   }
 
   const char *table_name() const {
-    assert(is_table);
-    return field_.table_name();
+    if (is_table_) {
+      return field_.table_name();
+    }
+    else {
+      return view_name_.c_str();
+    }
   }
 
   const char *field_name() const {
-    assert(is_table);
-    return field_.field_name();
+    if (is_table_) {
+      return field_.field_name();
+    }
+    else {
+      return view_field_name_.c_str();
+    }
   }
 
   RC get_value(const Tuple &tuple, Value &value) const override;
@@ -225,11 +233,32 @@ public:
     assert(static_cast<int>(type) >= 0 && type < AggrFuncType::UNDEFINED);
     this->aggr_type_ = type;
   }
+
+  bool is_table() const {
+    return is_table_;
+  }
+
+  std::shared_ptr<Expression> view_expr() {
+      return view_expr_;
+  }
+
+  bool equal(FieldExpr* other) const {
+    if (this->is_table() && other->is_table()) {
+      return this->field_.equal(other->field());
+    }
+    else if (!this->is_table() && !other->is_table()){
+      // todo 换成判断view_expr_
+      return (this->view_name_ + "." + this->view_field_name_) == (other->view_name_ + "." + other->view_field_name_);
+    }
+    return false;
+  }
+
   /**
    * 从表达式中获取对应的字段
    * @return res_expr
    */
-  static RC get_field_from_exprs(const Expression* expr, std::vector<Field> &fields);
+//  static RC get_field_from_exprs(const Expression* expr, std::vector<Field> &fields);
+  static RC get_field_expr_from_exprs(const Expression *expr, vector<FieldExpr*> &field_exprs);
 
   /**最上层输入为true
    * 是否是nullable的
@@ -238,9 +267,14 @@ public:
   static RC get_field_isnull_from_exprs(const Expression* expr, bool &nullable);
 
 private:
-  bool is_table = false; // true使用field，false使view_expr
+  bool is_table_ = false; // true使用field，false使view_expr
   Field field_;
+
   std::shared_ptr<Expression> view_expr_;  // view的某列投影的表达式
-  AttrType                    view_expr_value_type_;
+  AttrType view_expr_value_type_;
+  string view_name_;        // v
+  string view_field_name_;   // t.id，包括原表的表名
+
   AggrFuncType aggr_type_ = AggrFuncType::UNDEFINED; // 用于AggrFunc的get_value(group tuple的)
+
 };

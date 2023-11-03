@@ -87,7 +87,7 @@ static void wildcard_fields(TableUnit*table_unit, std::vector<std::shared_ptr<Ex
       view_alias_name = it->second;
     }
     for (auto& expr: view_stmt->project_expres()) {
-      std::shared_ptr<FieldExpr> field_expr(new FieldExpr(expr));
+      std::shared_ptr<FieldExpr> field_expr(new FieldExpr(expr, table_unit->view_name()));
       // 子查询的投影列自己不会再有表名，如create view v as select t.id from t;
       // select v1.id from v as v1 合法； 不会有 select v1.t.id from v as v1;
       string view_expr_name = field_expr->to_string(false);
@@ -123,7 +123,7 @@ static RC normal_field(TableUnit* table_unit, std::vector<std::shared_ptr<Expres
     if (rc != RC::SUCCESS) {
       return RC::SCHEMA_FIELD_MISSING;
     }
-    field_expr = new FieldExpr(view_expr);
+    field_expr = new FieldExpr(view_expr, table_unit->view_name());
   }
   assert(field_expr != nullptr);
   if (!expr->alias_name.empty()) {  // 投影列的别名
@@ -224,9 +224,9 @@ RC create_query_field(std::vector<std::shared_ptr<Expression>> &project_exprs, c
   return RC::SUCCESS;
 }
 
-RC SelectStmt::init_view(const string& table_name, Db* db, Trx* trx, SelectStmt* view_stmt) {
-  auto view_it = view_map.find(table_name);
-  if (view_it == view_map.end()) {  // 不存在view
+RC SelectStmt::init_view(const string& table_name, Db* db, Trx* trx, SelectStmt*& view_stmt) {
+  auto view_it = ViewMapHelper::get_instance()->get().find(table_name);
+  if (view_it == ViewMapHelper::get_instance()->get().end()) {  // 不存在view
     return RC::SCHEMA_TABLE_NOT_EXIST;
   }
   SelectSqlNode &view_select = view_it->second;
@@ -442,21 +442,22 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const u
 
   // todo 回收select_sql的各项表达式
   // todo SubQueryExpr需要delete SelectSqlNode
-  for (auto& node: select_sql.project_exprs) {
-    delete node;  // todo 递归删除
-  }
-  for (auto& node: select_sql.having_conditions) {
-    delete node.left;  // todo 递归删除
-    delete node.right;
-  }
-  for (auto& node: select_sql.inner_join_conditions) {
-    delete node.left;  // todo 递归删除
-    delete node.right;
-  }
-  if (select_sql.condition.comp != CompOp::NO_OP) {
-    delete select_sql.condition.left;  // todo 递归删除
-    delete select_sql.condition.right;
-  }
+  // todo 内存中的view select不能在这删
+//  for (auto& node: select_sql.project_exprs) {
+//    delete node;  // todo 递归删除
+//  }
+//  for (auto& node: select_sql.having_conditions) {
+//    delete node.left;  // todo 递归删除
+//    delete node.right;
+//  }
+//  for (auto& node: select_sql.inner_join_conditions) {
+//    delete node.left;  // todo 递归删除
+//    delete node.right;
+//  }
+//  if (select_sql.condition.comp != CompOp::NO_OP) {
+//    delete select_sql.condition.left;  // todo 递归删除
+//    delete select_sql.condition.right;
+//  }
 
 
   return RC::SUCCESS;

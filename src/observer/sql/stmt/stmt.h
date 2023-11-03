@@ -92,3 +92,24 @@ public:
 
 private:
 };
+
+
+
+
+
+
+#include <unordered_map>
+class ViewMapHelper
+{
+public:
+  static ViewMapHelper* get_instance() {return instance;}
+
+  std::unordered_map<std::string, SelectSqlNode> &get() {
+    return view_map;
+  }
+private:
+  ViewMapHelper() {};
+  static ViewMapHelper* instance;
+
+  std::unordered_map<std::string, SelectSqlNode> view_map;
+};

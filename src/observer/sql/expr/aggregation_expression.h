@@ -34,8 +34,6 @@ public:
 
  std::unique_ptr<Expression> &field_expr() { return field_expr_; }
 
- const Field &field() { return ((FieldExpr*)field_expr_.get())->field(); }
-
  std::unique_ptr<Expression> &value_expr() { return value_expr_; }
 
  bool is_param_value() { return is_value_; };

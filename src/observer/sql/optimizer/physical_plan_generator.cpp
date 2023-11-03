@@ -149,12 +149,11 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
         value_expr = static_cast<ValueExpr *>(left_expr.get());
       }
 
-      if (field_expr == nullptr) {
+      if (field_expr == nullptr || !field_expr->is_table()) { // 不支持view上的索引
         continue;
       }
 
-      const Field &field = field_expr->field();
-      index = table->find_index_by_field(field.field_name());
+      index = table->find_index_by_field(field_expr->field_name());
       if (nullptr != index) {
         break;
       }

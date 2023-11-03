@@ -30,7 +30,7 @@ RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expr
     else {
       SelectStmt* view_stmt = table_unit->view_stmt();
       std::shared_ptr<Expression> view_expr = view_stmt->project_expres()[0];
-      field_expr = std::make_unique<FieldExpr>(view_expr);
+      field_expr = std::make_unique<FieldExpr>(view_expr, table_unit->view_name());
     }
 
     std::unique_ptr<AggrFuncExpr> aggr_func_expr(new AggrFuncExpr(
@@ -85,8 +85,15 @@ std::string AggrFuncExpr::to_string(bool with_table_name) {
 
 RC AggrFuncExpr::get_value(const Tuple &tuple, Value &value) const {
   FieldExpr* field_expr = (FieldExpr *)field_expr_.get();
-  std::unique_ptr<FieldExpr> field_expr_copy = std::make_unique<FieldExpr>(field_expr->field());
-  field_expr_copy->set_aggr(aggr_type_);
-  return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value);
+  if (field_expr->is_table()) {
+    std::unique_ptr<FieldExpr> field_expr_copy = std::make_unique<FieldExpr>(field_expr->field());
+    field_expr_copy->set_aggr(aggr_type_);
+    return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value);
+  }
+  else {
+    std::unique_ptr<FieldExpr> field_expr_copy = std::make_unique<FieldExpr>(field_expr->view_expr(), field_expr->table_name());
+    field_expr_copy->set_aggr(aggr_type_);
+    return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value);
+  }
 }
 
