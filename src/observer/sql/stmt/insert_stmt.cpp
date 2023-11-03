@@ -19,12 +19,13 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 #include "deps/common/lang/typecast.h"
-
+#include "select_stmt.h"
+#include "sql/expr/expression.h"
 InsertStmt::InsertStmt(Table *table, std::vector<const Value *> values, int value_amount)
     : table_(table), values_(std::move(values)), value_amount_(value_amount)
 {}
 
-RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
+RC InsertStmt::create(Db *db, Trx* trx, const InsertSqlNode &inserts, Stmt *&stmt)
 {
   const char *table_name = inserts.relation_name.c_str();
   if (nullptr == db || nullptr == table_name || inserts.values.empty()) {
@@ -35,15 +36,56 @@ RC InsertStmt::create(Db *db, const InsertSqlNode &inserts, Stmt *&stmt)
 
   // check whether the table exists
   Table *table = db->find_table(table_name);
+  Stmt *tmp_stmt = nullptr;
   if (nullptr == table) {
-    LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
-    return RC::SCHEMA_TABLE_NOT_EXIST;
+    if (ViewMapHelper::get_instance()->get().count(table_name) != 0)
+    {
+      std::unordered_map<std::string, TableUnit *> parent_table_map;
+      SelectStmt::create(db, trx, ViewMapHelper::get_instance()->get()[table_name], parent_table_map, tmp_stmt);
+    } else {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+  }
+
+  std::vector<std::vector<Value>> insert_values;
+  if (tmp_stmt != nullptr)
+  {
+    SelectStmt *select_stmt = static_cast<SelectStmt *>(tmp_stmt);
+    table_name = static_cast<FieldExpr *>(select_stmt->project_expres()[0].get())->table_name();
+    table = db->find_table(table_name);
+    const TableMeta &table_meta = table->table_meta();
+    const int sys_field_num = table_meta.sys_field_num();
+    const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
+    for (int u = 0; u < inserts.values.size(); u ++ ) {
+      insert_values.emplace_back();
+      for (int i = sys_field_num; i < field_num; i++) {
+        const FieldMeta *field_meta = table_meta.field(i);
+        const char *field_name = field_meta->name();
+        bool found  = false;
+        for (int j = 0; j < select_stmt->project_expres().size(); j++) {
+          const char* view_field_name = static_cast<FieldExpr *>(select_stmt->project_expres()[j].get())->field_name();
+          if (strcmp(field_name, view_field_name) != 0) continue;
+          found = true;
+          insert_values[u].emplace_back(inserts.values[u][j]);
+          break;
+        }
+        if (!found) {
+          insert_values[u].emplace_back(new Value());
+        }
+      }
+    }
+    delete select_stmt;
+    select_stmt = nullptr;
+    tmp_stmt = nullptr;
+  }else {
+    insert_values = inserts.values;
   }
 
   // check the fields number
   std::vector<const Value*> values;
-  const int  value_num  = static_cast<int>(inserts.values[0].size());
-  for (auto &x : inserts.values)
+  const int  value_num  = static_cast<int>(insert_values[0].size());
+  for (auto &x : insert_values)
   {
     const Value * value = x.data();
     const int  temp_value_num  = static_cast<int>(x.size());
