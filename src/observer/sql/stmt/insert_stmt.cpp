@@ -75,7 +75,7 @@ RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
           break;
         }
         if (!found) {
-          insert_values[u].emplace_back(new Value());
+          insert_values[u].emplace_back(Value());
         }
       }
     }
@@ -83,6 +83,13 @@ RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
     select_stmt = nullptr;
     tmp_stmt = nullptr;
     inserts.values.swap(insert_values);
+  }
+
+  for (auto& x:  inserts.values) {
+    for (auto& y: x) {
+      cout << y.attr_type() << endl;
+    }
+
   }
   // check the fields number
   std::vector<const Value*> values;
