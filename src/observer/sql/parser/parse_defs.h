@@ -313,7 +313,8 @@ struct CreateTableSelectSqlNode
   SelectSqlNode                selection;               ///<查询语句
   std::vector<AttrInfoSqlNode> attr_infos;
 };
-
+#include<unordered_map>
+static std::unordered_map<std::string, SelectSqlNode> view_map;
 /**
  * @brief 描述一个drop table语句
  * @ingroup SQLParser

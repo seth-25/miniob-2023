@@ -69,7 +69,6 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
       return RC::INVALID_ARGUMENT;
     }
 
-
     const TableMeta &table_meta = table->table_meta();
     const int sys_field_num = table_meta.sys_field_num();
     const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
