@@ -68,6 +68,10 @@ RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
         const char *field_name = field_meta->name();
         bool found  = false;
         for (int j = 0; j < select_stmt->project_expres().size(); j++) {
+          if (select_stmt->project_expres()[j]->type() != ExprType::FIELD) {
+            LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+            return RC::SCHEMA_TABLE_NOT_EXIST;
+          }
           const char* view_field_name = static_cast<FieldExpr *>(select_stmt->project_expres()[j].get())->field_name();
           if (strcmp(field_name, view_field_name) != 0) continue;
           found = true;
