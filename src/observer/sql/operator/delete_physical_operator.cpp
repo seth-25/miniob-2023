@@ -52,9 +52,28 @@ RC DeletePhysicalOperator::next()
       return rc;
     }
 
-    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
-    Record &record = row_tuple->record();
-    rc = trx_->delete_record(table_, record);
+    if (table_unit_->is_table()) {
+      RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+      Record &record = row_tuple->record();
+      rc = trx_->delete_record(table_unit_->table(), record);
+    }
+    else {
+      ProjectTuple* project_tuple = static_cast<ProjectTuple *>(tuple);
+      CompoundRecord compound_record;
+      project_tuple->get_record(compound_record);
+      if (compound_record.empty()) {
+        LOG_WARN("failed to get current record: %s", strrc(rc));
+        return RC::NOTFOUND;
+      }
+      Record &record = *compound_record[0];
+      if (table_unit_->view_stmt()->tables().empty() || !table_unit_->view_stmt()->tables()[0]->is_table()) {
+        LOG_WARN("找不到视图的创建语句的table，暂不支持视图套视图的删除");
+        return RC::NOTFOUND;
+      }
+      Table* table = table_unit_->view_stmt()->tables()[0]->table();
+      rc = trx_->delete_record(table, record);
+    }
+
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to delete record: %s", strrc(rc));
       return rc;

@@ -28,7 +28,7 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table,  std::vector<std::unique_ptr<Expression>>& exprs,
+  UpdateStmt(TableUnit *table_unit,  std::vector<std::unique_ptr<Expression>>& exprs,
             std::vector<const FieldMeta *> &fields, FilterStmt *filter_stmt);
   ~UpdateStmt() override;
 
@@ -52,13 +52,13 @@ public:
   static RC create(Db *db, Trx* trx, const UpdateSqlNode &update_sql, Stmt *&stmt);
 
 public:
-  Table *table() const
+  TableUnit *table_unit() const
   {
-    return table_;
+    return table_unit_;
   }
 
 private:
-  Table *table_ = nullptr;
+  TableUnit *table_unit_ = nullptr;
   std::vector<std::unique_ptr<Expression>> exprs_; // 需要更新的值
   std::vector<const FieldMeta *> fields_; // 需要更新的fields，和values一一对应
   FilterStmt *filter_stmt_ = nullptr;

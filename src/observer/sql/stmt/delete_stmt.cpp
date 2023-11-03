@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
-DeleteStmt::DeleteStmt(Table *table, FilterStmt *filter_stmt) : table_(table), filter_stmt_(filter_stmt)
+DeleteStmt::DeleteStmt(TableUnit *table_unit, FilterStmt *filter_stmt) : table_unit_(table_unit), filter_stmt_(filter_stmt)
 {}
 
 DeleteStmt::~DeleteStmt()
@@ -67,6 +67,6 @@ RC DeleteStmt::create(Db *db, Trx* trx, const DeleteSqlNode &delete_sql, Stmt *&
     return rc;
   }
 
-  stmt = new DeleteStmt(table, filter_stmt);
+  stmt = new DeleteStmt(table_unit, filter_stmt);
   return rc;
 }

@@ -79,22 +79,54 @@ RC UpdatePhysicalOperator::next()
       return rc;
     }
 
-    RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
-    Record &old_record = row_tuple->record();
 
-    // 将old_record的值更新成新的值
-    Record new_record;
-    rc = table_->make_record_from_old_record(fields_, values_, old_record, new_record);
-    if (rc != RC::SUCCESS) {
-      if (rc == RC::RECORD_DUPLICATE_KEY)
-      {
-        rc = RC::SUCCESS;
-        continue;
+    Table* table;
+    if (table_unit_->is_table()) {
+      RowTuple *row_tuple = static_cast<RowTuple *>(tuple);
+      Record &old_record = row_tuple->record();
+      table = table_unit_->table();
+      // 将old_record的值更新成新的值
+      Record new_record;
+      rc = table->make_record_from_old_record(fields_, values_, old_record, new_record);
+      if (rc != RC::SUCCESS) {
+        if (rc == RC::RECORD_DUPLICATE_KEY)
+        {
+          rc = RC::SUCCESS;
+          continue;
+        }
+        LOG_WARN("failed to make update record: %s", strrc(rc));
+        return rc;
       }
-      LOG_WARN("failed to make update record: %s", strrc(rc));
-      return rc;
+      rc = trx_->update_record(table, old_record, new_record, fields_);
     }
-    rc = trx_->update_record(table_, old_record, new_record, fields_); //todo
+    else {
+      ProjectTuple* project_tuple = static_cast<ProjectTuple *>(tuple);
+      CompoundRecord compound_record;
+      project_tuple->get_record(compound_record);
+      if (compound_record.empty()) {
+        LOG_WARN("failed to get current record: %s", strrc(rc));
+        return RC::NOTFOUND;
+      }
+      Record &old_record = *compound_record[0];
+      if (table_unit_->view_stmt()->tables().empty() || !table_unit_->view_stmt()->tables()[0]->is_table()) {
+        LOG_WARN("找不到视图的创建语句的table，暂不支持视图套视图的更新");
+        return RC::NOTFOUND;
+      }
+      table = table_unit_->view_stmt()->tables()[0]->table();
+      // 将old_record的值更新成新的值
+      Record new_record;
+      rc = table->make_record_from_old_record(fields_, values_, old_record, new_record);
+      if (rc != RC::SUCCESS) {
+        if (rc == RC::RECORD_DUPLICATE_KEY)
+        {
+          rc = RC::SUCCESS;
+          continue;
+        }
+        LOG_WARN("failed to make update record: %s", strrc(rc));
+        return rc;
+      }
+      rc = trx_->update_record(table, old_record, new_record, fields_);
+    }
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to update record: %s", strrc(rc));
       return rc;

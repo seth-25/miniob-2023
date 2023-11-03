@@ -341,7 +341,7 @@ RC PhysicalPlanGenerator::create_plan(DeleteLogicalOperator &delete_oper, unique
     }
   }
 
-  oper = unique_ptr<PhysicalOperator>(new DeletePhysicalOperator(delete_oper.table()));
+  oper = unique_ptr<PhysicalOperator>(new DeletePhysicalOperator(delete_oper.table_unit()));
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));
@@ -372,7 +372,7 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
       set_sub_query_phy_oper(expr);
     }
   }
-  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(), std::move(exprs), std::move(fields)));
+  oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table_unit(), std::move(exprs), std::move(fields)));
 
   if (child_physical_oper) {
     oper->add_child(std::move(child_physical_oper));

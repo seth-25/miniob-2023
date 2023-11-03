@@ -26,7 +26,7 @@ class DeleteStmt;
 class DeletePhysicalOperator : public PhysicalOperator
 {
 public:
-  DeletePhysicalOperator(Table *table) : table_(table)
+  DeletePhysicalOperator(TableUnit *table_unit) : table_unit_(table_unit)
   {}
 
   virtual ~DeletePhysicalOperator() = default;
@@ -46,6 +46,6 @@ public:
   }
 
 private:
-  Table *table_ = nullptr;
+  TableUnit *table_unit_ = nullptr;
   Trx *trx_ = nullptr;
 };

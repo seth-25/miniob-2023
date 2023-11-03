@@ -23,18 +23,18 @@ See the Mulan PSL v2 for more details. */
 class DeleteLogicalOperator : public LogicalOperator 
 {
 public:
-  DeleteLogicalOperator(Table *table);
+  DeleteLogicalOperator(TableUnit *table_unit): table_unit_(table_unit) {};
   virtual ~DeleteLogicalOperator() = default;
 
   LogicalOperatorType type() const override
   {
     return LogicalOperatorType::DELETE;
   }
-  Table *table() const
+  TableUnit *table_unit() const
   {
-    return table_;
+    return table_unit_;
   }
 
 private:
-  Table *table_ = nullptr;
+  TableUnit *table_unit_ = nullptr;
 };

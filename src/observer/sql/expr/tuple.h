@@ -551,9 +551,12 @@ public:
    * 而上面这两用到GroupTuple的get_value，是由ProjectTuple的cell_at调用
    */
   RC find_cell(const TupleCellSpec &spec, Value &value) const override;
-  void get_record(CompoundRecord &record) const override {}
-  void set_record(CompoundRecord &record) override {}
-  void set_right_record(CompoundRecord &record) override {}
+
+  void get_record(CompoundRecord &record) const override { tuple_->get_record(record); }
+
+  void set_record(CompoundRecord &record) override { tuple_->set_record(record); }
+
+  void set_right_record(CompoundRecord &record) override { tuple_->set_right_record(record); }
 
   RC do_aggregate_empty();
 
