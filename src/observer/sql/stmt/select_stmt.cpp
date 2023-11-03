@@ -294,6 +294,7 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const u
   subquery_table_map.insert(parent_table_map.begin(), parent_table_map.end());  // 子查询可能有父表
 
 
+
   // 2. collect query fields in `select` statement，将投影列转换成表达式
   std::vector<std::shared_ptr<Expression>> project_exprs;
   RC rc = create_query_field(project_exprs, select_sql, db, tables, table_map, alias_map);

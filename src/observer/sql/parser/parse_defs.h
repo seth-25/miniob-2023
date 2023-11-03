@@ -323,6 +323,7 @@ struct CreateViewSqlNode
 {
   std::string                  relation_name;         ///< Relation name
   SelectSqlNode                selection;               ///<查询语句
+  std::vector<RelAttrSqlNode>  alias_nodes;              ///< 别名
 };
 
 /**

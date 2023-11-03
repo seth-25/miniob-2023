@@ -1698,6 +1698,25 @@ create_view_stmt:
         create_view.selection = $5->selection;
         delete $5;
     }
+    | CREATE VIEW ID LBRACE rel_attr attr_list RBRACE AS select_stmt
+    {
+        $$ = new ParsedSqlNode(SCF_CREATE_VIEW);
+        CreateViewSqlNode &create_view = $$->create_view;
+        create_view.relation_name = $3;
+        free($3);
+
+        std::vector<RelAttrSqlNode> *attrs = $6;
+
+        if (attrs != nullptr) {
+            create_view.alias_nodes.swap(*attrs);
+        }
+        create_view.alias_nodes.emplace_back(*$5);
+        std::reverse(create_view.alias_nodes.begin(), create_view.alias_nodes.end());
+        delete $5;
+
+        create_view.selection = $9->selection;
+        delete $9;
+    }
 
 %%
 //_____________________________________________________________________
