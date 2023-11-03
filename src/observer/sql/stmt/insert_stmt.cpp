@@ -25,7 +25,7 @@ InsertStmt::InsertStmt(Table *table, std::vector<const Value *> values, int valu
     : table_(table), values_(std::move(values)), value_amount_(value_amount)
 {}
 
-RC InsertStmt::create(Db *db, Trx* trx, const InsertSqlNode &inserts, Stmt *&stmt)
+RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
 {
   const char *table_name = inserts.relation_name.c_str();
   if (nullptr == db || nullptr == table_name || inserts.values.empty()) {
@@ -47,13 +47,17 @@ RC InsertStmt::create(Db *db, Trx* trx, const InsertSqlNode &inserts, Stmt *&stm
       return RC::SCHEMA_TABLE_NOT_EXIST;
     }
   }
-
   std::vector<std::vector<Value>> insert_values;
   if (tmp_stmt != nullptr)
   {
     SelectStmt *select_stmt = static_cast<SelectStmt *>(tmp_stmt);
     table_name = static_cast<FieldExpr *>(select_stmt->project_expres()[0].get())->table_name();
     table = db->find_table(table_name);
+    if (table == nullptr)
+    {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
     const TableMeta &table_meta = table->table_meta();
     const int sys_field_num = table_meta.sys_field_num();
     const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
@@ -78,14 +82,12 @@ RC InsertStmt::create(Db *db, Trx* trx, const InsertSqlNode &inserts, Stmt *&stm
     delete select_stmt;
     select_stmt = nullptr;
     tmp_stmt = nullptr;
-  }else {
-    insert_values = inserts.values;
+    inserts.values.swap(insert_values);
   }
-
   // check the fields number
   std::vector<const Value*> values;
-  const int  value_num  = static_cast<int>(insert_values[0].size());
-  for (auto &x : insert_values)
+  const int  value_num  = static_cast<int>(inserts.values[0].size());
+  for (auto &x : inserts.values)
   {
     const Value * value = x.data();
     const int  temp_value_num  = static_cast<int>(x.size());
