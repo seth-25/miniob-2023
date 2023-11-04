@@ -112,7 +112,8 @@ RC LogicalPlanGenerator::create_plan(
     unique_ptr<LogicalOperator> table_get_oper(nullptr);
     if (table_unit->is_table()) {
       Table* table = table_unit->table();
-      table_get_oper = std::make_unique<TableGetLogicalOperator>(table, true/*readonly*/);
+      string table_alias = table_unit->table_alias();
+      table_get_oper = std::make_unique<TableGetLogicalOperator>(table, table_alias, true/*readonly*/);
     }
     else {
       SelectStmt* view_stmt = table_unit->view_stmt();
@@ -319,7 +320,8 @@ RC LogicalPlanGenerator::create_plan(
   unique_ptr<LogicalOperator> table_get_oper(nullptr);
   if (table_unit->is_table()) {
     Table *table = table_unit->table();
-    table_get_oper = std::make_unique<TableGetLogicalOperator>(table, false/*readonly*/);
+    string table_alias = table_unit->table_alias();
+    table_get_oper = std::make_unique<TableGetLogicalOperator>(table, table_alias, false/*readonly*/);
   }
   else {
     SelectStmt* view_stmt = table_unit->view_stmt();
@@ -354,7 +356,8 @@ RC LogicalPlanGenerator::create_plan(
   unique_ptr<LogicalOperator> table_get_oper(nullptr);
   if (table_unit->is_table()) {
     Table *table = table_unit->table();
-    table_get_oper = std::make_unique<TableGetLogicalOperator>(table, false/*readonly*/);
+    string table_alias = table_unit->table_alias();
+    table_get_oper = std::make_unique<TableGetLogicalOperator>(table, table_alias, false/*readonly*/);
   }
   else {
     SelectStmt* view_stmt = table_unit->view_stmt();

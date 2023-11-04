@@ -25,7 +25,8 @@ RC AggrFuncExpr::create_expression(const ExprSqlNode *expr, std::unique_ptr<Expr
     std::unique_ptr<Expression> field_expr;
     if (table_unit->is_table()) {
       const Table* table = table_unit->table();
-      field_expr = std::make_unique<FieldExpr>(table, table->table_meta().field(0));  // todo 可能需要修改count的field是哪列
+      string table_alias = table_unit->table_alias();
+      field_expr = std::make_unique<FieldExpr>(table, table_alias, table->table_meta().field(0));  // todo 可能需要修改count的field是哪列
     }
     else {
       SelectStmt* view_stmt = table_unit->view_stmt();
@@ -86,7 +87,7 @@ std::string AggrFuncExpr::to_string(bool with_table_name) {
 RC AggrFuncExpr::get_value(const Tuple &tuple, Value &value) const {
   FieldExpr* field_expr = (FieldExpr *)field_expr_.get();
   if (field_expr->is_table()) {
-    std::unique_ptr<FieldExpr> field_expr_copy = std::make_unique<FieldExpr>(field_expr->field());
+    std::unique_ptr<FieldExpr> field_expr_copy = std::make_unique<FieldExpr>(field_expr->field(), field_expr->table_alias());
     field_expr_copy->set_aggr(aggr_type_);
     return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value);
   }

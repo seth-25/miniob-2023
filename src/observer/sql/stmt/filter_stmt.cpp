@@ -161,13 +161,14 @@ RC gen_field_expr(TableUnit* default_table, std::unordered_map<std::string, Tabl
   if (table_unit->is_table())
   {
     const Table *table = table_unit->table();
+    string table_alias;
     const FieldMeta *field_meta = table->table_meta().field(attr.attribute_name.c_str());
     if (nullptr == field_meta)
     {
       LOG_WARN("no such field. field=%s.%s",  table->name(), attr.attribute_name.c_str());
       return RC::SCHEMA_FIELD_MISSING;
     }
-    field_expr = new FieldExpr(table, field_meta);
+    field_expr = new FieldExpr(table, table_alias, field_meta);
   }
   else
   {

@@ -13,6 +13,8 @@ See the Mulan PSL v2 for more details. */
 //
 #pragma once
 
+#include <utility>
+
 #include "sql/operator/logical_operator.h"
 #include "storage/field/field.h"
 
@@ -24,12 +26,8 @@ See the Mulan PSL v2 for more details. */
 class TableGetLogicalOperator : public LogicalOperator
 {
 public:
-  TableGetLogicalOperator(Table *table, const std::vector<Field> &fields, bool readonly)
-      : table_(table), fields_(fields), readonly_(readonly)
-  {}
-
-  TableGetLogicalOperator(Table *table, bool readonly)
-      : table_(table),  readonly_(readonly)
+  TableGetLogicalOperator(Table *table, std::string table_alias, bool readonly)
+      : table_(table), table_alias_(std::move(table_alias)),  readonly_(readonly)
   {}
   virtual ~TableGetLogicalOperator() = default;
 
@@ -39,6 +37,7 @@ public:
   }
 
   Table *table() const  { return table_; }
+  std::string table_alias() const { return table_alias_; }
   bool readonly() const { return readonly_; }
 
   void set_predicates(std::vector<std::unique_ptr<Expression>> &&exprs);
@@ -49,6 +48,7 @@ public:
 
 private:
   Table *table_ = nullptr;
+  std::string table_alias_;
   std::vector<Field> fields_;
   bool readonly_ = false;
 

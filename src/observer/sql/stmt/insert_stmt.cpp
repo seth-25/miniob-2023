@@ -50,9 +50,10 @@ RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
   std::vector<std::vector<Value>> insert_values;
   if (tmp_stmt != nullptr)
   {
-    SelectStmt *select_stmt = static_cast<SelectStmt *>(tmp_stmt);
-    table_name = static_cast<FieldExpr *>(select_stmt->project_expres()[0].get())->table_name();
+    SelectStmt *view_stmt = static_cast<SelectStmt *>(tmp_stmt);
+    table_name = static_cast<FieldExpr *>(view_stmt->project_expres()[0].get())->table_name();
     table = db->find_table(table_name);
+//    table = view_stmt->tables()[0]->table();  // insert只支持一张表
     if (table == nullptr)
     {
       LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
@@ -67,12 +68,12 @@ RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
         const FieldMeta *field_meta = table_meta.field(i);
         const char *field_name = field_meta->name();
         bool found  = false;
-        for (int j = 0; j < select_stmt->project_expres().size(); j++) {
-          if (select_stmt->project_expres()[j]->type() != ExprType::FIELD) {
+        for (int j = 0; j < view_stmt->project_expres().size(); j++) {
+          if (view_stmt->project_expres()[j]->type() != ExprType::FIELD) {
             LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
             return RC::SCHEMA_TABLE_NOT_EXIST;
           }
-          const char* view_field_name = static_cast<FieldExpr *>(select_stmt->project_expres()[j].get())->field_name();
+          const char* view_field_name = static_cast<FieldExpr *>(view_stmt->project_expres()[j].get())->field_name();
           if (strcmp(field_name, view_field_name) != 0) continue;
           found = true;
           insert_values[u].emplace_back(inserts.values[u][j]);
@@ -83,8 +84,8 @@ RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
         }
       }
     }
-    delete select_stmt;
-    select_stmt = nullptr;
+    delete view_stmt;
+    view_stmt = nullptr;
     tmp_stmt = nullptr;
     inserts.values.swap(insert_values);
   }

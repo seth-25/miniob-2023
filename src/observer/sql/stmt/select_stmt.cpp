@@ -61,17 +61,17 @@ static void wildcard_fields(TableUnit*table_unit, std::vector<std::shared_ptr<Ex
     const Table* table = table_unit->table();
 
     auto it = alias_map.find(table_unit);
-    std::string table_alias_name = table->name();
+    std::string table_alias = table->name();
     if (it != alias_map.end()) {
-      table_alias_name = it->second;
+      table_alias = it->second;
     }
 
     const TableMeta &table_meta = table->table_meta();
     const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
     for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-      FieldExpr* field_expr = new FieldExpr(table, table_meta.field(i));
+      FieldExpr* field_expr = new FieldExpr(table, table_alias, table_meta.field(i));
       if (with_table_name) {
-        field_expr->set_alias(table_alias_name + '.' + table_meta.field(i)->name());
+        field_expr->set_alias(table_alias + '.' + table_meta.field(i)->name());
       }
       else {
         field_expr->set_alias(table_meta.field(i)->name());
@@ -107,13 +107,14 @@ static RC normal_field(TableUnit* table_unit, std::vector<std::shared_ptr<Expres
   if (table_unit->is_table())
   {
     const Table *table = table_unit->table();
+    string table_alias = table_unit->table_alias();
     const FieldMeta *field_meta = table->table_meta().field(field_name);
     if (nullptr == field_meta)
     {
       LOG_WARN("no such field. field=%s.%s",  table->name(), field_name);
       return RC::SCHEMA_FIELD_MISSING;
     }
-    field_expr = new FieldExpr(table, field_meta);
+    field_expr = new FieldExpr(table, table_alias, field_meta);
   }
   else
   {
@@ -270,7 +271,7 @@ RC SelectStmt::create(Db *db, Trx* trx, const SelectSqlNode &select_sql, const u
       }
     }
     else {
-      table_unit = new TableUnit(table);
+      table_unit = new TableUnit(table, alias_name);
     }
 
     assert(table_unit != nullptr);

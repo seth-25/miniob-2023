@@ -53,7 +53,7 @@ RC DeleteStmt::create(Db *db, Trx* trx, const DeleteSqlNode &delete_sql, Stmt *&
 
   }
   else {
-    table_unit = new TableUnit(table);
+    table_unit = new TableUnit(table, "");
   }
 
   std::unordered_map<std::string, TableUnit*> table_map;

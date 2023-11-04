@@ -154,15 +154,20 @@ class FieldExpr : public Expression
 {
 public:
   FieldExpr() = default;
-  FieldExpr(const Table *table, const FieldMeta *field) : field_(table, field) { is_table_ = true;
+  FieldExpr(const Table *table, string table_alias, const FieldMeta *field) : field_(table, field) {
+    is_table_ = true;
+    table_alias_ = std::move(table_alias);
   }
-  FieldExpr(const Table *table, const FieldMeta *field, bool with_brace) : field_(table, field) {
+  FieldExpr(const Table *table, string table_alias, const FieldMeta *field, bool with_brace) : field_(table, field) {
     is_table_ = true;
     if (with_brace) {
       set_with_brace();
     }
+    table_alias_ = std::move(table_alias);
   }
-  FieldExpr(const Field &field) : field_(field) { is_table_ = true;
+  FieldExpr(const Field &field, string table_alias) : field_(field) {
+    is_table_ = true;
+    table_alias_ = std::move(table_alias);
   }
   FieldExpr(std::shared_ptr<Expression> view_expr, std::string view_name) {
     is_table_ = false;
@@ -196,11 +201,16 @@ public:
 
   const char *table_name() const {
     if (is_table_) {
-      return field_.table_name();
+      return table_alias_.c_str();
     }
     else {
       return view_name_.c_str();
     }
+  }
+
+  const char * table_alias() const {
+    assert(is_table_);
+    return table_alias_.c_str();
   }
 
   const char *field_name() const {
@@ -269,6 +279,7 @@ public:
 private:
   bool is_table_ = false; // true使用field，false使view_expr
   Field field_;
+  string table_alias_;
 
   std::shared_ptr<Expression> view_expr_;  // view的某列投影的表达式
   AttrType view_expr_value_type_;

@@ -87,7 +87,7 @@ RC Expression::get_field_exprs_from_project(const Expression* expr, std::vector<
   if (expr->type() == ExprType::FIELD) {  // todo unique改share，不再copy
     FieldExpr* field_expr = (FieldExpr*) expr;
     if (field_expr->is_table()) {
-      std::unique_ptr<Expression> field_expr_copy(new FieldExpr(field_expr->field()));
+      std::unique_ptr<Expression> field_expr_copy(new FieldExpr(field_expr->field(), field_expr->table_alias()));
       field_exprs.emplace_back(std::move(field_expr_copy));
     }
     else {
@@ -233,7 +233,7 @@ RC Expression::find_expr(vector<std::shared_ptr<Expression>> &exprs, shared_ptr<
 RC FieldExpr::get_value(const Tuple &tuple, Value &value) const
 {
   if (is_table()) {
-    unique_ptr<FieldExpr> field_expr_copy = make_unique<FieldExpr>(field_);
+    unique_ptr<FieldExpr> field_expr_copy = make_unique<FieldExpr>(field_, table_alias_);
     return tuple.find_cell(TupleCellSpec(std::move(field_expr_copy)), value); // row tuple
   }
   else {
@@ -362,12 +362,13 @@ RC FieldExpr::create_expression(const ExprSqlNode *expr, unique_ptr<Expression> 
     }
     if (default_table->is_table()) {
       const Table* table = default_table->table();
+      string table_alias = default_table->table_alias();
       const FieldMeta *field_meta = table->table_meta().field(field_name);
       if (nullptr == field_meta) {
         LOG_WARN("no such field. field=%s.%s", table->name(), field_name);
         return RC::SCHEMA_FIELD_MISSING;
       }
-      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(table, field_meta, with_brace));
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(table, table_alias, field_meta, with_brace));
       res_expr = std::move(field_expr);
     }
     else {
@@ -390,12 +391,13 @@ RC FieldExpr::create_expression(const ExprSqlNode *expr, unique_ptr<Expression> 
     TableUnit* table_unit = iter->second;
     if (table_unit->is_table()) {
       const Table *table = table_unit->table();
+      string table_alias = table_unit->table_alias();
       const FieldMeta *field_meta = table->table_meta().field(field_name);
       if (nullptr == field_meta) {  // 表达式里的field不支持select t.* from t;
         LOG_WARN("no such field. field=%s.%s", table->name(), field_name);
         return RC::SCHEMA_FIELD_MISSING;
       }
-      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(table, field_meta, with_brace));
+      std::unique_ptr<FieldExpr> field_expr(new FieldExpr(table, table_alias, field_meta, with_brace));
       if (std::string(table_name) != std::string(table->name())) {  // 表存在别名
         if (default_table == nullptr) { // 多表的情况
           field_expr->set_alias(std::string(table_name) + "." + std::string(field_name));

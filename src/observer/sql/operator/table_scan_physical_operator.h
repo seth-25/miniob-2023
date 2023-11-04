@@ -14,6 +14,8 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <utility>
+
 #include "sql/operator/physical_operator.h"
 #include "storage/record/record_manager.h"
 #include "common/rc.h"
@@ -27,8 +29,8 @@ class Table;
 class TableScanPhysicalOperator : public PhysicalOperator
 {
 public:
-  TableScanPhysicalOperator(Table *table, bool readonly) 
-      : table_(table), readonly_(readonly)
+  TableScanPhysicalOperator(Table *table, std::string table_alias, bool readonly)
+      : table_(table), table_alias_(std::move(table_alias)), readonly_(readonly)
   {}
 
   virtual ~TableScanPhysicalOperator() = default;
@@ -53,6 +55,7 @@ private:
 
 private:
   Table *                                  table_ = nullptr;
+  std::string                              table_alias_;
   Trx *                                    trx_ = nullptr;
   bool                                     readonly_ = false;
   RecordFileScanner                        record_scanner_;

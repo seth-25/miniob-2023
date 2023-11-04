@@ -41,5 +41,4 @@ public:
 private:
   std::string alias_;
   std::shared_ptr<Expression> expression_;
-  std::string table_name;
 };

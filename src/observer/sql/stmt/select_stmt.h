@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <utility>
 #include <vector>
 #include <memory>
 
@@ -83,9 +84,10 @@ private:
 class TableUnit
 {
 public:
-  TableUnit(Table* table) {
+  TableUnit(Table* table, string table_alias) {
     is_table_ = true;
     table_ = table;
+    table_alias_ = std::move(table_alias);
   }
   TableUnit(SelectStmt* stmt, std::string view_name) {
     is_table_ = false;
@@ -99,6 +101,11 @@ public:
   {
     assert(is_table());
     return table_;
+  }
+
+  std::string table_alias() const
+  {
+    return table_alias_;
   }
 
   SelectStmt* view_stmt() const
@@ -115,6 +122,8 @@ public:
 private:
   bool is_table_ = true;    // 是表还是view
   Table* table_;
+  string table_alias_;
+  std::string table_alias_name;
   SelectStmt* view_stmt_ = nullptr;
   std::string view_name_;
 };

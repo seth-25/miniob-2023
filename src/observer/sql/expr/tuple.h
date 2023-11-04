@@ -180,12 +180,13 @@ public:
     this->bitmap_.init(record->data() + null_filed_meta->offset(), null_filed_meta->len());
   }
 
-  void set_schema(const Table *table, const std::vector<FieldMeta> *fields)
+  void set_schema(const Table *table, const string& table_alias, const std::vector<FieldMeta> *fields)
   {
     table_ = table;
+    table_alias_ = table_alias;
     this->speces_.reserve(fields->size());
     for (const FieldMeta &field : *fields) {
-      speces_.push_back(new FieldExpr(table, &field));
+      speces_.push_back(new FieldExpr(table, table_alias, &field));
     }
   }
 
@@ -234,11 +235,19 @@ public:
     assert(spec.expression()->type() == ExprType::FIELD);
     FieldExpr  *spec_field_expr = (FieldExpr *)spec.expression();
     const char *table_name      = spec_field_expr->table_name();
+    const char *table_alias     = spec_field_expr->table_alias();
     const char *field_name      = spec_field_expr->field_name();
-
-    if (0 != strcmp(table_name, table_->name())) {
-      return RC::NOTFOUND;
+    if (strlen(table_alias) == 0) {
+      if (0 != strcmp(table_name, table_->name())) {
+        return RC::NOTFOUND;
+      }
     }
+    else {
+      if (0 != strcmp(table_alias, table_alias_.c_str())) {
+        return RC::NOTFOUND;
+      }
+    }
+
 
     for (size_t i = 0; i < speces_.size(); ++i) {
       const FieldExpr *field_expr = speces_[i];
@@ -285,6 +294,7 @@ private:
   common::Bitmap           bitmap_;
   Record                  *record_ = nullptr;
   const Table             *table_  = nullptr;
+  string                   table_alias_;
   std::vector<FieldExpr *> speces_;
 };
 

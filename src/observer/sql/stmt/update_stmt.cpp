@@ -68,7 +68,7 @@ RC UpdateStmt::create(Db *db, Trx* trx, const UpdateSqlNode &update, Stmt *&stmt
     }
   }
   else {
-    table_unit = new TableUnit(table);
+    table_unit = new TableUnit(table, "");  // update 暂不支持别名
   }
 
 
