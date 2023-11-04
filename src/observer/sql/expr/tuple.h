@@ -237,6 +237,7 @@ public:
     const char *table_name      = spec_field_expr->table_name();
     const char *table_alias     = spec_field_expr->table_alias();
     const char *field_name      = spec_field_expr->field_name();
+//    std::cout << table_name << " " << table_alias << " " << table_alias_.c_str() << ":end" << endl;
     if (strlen(table_alias) == 0) {
       if (0 != strcmp(table_name, table_->name())) {
         return RC::NOTFOUND;

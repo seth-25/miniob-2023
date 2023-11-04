@@ -69,7 +69,14 @@ static void wildcard_fields(TableUnit*table_unit, std::vector<std::shared_ptr<Ex
     const TableMeta &table_meta = table->table_meta();
     const int field_num = table_meta.field_num() - table_meta.extra_filed_num();
     for (int i = table_meta.sys_field_num(); i < field_num; i++) {
-      FieldExpr* field_expr = new FieldExpr(table, table_alias, table_meta.field(i));
+      FieldExpr* field_expr = nullptr;
+      if (table_alias != table->name()) {
+        field_expr = new FieldExpr(table, table_alias, table_meta.field(i));
+      }
+      else {
+        field_expr = new FieldExpr(table, "", table_meta.field(i));
+      }
+
       if (with_table_name) {
         field_expr->set_alias(table_alias + '.' + table_meta.field(i)->name());
       }

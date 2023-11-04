@@ -201,7 +201,7 @@ public:
 
   const char *table_name() const {
     if (is_table_) {
-      return table_alias_.c_str();
+      return field_.table_name();
     }
     else {
       return view_name_.c_str();
