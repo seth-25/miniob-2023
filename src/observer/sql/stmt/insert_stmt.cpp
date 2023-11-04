@@ -88,13 +88,6 @@ RC InsertStmt::create(Db *db, Trx* trx, InsertSqlNode &inserts, Stmt *&stmt)
     tmp_stmt = nullptr;
     inserts.values.swap(insert_values);
   }
-
-  for (auto& x:  inserts.values) {
-    for (auto& y: x) {
-      cout << y.attr_type() << endl;
-    }
-
-  }
   // check the fields number
   std::vector<const Value*> values;
   const int  value_num  = static_cast<int>(inserts.values[0].size());

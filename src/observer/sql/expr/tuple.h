@@ -118,7 +118,7 @@ public:
   virtual std::string to_string() const
   {
     std::string str;
-    const int   cell_num = this->cell_num();
+    const int cell_num = this->cell_num() - 1;  // 最后一列是null
     for (int i = 0; i < cell_num - 1; i++) {
       Value cell;
       cell_at(i, cell);
@@ -189,7 +189,13 @@ public:
     }
   }
 
-  int cell_num() const override { return speces_.size(); }
+  void clear_schema() {
+    speces_.clear();
+  }
+
+  int cell_num() const override {
+    return speces_.size();
+  }
 
   /**
    * 根据index，获取第i个字段的值
@@ -238,7 +244,8 @@ public:
       const FieldExpr *field_expr = speces_[i];
       const Field     &field      = field_expr->field();
       if (0 == strcmp(field_name, field.field_name())) {
-        return cell_at(i, cell);
+        RC rc = cell_at(i, cell);
+        return rc;
       }
     }
     return RC::NOTFOUND;
@@ -448,14 +455,18 @@ private:
 class JoinedTuple : public Tuple
 {
 public:
-  JoinedTuple()          = default;
+  JoinedTuple()= default;
   JoinedTuple(Tuple *left, Tuple *right) : left_(left), right_(right) {};
 
   virtual ~JoinedTuple() = default;
 
 
-  void set_left(Tuple *left) { left_ = left; }
-  void set_right(Tuple *right) { right_ = right; }
+  void set_left(Tuple *left) {
+    left_ = left;
+  }
+  void set_right(Tuple *right) {
+    right_ = right;
+  }
 
   int cell_num() const override { return left_->cell_num() + right_->cell_num(); }
 
@@ -478,6 +489,7 @@ public:
 
   /**
    * 由AggrFuncExpr的get_value或FieldExpr的get_value调用
+   * 注意left_和right_的tuple都可以find的情况
    */
   RC find_cell(const TupleCellSpec &spec, Value &value) const override
   {

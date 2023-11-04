@@ -132,10 +132,11 @@ RC NestedLoopJoinPhysicalOperator::right_next()
 
   right_tuple_ = right_->current_tuple();
   joined_tuple_.set_right(right_tuple_);
+
   return rc;
 }
 
-
+/*
 CacheNestedLoopJoinPhysicalOperator::CacheNestedLoopJoinPhysicalOperator()
 {}
 
@@ -255,4 +256,4 @@ RC CacheNestedLoopJoinPhysicalOperator::right_next()
   right_tuple_ = right_->current_tuple();
   joined_tuple_.set_right(right_tuple_);
   return rc;
-}
+}*/
